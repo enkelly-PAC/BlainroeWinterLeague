@@ -55,22 +55,25 @@
       <p class="note">Enter final cards through Administration. Template scores are blank, not invented results.</p>
     </section>
     <section id="admin-panel" role="tabpanel" aria-labelledby="tab-admin" hidden>
-      <h2>Administration: local draft workspace</h2>
-      <p class="warning"><strong>No login or publishing from this page.</strong> Anyone can experiment locally; no anonymous upload changes public results. Browser storage is not a secure vault or a backup. Only the repository owner publishes reviewed JSON through GitHub.</p>
-      <div class="actions"><button id="start-draft">Start / resume local draft</button><button id="reset-draft">Replace draft with published data</button><button id="demo">Load explicitly synthetic demo</button><button id="delete-draft">Delete local draft</button></div>
-      <p id="storage-notice" class="note"></p>
-      <div class="admin-grid">
         <section class="card">
-          <h3>1. Import and preview</h3>
+          <h2 id="import-heading">Upload results CSV</h2>
+          <p id="import-help"><strong>Feeds League and Singles.</strong> Choose Competition Report (Aggregated Net Result) CSV files for one weekend.</p>
+          <p id="import-example" class="note">Example filename: Competition Report 2026-11-07.csv</p>
+          <p id="import-steps">1. Choose CSV(s). 2. Preview. 3. Confirm weekend and 12-hole net points. 4. Save results to your draft.</p>
+          <p class="warning"><strong>Local only, not published.</strong> Preview saves nothing. Apply starts or resumes your browser draft; existing draft data is preserved unless you confirm replacement. Only the owner can publish reviewed JSON through GitHub. Back up your draft.</p>
+          <p id="storage-notice" class="note"></p>
+          <div class="actions"><button id="start-draft">Start local draft (optional)</button><button id="results-import" type="button" hidden>Upload results CSV instead</button></div>
           <form id="import-form">
-            <label>Import type<select id="import-type"><option value="teams">Team registration</option><option value="scores">Weekend scores (net Stableford)</option><option value="final">Final player cards</option><option value="restore">JSON backup / publication restore</option></select></label>
-            <label>File(s), maximum 2 MB each<input id="import-files" type="file" accept=".csv,text/csv,.json,application/json" multiple required></label>
-            <p class="note">Multiple files are supported for weekend scores only. Identical repeated cards are deduplicated; conflicting cards are rejected.</p>
-            <p class="note">For Handicap Master, use Competition Report (Aggregated Net Result). Gross Competition Scorecards / hole-by-hole exports are not Winter League points and cannot be imported here. Explicit No Return and DQ results in aggregated reports are omitted, with counts shown in the preview.</p>
-            <button type="submit">Read files and preview</button>
+            <label><span id="import-file-label">Choose results CSV</span><input id="import-files" type="file" accept=".csv,text/csv" aria-describedby="import-help import-file-help" multiple required></label>
+            <p id="import-file-help" class="note">Maximum 2 MB each, up to 20 files for one weekend. Identical cards are deduplicated; conflicts are rejected. No Return and DQ rows are omitted with preview counts.</p>
+            <button id="preview-import" type="submit">Preview results</button>
+            <details id="other-imports"><summary>Other imports: final cards or JSON restore</summary>
+              <label>Import type<select id="import-type"><option value="scores" selected>Results CSV (League and Singles)</option><option value="teams">Team registration</option><option value="final">Final player cards</option><option value="restore">JSON backup / publication restore</option></select></label>
+              <p class="note">These use the same choose, preview and apply form above. Gross scorecards are not supported.</p>
+            </details>
           </form>
           <div id="preview" hidden>
-            <h4>Import preview (not saved yet)</h4><p id="preview-summary"></p><div id="preview-table"></div>
+            <h3 id="preview-heading" tabindex="-1">Import preview (not saved yet)</h3><p id="preview-summary"></p><div id="preview-table"></div>
             <form id="apply-form">
               <fieldset id="score-metadata" hidden><legend>Required weekend metadata</legend>
                 <label>Weekend date (Saturday or Sunday, ISO)<input id="weekend-date" type="date"></label>
@@ -81,13 +84,21 @@
                 <p class="note">For a score conflict, prepare one complete corrected weekend CSV and choose replace. Replacement deletes every previous card for that weekend, with confirmation.</p>
               </fieldset>
               <fieldset id="final-metadata" hidden><legend>Final metadata</legend><label>Confirmed final date (optional)<input id="final-date" type="date"></label><p>Replaces all existing final cards, with confirmation. Blank date means awaiting confirmation.</p></fieldset>
-              <button type="submit">Validate and apply to local draft</button><button id="cancel-preview" type="button">Cancel preview</button>
+              <button id="apply-import" type="submit">Save results to my draft</button><button id="cancel-preview" type="button">Cancel preview</button>
             </form>
           </div>
-          <div class="actions"><button id="team-template">Team CSV template</button><button id="score-template">Score CSV template</button></div>
+          <aside class="scorecard-info" aria-labelledby="scorecard-heading">
+            <h3 id="scorecard-heading">Have a scorecard CSV?</h3>
+            <p>Competition Scorecards CSVs contain hole-by-hole gross data, not net Stableford results. They cannot feed Winter League or Singles. Keep them privately for a separate future Winter Eclectic. There is no scorecard upload or Eclectic feature here yet.</p>
+          </aside>
+          <details><summary>Results CSV template</summary><div class="actions"><button id="score-template">Download net results CSV template</button></div></details>
         </section>
-        <section class="card">
-          <h3>2. Committee settings</h3>
+        <section class="card" aria-labelledby="registration-heading">
+          <h3 id="registration-heading">Team registration</h3>
+          <p>Register three players per team separately. Results can be imported first; unassigned cards are retained.</p>
+          <div class="actions"><button id="teams-import" type="button">Choose team registration CSV</button><button id="team-template">Team CSV template</button></div>
+        </section>
+        <details class="card"><summary>Committee settings</summary>
           <form id="settings-form">
             <label>Maximum qualifying weekends<input id="max-rounds" type="number" min="1" max="52" required></label>
             <label>Worst weekends to discard after completion<input id="discard-count" type="number" min="0" max="51" required></label>
@@ -96,14 +107,18 @@
             <p class="warning">Rules explicitly require all 3 cards for final countback, but do not explicitly define the final team total. Default best 2 mirrors the league. Confirm with the committee before publication.</p>
             <button type="submit">Save settings to draft</button>
           </form>
-          <h3>3. Manage draft weekends</h3><div id="round-editors"></div>
+        </details>
+        <details class="card"><summary>Manage draft weekends and final cards</summary><div id="round-editors"></div>
           <button id="clear-final">Remove all draft final cards</button>
-        </section>
-      </div>
-      <section class="card"><h3>4. Back up and publish</h3>
+        </details>
+      <details class="card"><summary>Back up and owner publication</summary>
         <p>Download a backup regularly. To publish, download publication JSON, review the report and names, then replace <code>data/published.json</code> in the repository using the <a href="./README.html#publishing">documented owner commit workflow</a>. This browser cannot change the server.</p>
         <div class="actions"><button id="backup">Download draft JSON backup</button><button id="publication">Export validated publication JSON</button></div>
-      </section>
+      </details>
+      <details class="card"><summary>Advanced: replace, demo or delete local draft</summary>
+        <p>These actions require confirmation. Browser storage is not a secure vault or a backup. Public results are unchanged.</p>
+        <div class="actions"><button id="reset-draft">Replace draft with published data</button><button id="demo">Load explicitly synthetic demo</button><button id="delete-draft">Delete local draft</button></div>
+      </details>
     </section>
     </div>
   </main>

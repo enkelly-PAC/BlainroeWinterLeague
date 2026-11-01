@@ -2,7 +2,7 @@ import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams,
 import { readDraft, saveDraft, STORAGE_KEY } from './storage.js';
 
 const $ = id => document.getElementById(id);
-let published = emptyState(), publishedReady = false, draft = null, mode = 'published', pending = null, storageBlocked = false;
+let published = emptyState(), publishedReady = false, draft = null, mode = 'published', pending = null, storageBlocked = false, previewRevision = 0;
 const singlesSelection = { published: null, draft: null };
 let storage;
 try { storage = window.localStorage; } catch { storage = null; }
@@ -28,6 +28,11 @@ function working() {
     draft = structuredClone(published);
   }
   return draft;
+}
+function importBase() {
+  if (storageBlocked) throw new Error('Unreadable draft preserved. Restore a validated JSON backup or explicitly replace/delete the draft before applying imports.');
+  if (!draft && !publishedReady) throw new Error('Published data is unavailable. Refresh it first, or restore a validated JSON backup.');
+  return draft || published;
 }
 function persist(state, success) {
   validateState(state);
@@ -108,6 +113,7 @@ function render() {
   $('view-label').textContent = mode === 'draft' ? 'Browser-only draft results' : publishedReady ? 'Published club results' : 'Published data unavailable';
   $('draft-banner').hidden = mode !== 'draft';
   $('published-view').disabled = mode === 'published';
+  $('start-draft').textContent = draft ? 'View / resume my saved draft' : 'Start local draft (optional)';
   $('league-summary').textContent = `${state.settings.complete ? 'Qualification complete' : 'Provisional league, no discards applied'}: ${result.rounds.length} of at most ${state.settings.maxRounds} qualifying weekends. ${result.discardCount} discarded per team; ${result.rounds.length - result.discardCount} retained. ${state.teams.length} registered teams.`;
   const warnings = [];
   if (result.firstUnresolved) warnings.push('First place remains tied after the configured tie hierarchy.');
@@ -213,7 +219,7 @@ $('reset-draft').addEventListener('click', safely(() => {
 $('delete-draft').addEventListener('click', safely(() => {
   if (!confirm('Delete the saved local draft and in-memory draft? Public data remains unchanged.')) return;
   try { storage?.removeItem(STORAGE_KEY); } catch { throw new Error('Browser refused to delete storage. Use browser site-data controls.'); }
-  draft = null; storageBlocked = false; mode = 'published'; pending = null; $('preview').hidden = true;
+  draft = null; storageBlocked = false; mode = 'published'; clearPreview();
   $('storage-notice').textContent = 'Local draft deleted.'; render(); message('Local draft deleted. Public data unchanged.');
 }));
 $('demo').addEventListener('click', safely(() => {
@@ -223,17 +229,65 @@ $('demo').addEventListener('click', safely(() => {
   demo.rounds = [{ date: '2026-11-07', name: 'SYNTHETIC demonstration only', qualifying: true, canceled: false, cards: demo.teams.flatMap((t, j) => t.players.map((player, i) => ({ player, score: 30 + j + i }))) }];
   storageBlocked = false; persist(demo, 'Synthetic DEMO loaded; not official results.');
 }));
-function clearPreview() { pending = null; $('preview').hidden = true; }
-$('import-type').addEventListener('change', clearPreview);
-$('cancel-preview').addEventListener('click', clearPreview);
+function clearPreview() {
+  previewRevision++;
+  pending = null; $('preview').hidden = true;
+  $('score-metadata').hidden = true; $('final-metadata').hidden = true;
+  $('net-confirm').checked = false;
+}
+function updateImportType() {
+  clearPreview();
+  const kind = $('import-type').value;
+  const labels = {
+    scores: ['Upload results CSV', 'Choose results CSV', 'Preview results', 'Save results to my draft'],
+    teams: ['Upload team registration CSV', 'Choose team registration CSV', 'Preview teams', 'Save teams to my draft'],
+    final: ['Upload final player cards CSV', 'Choose final cards CSV', 'Preview final cards', 'Save final cards to my draft'],
+    restore: ['Restore JSON backup', 'Choose JSON backup', 'Preview JSON restore', 'Replace my draft with this JSON']
+  }[kind];
+  ['import-heading', 'import-file-label', 'preview-import', 'apply-import'].forEach((id, i) => { $(id).textContent = labels[i]; });
+  $('import-help').textContent = {
+    scores: 'Feeds League and Singles. Choose Competition Report (Aggregated Net Result) CSV files for one weekend.',
+    teams: 'Registers three players per team. Replaces draft registration after confirmation; existing results are retained.',
+    final: 'Final only, not weekly League or Singles results. Requires completed qualification and eligible registered players.',
+    restore: 'Restores a validated JSON backup or publication file. Replaces the entire local draft only after confirmation.'
+  }[kind];
+  $('import-example').textContent = {
+    scores: 'Example filename: Competition Report 2026-11-07.csv',
+    teams: 'Use the Team CSV template below.',
+    final: 'Use the eligible final CSV template on the Final tab.',
+    restore: 'Example filename: blainroe-draft-backup.json'
+  }[kind];
+  $('import-steps').textContent = kind === 'scores'
+    ? '1. Choose CSV(s). 2. Preview. 3. Confirm weekend and 12-hole net points. 4. Save results to your draft.'
+    : '1. Choose a file. 2. Preview. 3. Review and confirm replacement. 4. Apply to your local draft.';
+  $('import-file-help').textContent = kind === 'scores'
+    ? 'Maximum 2 MB each, up to 20 files for one weekend. Identical cards are deduplicated; conflicts are rejected. No Return and DQ rows are omitted with preview counts.'
+    : 'Choose one file, maximum 2 MB. Preview saves nothing; review before applying to your local draft.';
+  $('import-files').value = '';
+  $('import-files').accept = kind === 'restore' ? '.json,application/json' : '.csv,text/csv';
+  $('import-files').multiple = kind === 'scores';
+  $('results-import').hidden = kind === 'scores';
+}
+function chooseImportType(kind) {
+  $('import-type').value = kind;
+  updateImportType();
+  $('import-files').focus();
+}
+$('import-type').addEventListener('change', updateImportType);
+$('teams-import').addEventListener('click', () => chooseImportType('teams'));
+$('results-import').addEventListener('click', () => chooseImportType('scores'));
+$('import-files').addEventListener('change', clearPreview);
+$('cancel-preview').addEventListener('click', () => { clearPreview(); $('import-files').focus(); });
 $('import-form').addEventListener('submit', safely(async () => {
   clearPreview();
+  const revision = previewRevision;
   const kind = $('import-type').value, files = [...$('import-files').files];
   if (!files.length) throw new Error('Choose a file.');
   if (kind !== 'scores' && files.length !== 1) throw new Error('Choose exactly one file for this import type.');
   if (files.length > 20) throw new Error('Choose at most 20 score files per preview.');
   for (const file of files) if (file.size > MAX_BYTES) throw new Error(`${file.name} exceeds the 2 MB file limit.`);
   const sources = await Promise.all(files.map(file => file.text()));
+  if (revision !== previewRevision) return;
   let data, rows, columns, omissions = '';
   if (kind === 'teams') {
     data = parseTeams(sources[0]); rows = data.map(t => [t.name, ...t.players]); columns = ['Team', 'Player 1', 'Player 2', 'Player 3'];
@@ -256,26 +310,28 @@ $('import-form').addEventListener('submit', safely(async () => {
     }
     data = [...cards.values()];
     $('weekend-date').value = weekendKeys.every(Boolean) ? dates[0] : '';
-    $('round-name').value = dates[0] ? draft?.rounds.find(r => r.date === dates[0])?.name || '' : '';
-    $('qualifying').checked = dates[0] ? draft?.rounds.find(r => r.date === dates[0])?.qualifying ?? true : true;
+    const existing = (draft || published).rounds.find(r => r.date === dates[0]);
+    $('round-name').value = existing?.name || '';
+    $('qualifying').checked = existing?.qualifying ?? true;
     $('net-confirm').checked = false; $('import-mode').value = 'merge';
-    const registered = new Set(working().teams.flatMap(t => t.players.map(canonical)));
+    const registered = new Set((draft || published).teams.flatMap(t => t.players.map(canonical)));
     rows = data.map(c => [c.player, c.score, c.handicap ?? '', registered.has(canonical(c.player)) ? 'Registered' : 'Unassigned']);
     columns = ['Player', 'Net points', 'Handicap (metadata)', 'Assignment'];
   } else if (kind === 'restore') {
     data = parseJSON(sources[0]); rows = [[data.teams.length, data.rounds.length, data.final?.cards.length || 0]]; columns = ['Teams', 'Weekends', 'Final cards'];
   } else {
-    data = parseFinal(sources[0], working(), $('final-date').value || null);
+    data = parseFinal(sources[0], importBase(), $('final-date').value || null);
     rows = data.cards.map(c => [c.team, c.player, c.total, c.back9, c.back6, c.back3, c.back1]); columns = ['Team', 'Player', 'Total', 'Back9', 'Back6', 'Back3', 'Back1'];
   }
   pending = { kind, data };
   $('preview-summary').textContent = `${files.map(f => f.name).join(', ')}: ${rows.length} preview rows. Review all names and values. Nothing has been saved.${omissions}${kind === 'scores' && !$('weekend-date').value ? ' A file has no usable weekend date: explicitly assign the committee weekend below.' : ''}`;
   table('preview-table', 'Pending import', columns, rows);
   $('score-metadata').hidden = kind !== 'scores'; $('final-metadata').hidden = kind !== 'final';
-  $('preview').hidden = false; message('Preview ready. Review metadata, then explicitly apply to the browser draft.');
+  $('preview').hidden = false; $('preview-heading').focus();
+  message('Preview ready. Review metadata, then explicitly apply to the browser draft.');
 }));
 $('weekend-date').addEventListener('change', safely(() => {
-  const existing = draft?.rounds.find(r => r.date === weekendDate($('weekend-date').value));
+  const existing = (draft || published).rounds.find(r => r.date === weekendDate($('weekend-date').value));
   if (existing) { $('round-name').value = existing.name; $('qualifying').checked = existing.qualifying; }
 }));
 $('apply-form').addEventListener('submit', safely(() => {
@@ -285,7 +341,7 @@ $('apply-form').addEventListener('submit', safely(() => {
     if (!confirm('Replace the entire local draft with this validated JSON? Download a backup first.')) return;
     storageBlocked = false; next = pending.data;
   } else {
-    next = structuredClone(working());
+    next = structuredClone(importBase());
     if (pending.kind === 'teams') {
       if (!confirm('Replace all draft registrations with the previewed teams? Raw scores remain and will recalculate.')) return;
       next.teams = pending.data;
@@ -328,5 +384,6 @@ $('final-template').addEventListener('click', safely(() => {
   if (!state.settings.complete || league(state).cutoffUnresolved) throw new Error('Final template locked until qualification is complete and cutoff is resolved.');
   csvDownload('final-template.csv', ['Team', 'Player', 'Total', 'Back9', 'Back6', 'Back3', 'Back1'], state.teams.filter(t => eligible.includes(t.name)).flatMap(t => t.players.map(p => [t.name, p, '', '', '', '', ''])));
 }));
+updateImportType();
 render();
 refresh();
