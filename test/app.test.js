@@ -42,13 +42,13 @@ async function workspace(t, source = null) {
   async function preview(content = 'Played on,08/11/2026\nPlayer,Score\nSynthetic Player,29') {
     $('import-files').files = [{ name: 'synthetic-results.csv', size: content.length, text: async () => content }];
     await $('import-files').emit('change');
-    await $('import-form').emit('submit');
   }
   return { $, values, preview };
 }
 
 test('results preview is read-only; only a valid explicit apply starts a saved draft', async t => {
   const { $, values, preview } = await workspace(t);
+  assert.equal($('apply-import').disabled, true);
   await preview();
   assert.equal($('preview').hidden, false);
   assert.equal($('weekend-date').value, '2026-11-07');
@@ -57,6 +57,8 @@ test('results preview is read-only; only a valid explicit apply starts a saved d
   assert.equal(values.has(STORAGE_KEY), false);
   $('net-confirm').checked = true;
   $('round-name').value = 'Synthetic weekend';
+  await $('net-confirm').emit('change');
+  assert.equal($('apply-import').disabled, false);
   await $('apply-form').emit('submit');
   const saved = JSON.parse(values.get(STORAGE_KEY));
   assert.equal(saved.rounds.length, 1);
@@ -121,9 +123,84 @@ test('switching type or files invalidates pending and in-flight previews and upd
   assert.equal($('import-heading').textContent, 'Upload team registration CSV');
   await $('results-import').emit('click');
   await preview();
+  $('import-files').files = [];
   await $('import-files').emit('change');
   await $('apply-form').emit('submit');
   assert.equal($('preview').hidden, true);
+  assert.equal(values.has(STORAGE_KEY), false);
+});
+
+const grossScorecards = 'Competition Scorecards\nHole by Hole scores returned\nPlayer(s),,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,Total,Page\nSynthetic Player,,5,PU,-,NR';
+const netReport = [
+  'Competition Result',
+  '"Aggregate result of the Competition played on Saturday 31 October 2026 and Sunday 1 November 2026 at Synthetic Club."',
+  'Aggregated Results - Net Scores',
+  '"Overall Position","","","Score (Play H\'cap)","","","Countback"',
+  '"1","Synthetic Alpha","","29 pts (07)"',
+  '"2","Synthetic Beta","","24 pts (-01)"',
+  '"3","Synthetic Gamma","","0 pts (+03)"',
+  '"-","Synthetic NoReturn","","No Return"',
+  '"-","Synthetic DQ1","","21 pts (12)","","DQ: Rule 3.3b(2)"',
+  '"-","Synthetic DQ2","","12 pts (10)","","DQ: Rule 3.3b(2)"',
+  'Number of Cards Processed = 6'
+].join('\r\n');
+
+test('choosing a mixed batch automatically previews only net cards and explicitly identifies gross scorecards', async t => {
+  const { $, values } = await workspace(t);
+  $('import-files').files = [netReport, grossScorecards, grossScorecards].map((content, index) => ({
+    name: `synthetic-${index}.csv`, size: content.length, text: async () => content
+  }));
+  await $('import-files').emit('change');
+  assert.equal($('preview').hidden, false);
+  assert.equal($('apply-import').disabled, true);
+  assert.equal($('weekend-date').value, '2026-10-31');
+  assert.match($('recognized-scorecards').textContent, /2 recognized scorecard file/);
+  assert.match($('recognized-scorecards').textContent, /synthetic-1.csv, synthetic-2.csv/);
+  assert.match($('import-status').textContent, /3 valid net cards/);
+  assert.match($('import-status').textContent, /1 no return\/withdrawn; 2 disqualified/);
+  assert.equal(values.has(STORAGE_KEY), false);
+  $('round-name').value = 'Synthetic round 1'; $('net-confirm').checked = true;
+  await $('round-name').emit('input');
+  assert.equal($('apply-import').disabled, false);
+  await $('apply-form').emit('submit');
+  const saved = JSON.parse(values.get(STORAGE_KEY));
+  assert.equal(saved.rounds.length, 1);
+  assert.deepEqual(saved.rounds[0].cards.map(card => card.score), [29, 24, 0]);
+  assert.match($('import-status').textContent, /Net results saved/);
+  assert.match($('recognized-scorecards').textContent, /No scorecard data is stored/);
+});
+
+test('only gross or good plus malformed results produce nearby actionable errors and cannot save', async t => {
+  const { $, values } = await workspace(t);
+  $('import-files').files = [{ name: 'synthetic-gross.csv', size: grossScorecards.length, text: async () => grossScorecards }];
+  await $('import-files').emit('change');
+  assert.equal($('preview').hidden, true);
+  assert.equal($('apply-import').disabled, true);
+  assert.match($('import-status').textContent, /Only gross scorecards.*Add Competition Report/);
+  assert.equal(document.activeElement, $('import-status'));
+  $('import-files').files = [
+    { name: 'synthetic-good.csv', size: netReport.length, text: async () => netReport },
+    { name: 'synthetic-bad.csv', size: 30, text: async () => 'Player,Score\nSynthetic Broken,strokes' }
+  ];
+  await $('import-files').emit('change');
+  assert.match($('import-status').textContent, /synthetic-bad.csv: Invalid Stableford score/);
+  assert.equal($('preview').hidden, true);
+  assert.equal($('apply-import').disabled, true);
+  assert.equal(values.has(STORAGE_KEY), false);
+});
+
+test('a newer file selection owns automatic preview even when an older asynchronous read finishes later', async t => {
+  const { $, values, preview } = await workspace(t);
+  let finish;
+  $('import-files').files = [{ name: 'synthetic-slow.csv', size: 30, text: () => new Promise(resolve => { finish = resolve; }) }];
+  const older = $('import-files').emit('change');
+  assert.match($('import-status').textContent, /Reading 1 selected file/);
+  await preview('Played on,15/11/2026\nPlayer,Score\nSynthetic New,0');
+  finish(netReport);
+  await older;
+  assert.equal($('weekend-date').value, '2026-11-14');
+  assert.match($('preview-summary').textContent, /synthetic-results.csv/);
+  assert.equal($('apply-import').disabled, true);
   assert.equal(values.has(STORAGE_KEY), false);
 });
 
