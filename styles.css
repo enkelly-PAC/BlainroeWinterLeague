@@ -22,8 +22,9 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .table-header h2 { margin: 0; }
 .export-button { background: #f0f0f0; color: #333; border: 0; padding: .35rem .8rem; font: 600 .85rem Arial, sans-serif; }
 .export-button:hover { background: #ddd; }
-#status { border-left: 4px solid var(--green); border-radius: 6px; padding: .65rem 1rem; background: var(--pale); overflow-wrap: anywhere; font-size: .9rem; }
-#status.error { border-color: #a12323; background: #fff1f1; }
+#status, .import-feedback { border-left: 4px solid var(--green); border-radius: 6px; padding: .65rem 1rem; background: var(--pale); overflow-wrap: anywhere; font-size: .9rem; }
+#status.error, .import-feedback.error { border-color: #a12323; background: #fff1f1; }
+.needs-input { border: 2px solid #a16c00; background: #fff7de; }
 .warning { border-left: 4px solid #a16c00; padding: .8rem 1rem; background: #fff7de; }
 .results-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
 .tabs { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 2px solid var(--border); margin-bottom: 1.25rem; }

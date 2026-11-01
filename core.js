@@ -165,13 +165,22 @@ function metadataDate(rows) {
   if (weekends.length !== 1) fail('Score metadata contains different weekends. Use a separate Aggregated Net Result report for each weekend.');
   return weekends[0];
 }
+function grossScorecardRows(rows) {
+  return rows.some(row => row.some(cell => /^competition scorecards?$/i.test(cell) || /hole by hole scores returned/i.test(cell))) ||
+    rows.some(row => {
+      const h = row.map(header);
+      return h.some(c => ['players', 'player', 'name'].includes(c)) && h.includes('1') && h.includes('18') && h.includes('total');
+    });
+}
+export function classifyScoreCSV(source) {
+  const rows = parseCSV(source);
+  if (rows.some(row => row.some(cell => /^Aggregated Results\b/i.test(cell))) ||
+      rows.some(row => header(row[0] || '') === 'overallposition')) return 'results';
+  return grossScorecardRows(rows) ? 'scorecards' : 'results';
+}
 export function parseScores(source) {
   const rows = parseCSV(source);
-  if (rows.some(row => row.some(cell => /^competition scorecards?$/i.test(cell) || /hole by hole scores returned/i.test(cell))) ||
-      rows.some(row => {
-        const h = row.map(header);
-        return h.some(c => ['players', 'player', 'name'].includes(c)) && h.includes('1') && h.includes('18') && h.includes('total');
-      })) fail('Competition Scorecards contain gross hole-by-hole strokes, PU and NR, not Winter League net Stableford results. Use Competition Report (Aggregated Net Result) instead. No scores were converted.');
+  if (grossScorecardRows(rows)) fail('Competition Scorecards contain gross hole-by-hole strokes, PU and NR, not Winter League net Stableford results. Use Competition Report (Aggregated Net Result) instead. No scores were converted.');
   const aggregateHeader = h => h[0] === 'overallposition' && h[1] === '' && h.some(c => c.startsWith('scoreplay'));
   let { columns, data } = locate(rows, h => aggregateHeader(h) || (h.includes('player') || h.includes('name')) && h.some(c => c === 'score' || c.startsWith('scoreplay') || c === 'stableford'), 'Scores');
   if (columns.some(c => /stroke|gross|medal/.test(c))) fail('Only net Stableford scores are accepted, not stroke/medal/gross exports.');

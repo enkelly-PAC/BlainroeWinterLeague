@@ -57,39 +57,42 @@
     <section id="admin-panel" role="tabpanel" aria-labelledby="tab-admin" hidden>
         <section class="card">
           <h2 id="import-heading">Upload results CSV</h2>
-          <p id="import-help"><strong>Feeds League and Singles.</strong> Choose Competition Report (Aggregated Net Result) CSV files for one weekend.</p>
+          <p id="import-help"><strong>Feeds League and Singles.</strong> Select your results and scorecard CSVs together. Net reports supply points; recognized gross scorecards are excluded.</p>
           <p id="import-example" class="note">Example filename: Competition Report 2026-11-07.csv</p>
-          <p id="import-steps">1. Choose CSV(s). 2. Preview. 3. Confirm weekend and 12-hole net points. 4. Save results to your draft.</p>
+          <p id="import-steps">1. Choose CSV(s) for automatic preview. 2. Review weekend, enter a round name and confirm net points. 3. Save results to your draft.</p>
           <p class="warning"><strong>Local only, not published.</strong> Preview saves nothing. Apply starts or resumes your browser draft; existing draft data is preserved unless you confirm replacement. Only the owner can publish reviewed JSON through GitHub. Back up your draft.</p>
           <p id="storage-notice" class="note"></p>
           <div class="actions"><button id="start-draft">Start local draft (optional)</button><button id="results-import" type="button" hidden>Upload results CSV instead</button></div>
           <form id="import-form">
-            <label><span id="import-file-label">Choose results CSV</span><input id="import-files" type="file" accept=".csv,text/csv" aria-describedby="import-help import-file-help" multiple required></label>
-            <p id="import-file-help" class="note">Maximum 2 MB each, up to 20 files for one weekend. Identical cards are deduplicated; conflicts are rejected. No Return and DQ rows are omitted with preview counts.</p>
+            <label><span id="import-file-label">Choose results and scorecard CSVs</span><input id="import-files" type="file" accept=".csv,text/csv" aria-describedby="import-help import-file-help" multiple required></label>
+            <p id="import-file-help" class="note">Maximum 2 MB each, up to 20 files. Include Competition Report (Aggregated Net Result) for one weekend. No Return and DQ rows are omitted with preview counts.</p>
+            <p id="import-status" class="import-feedback" role="status" aria-live="polite" aria-atomic="true" tabindex="-1">Choose files to preview automatically. Save becomes available after review.</p>
+            <p id="recognized-scorecards" class="note" hidden></p>
             <button id="preview-import" type="submit">Preview results</button>
             <details id="other-imports"><summary>Other imports: final cards or JSON restore</summary>
               <label>Import type<select id="import-type"><option value="scores" selected>Results CSV (League and Singles)</option><option value="teams">Team registration</option><option value="final">Final player cards</option><option value="restore">JSON backup / publication restore</option></select></label>
-              <p class="note">These use the same choose, preview and apply form above. Gross scorecards are not supported.</p>
+              <p class="note">These use the same choose, preview and apply form. Gross scorecards are recognized only, not stored or scored.</p>
             </details>
           </form>
-          <div id="preview" hidden>
-            <h3 id="preview-heading" tabindex="-1">Import preview (not saved yet)</h3><p id="preview-summary"></p><div id="preview-table"></div>
             <form id="apply-form">
-              <fieldset id="score-metadata" hidden><legend>Required weekend metadata</legend>
-                <label>Weekend date (Saturday or Sunday, ISO)<input id="weekend-date" type="date"></label>
-                <label>Round name<input id="round-name" maxlength="160" placeholder="Weekend 1"></label>
+              <fieldset id="score-metadata" hidden disabled><legend>Confirm before saving</legend>
+                <label>Weekend date (Saturday or Sunday, required)<input id="weekend-date" type="date" required></label>
+                <label>Round name (required)<input id="round-name" maxlength="160" placeholder="Enter the competition or round name" aria-describedby="import-apply-help" required></label>
                 <label class="check"><input id="qualifying" type="checkbox" checked>Qualifying weekend</label>
                 <label class="check"><input id="net-confirm" type="checkbox">I confirm these are reported 12-hole net Stableford points, not strokes</label>
                 <label>Existing weekend action<select id="import-mode"><option value="merge">Merge new players, deduplicate identical cards</option><option value="replace">Replace entire weekend with these cards</option></select></label>
                 <p class="note">For a score conflict, prepare one complete corrected weekend CSV and choose replace. Replacement deletes every previous card for that weekend, with confirmation.</p>
               </fieldset>
-              <fieldset id="final-metadata" hidden><legend>Final metadata</legend><label>Confirmed final date (optional)<input id="final-date" type="date"></label><p>Replaces all existing final cards, with confirmation. Blank date means awaiting confirmation.</p></fieldset>
-              <button id="apply-import" type="submit">Save results to my draft</button><button id="cancel-preview" type="button">Cancel preview</button>
+              <fieldset id="final-metadata" hidden disabled><legend>Final metadata</legend><label>Confirmed final date (optional)<input id="final-date" type="date"></label><p>Replaces all existing final cards, with confirmation. Blank date means awaiting confirmation.</p></fieldset>
+              <p id="import-apply-help" class="note">Choose files above. Save is disabled until a valid preview and required confirmations are ready.</p>
+              <button id="apply-import" type="submit" disabled>Save results to my draft</button><button id="cancel-preview" type="button" hidden>Cancel preview</button>
             </form>
+          <div id="preview" hidden>
+            <h3 id="preview-heading" tabindex="-1">Import preview (not saved yet)</h3><p id="preview-summary"></p><div id="preview-table"></div>
           </div>
           <aside class="scorecard-info" aria-labelledby="scorecard-heading">
             <h3 id="scorecard-heading">Have a scorecard CSV?</h3>
-            <p>Competition Scorecards CSVs contain hole-by-hole gross data, not net Stableford results. They cannot feed Winter League or Singles. Keep them privately for a separate future Winter Eclectic. There is no scorecard upload or Eclectic feature here yet.</p>
+            <p>Include them with your net results in the same selection. Recognized Competition Scorecards contain hole-by-hole gross data: they are excluded from League and Singles net scoring and are not stored. Keep the originals privately for a separate future Winter Eclectic. Eclectic is not implemented here yet; no gross-to-net conversion is made.</p>
           </aside>
           <details><summary>Results CSV template</summary><div class="actions"><button id="score-template">Download net results CSV template</button></div></details>
         </section>

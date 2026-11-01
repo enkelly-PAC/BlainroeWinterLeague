@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { emptyState, canonical, validateState, parseJSON, parseCSV, parseTeams, parseScores, importRound, weekendDate, league, singles, validateFinal, parseFinal, finalTable, reportHTML, MAX_BYTES } from '../core.js';
+import { emptyState, canonical, validateState, parseJSON, parseCSV, parseTeams, parseScores, classifyScoreCSV, importRound, weekendDate, league, singles, validateFinal, parseFinal, finalTable, reportHTML, MAX_BYTES } from '../core.js';
 import { readDraft, saveDraft, STORAGE_KEY } from '../storage.js';
 
 const teams = count => Array.from({ length: count }, (_, i) => ({ name: `Synthetic Team ${i + 1}`, players: [1, 2, 3].map(n => `Player T${i + 1}P${n}`) }));
@@ -34,7 +34,7 @@ test('deployed publication is empty and versioned, without invented players', as
   assert.deepEqual(state, emptyState());
 });
 test('canonical names match surname-first, punctuation, accents and case', () => {
-  assert.equal(canonical("O'Bríen, Séán"), canonical('SEAN OBRIEN'));
+  assert.equal(canonical("O'Br\u00eden, S\u00e9\u00e1n"), canonical('SEAN OBRIEN'));
   assert.equal(canonical('Anne-Marie Test'), canonical('anne marie test'));
 });
 test('CSV supports BOM, CRLF, commas, doubled quotes and multiline cells', () => {
@@ -133,6 +133,14 @@ test('gross Competition Scorecards are rejected with the correct net report inst
     'Competition Scorecard\nPlayer,Score\nSynthetic Player,72',
     'Hole by Hole scores returned\nPlayer,Score\nSynthetic Player,NR'
   ]) assert.throws(() => parseScores(source), /Use Competition Report \(Aggregated Net Result\) instead/);
+});
+test('mixed-upload classification recognizes gross exports without hiding unknown or malformed net results', () => {
+  assert.equal(classifyScoreCSV('Competition Scorecards\nHole by Hole scores returned\nSynthetic Player,PU'), 'scorecards');
+  assert.equal(classifyScoreCSV('Player(s),,1,18,Total\nSynthetic Player,,5,4,72'), 'scorecards');
+  assert.equal(classifyScoreCSV(aggregatedReport), 'results');
+  assert.equal(classifyScoreCSV('Player,Score\nSynthetic Player,strokes'), 'results');
+  assert.equal(classifyScoreCSV('Competition Scorecards\nAggregated Results - Net Scores\nOverall Position,,,Score (Play H\'cap)'), 'results');
+  assert.throws(() => classifyScoreCSV('Competition Scorecards\n"broken'), /unclosed/);
 });
 test('score alternatives accept zero and signed handicap metadata', () => {
   assert.deepEqual(parseScores('Player,Score,Handicap\nPlayer A1,0,+3\nPlayer A2,42,-2.5').cards,
