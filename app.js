@@ -1,8 +1,9 @@
-import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams, parseScores, parseFinal, importRound, weekendDate, league, finalTable, csvCell, reportHTML } from './core.js';
+import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams, parseScores, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML } from './core.js';
 import { readDraft, saveDraft, STORAGE_KEY } from './storage.js';
 
 const $ = id => document.getElementById(id);
 let published = emptyState(), publishedReady = false, draft = null, mode = 'published', pending = null, storageBlocked = false;
+const singlesSelection = { published: null, draft: null };
 let storage;
 try { storage = window.localStorage; } catch { storage = null; }
 const restored = readDraft(storage);
@@ -44,10 +45,10 @@ function element(tag, value, className) {
   if (className) node.className = className;
   return node;
 }
-function table(id, caption, columns, rows) {
+function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owner will publish reviewed registration and results.') {
   const host = $(id);
   host.replaceChildren();
-  if (!rows.length) { host.append(element('p', 'No data yet. The owner will publish reviewed registration and results.')); return; }
+  if (!rows.length) { host.append(element('p', emptyMessage)); return; }
   const wrapper = element('div', undefined, 'table-wrap');
   wrapper.tabIndex = 0; wrapper.setAttribute('role', 'region'); wrapper.setAttribute('aria-label', `${caption}, horizontally scrollable`);
   const tbl = element('table');
@@ -81,6 +82,27 @@ function download(filename, content, type) {
 function csvDownload(filename, columns, rows) {
   download(filename, [columns, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n', 'text/csv;charset=utf-8');
 }
+function renderSingles(state) {
+  const result = singles(state, singlesSelection[mode]);
+  singlesSelection[mode] = result.round?.date || null;
+  const selector = $('singles-weekend');
+  selector.replaceChildren();
+  for (const round of result.rounds) {
+    const status = round.canceled ? 'Canceled' : round.qualifying ? 'Qualifying' : 'Excluded / nonqualifying';
+    const option = element('option', `${round.date}: ${round.name} (${status})`);
+    option.value = round.date; selector.append(option);
+  }
+  selector.disabled = !result.rounds.length;
+  if (result.round) selector.value = result.round.date;
+  const summary = $('singles-summary');
+  summary.classList.toggle('warning', Boolean(result.round && (result.round.canceled || !result.round.qualifying)));
+  summary.textContent = result.round
+    ? `${result.round.date}: ${result.round.name}. ${result.status}. ${result.round.canceled || !result.round.qualifying ? 'Historical review only, not active official standings. ' : ''}${result.rows.length} imported individual cards.`
+    : 'No imported weekends in this view. The owner can preview and apply net Stableford scores in Administration, then publish reviewed results.';
+  table('singles-table', `${mode === 'draft' ? 'Local draft' : 'Published'} singles: ${result.round?.date || 'no weekend'} (${result.status || 'no results'})`,
+    ['Position', 'Player', 'Net Stableford points', 'Team membership'], result.rows.map(row => [row.rank, row.player, row.score, row.team]),
+    result.round ? 'No submitted individual cards for this weekend. No absent players or scores have been invented.' : 'Import weekend scores to see individual results, even before teams are registered.');
+}
 function render() {
   const state = current(), result = league(state);
   $('view-label').textContent = mode === 'draft' ? 'Browser-only draft results' : publishedReady ? 'Published club results' : 'Published data unavailable';
@@ -97,6 +119,7 @@ function render() {
     result.cutoffUnresolved ? (r.rank <= 16 ? 'Cutoff unresolved' : 'Outside top 16') : result.eligible.includes(r.team.name) ? (state.settings.complete ? 'Final eligible' : 'Provisional top 16') : 'Outside top 16',
     ...r.scores.map(s => `${s.total}${s.discarded ? ' (discarded)' : ''}; ${s.missed} missed`)
   ]));
+  renderSingles(state);
   table('teams-table', 'Registered teams (3 players each)', ['Number', 'Team', 'Player 1', 'Player 2', 'Player 3'], state.teams.map((t, i) => [i + 1, t.name, ...t.players]));
   table('rounds-table', 'All imported weekends', ['Weekend', 'Round', 'Status', 'Cards'], [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).map(r => [r.date, r.name, r.canceled ? 'Canceled for everyone' : r.qualifying ? 'Qualifying' : 'Excluded / nonqualifying', r.cards.length]));
   const assigned = new Map(state.teams.flatMap(t => t.players.map(player => [canonical(player), t.name])));
@@ -177,6 +200,10 @@ tabs.forEach((tab, index) => {
 $('club-logo').addEventListener('error', () => { $('club-logo').hidden = true; });
 $('published-view').addEventListener('click', () => { mode = 'published'; render(); message(publishedReady ? 'Showing owner-published data. Your draft is preserved.' : 'Published data unavailable; refresh or use a local HTTP server.', !publishedReady); });
 $('refresh').addEventListener('click', refresh);
+$('singles-weekend').addEventListener('change', () => {
+  singlesSelection[mode] = $('singles-weekend').value;
+  renderSingles(current());
+});
 $('start-draft').addEventListener('click', safely(() => { persist(working(), 'Local draft opened.'); }));
 $('reset-draft').addEventListener('click', safely(() => {
   if (!publishedReady) throw new Error('Published data is unavailable; refresh first.');

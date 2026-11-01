@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { emptyState, canonical, validateState, parseJSON, parseCSV, parseTeams, parseScores, importRound, weekendDate, league, validateFinal, parseFinal, finalTable, reportHTML, MAX_BYTES } from '../core.js';
+import { emptyState, canonical, validateState, parseJSON, parseCSV, parseTeams, parseScores, importRound, weekendDate, league, singles, validateFinal, parseFinal, finalTable, reportHTML, MAX_BYTES } from '../core.js';
 import { readDraft, saveDraft, STORAGE_KEY } from '../storage.js';
 
 const teams = count => Array.from({ length: count }, (_, i) => ({ name: `Synthetic Team ${i + 1}`, players: [1, 2, 3].map(n => `Player T${i + 1}P${n}`) }));
@@ -171,6 +171,65 @@ test('scores before teams remain raw; late registrations recalculate standings',
   validateState(state);
   assert.equal(league(state).rows[0].raw, 82);
   assert.equal(league(state).rows[0].scores[0].missed, 1);
+});
+test('singles ranks every submitted card before registration, preserves zero and shared competition ranks', () => {
+  const state = emptyState();
+  state.rounds = [{ date: dateAt(0), name: 'Synthetic singles', qualifying: true, canceled: false, cards: [
+    { player: 'Synthetic Zebra', score: 30 }, { player: 'Synthetic Zero', score: 0 },
+    { player: 'Synthetic Lower', score: 20 }, { player: 'Synthetic Alpha', score: 30 }
+  ] }];
+  const before = structuredClone(state);
+  assert.deepEqual(singles(state).rows, [
+    { player: 'Synthetic Alpha', score: 30, team: 'Unassigned', rank: 1 },
+    { player: 'Synthetic Zebra', score: 30, team: 'Unassigned', rank: 1 },
+    { player: 'Synthetic Lower', score: 20, team: 'Unassigned', rank: 3 },
+    { player: 'Synthetic Zero', score: 0, team: 'Unassigned', rank: 4 }
+  ]);
+  assert.deepEqual(state, before);
+  state.teams = [{ name: 'Synthetic Team', players: ['Alpha, Synthetic', 'Synthetic Zero', 'Synthetic Absent'] }];
+  validateState(state);
+  const rows = singles(state).rows;
+  assert.equal(rows[0].team, 'Synthetic Team');
+  assert.equal(rows[3].team, 'Synthetic Team');
+  assert.equal(rows[1].team, 'Unassigned');
+  assert.equal(rows.length, 4);
+});
+test('singles defaults to latest active weekend, respects selection and exposes canceled/excluded context', () => {
+  const state = fixture([[70], [60], [50], [40]]);
+  state.rounds[2].qualifying = false;
+  state.rounds[3].canceled = true;
+  const before = structuredClone(state);
+  assert.equal(singles(state).round.date, dateAt(1));
+  assert.equal(singles(state).status, 'Qualifying');
+  assert.deepEqual(singles(state, dateAt(0)).rows.map(r => r.score), [35, 35, 0]);
+  assert.equal(singles(state, dateAt(2)).status, 'Excluded / nonqualifying');
+  const canceled = singles(state, dateAt(3));
+  assert.equal(canceled.status, 'Canceled');
+  assert.deepEqual(canceled.rows.map(r => r.score), [20, 20, 0]);
+  assert.deepEqual(canceled.rounds.map(r => r.date), [dateAt(3), dateAt(2), dateAt(1), dateAt(0)]);
+  assert.equal(singles(state, 'missing').round.date, dateAt(1));
+  assert.deepEqual(state, before);
+  state.rounds.forEach(r => { r.qualifying = false; });
+  assert.equal(singles(state).round.date, dateAt(3));
+  assert.equal(singles(state).status, 'Canceled');
+  state.rounds = state.rounds.filter(r => r.date !== dateAt(3));
+  assert.equal(singles(state, dateAt(3)).round.date, dateAt(2));
+  assert.equal(singles(state).status, 'Excluded / nonqualifying');
+});
+test('singles has no invented results for empty imports or a weekend without cards', () => {
+  assert.deepEqual(singles(emptyState()), { rounds: [], round: null, status: null, rows: [] });
+  const state = fixture(); state.rounds[0].cards = [];
+  assert.deepEqual(singles(state).rows, []);
+  assert.equal(singles(state).round.date, dateAt(0));
+});
+test('singles ignores team discards and final scoring settings', () => {
+  const state = fixture([[70], [60], [50]], true);
+  const expected = singles(state, dateAt(0)).rows;
+  assert.equal(league(state).discardCount, 2);
+  assert.deepEqual(expected.map(r => r.score), [35, 35, 0]);
+  state.settings.finalScoring = 'all3';
+  state.settings.discardCount = 0;
+  assert.deepEqual(singles(state, dateAt(0)).rows, expected);
 });
 test('multiple imports merge different players and identical cards only once', () => {
   const base = { date: dateAt(0), name: 'Synthetic', qualifying: true, canceled: false };

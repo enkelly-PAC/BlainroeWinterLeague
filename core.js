@@ -259,6 +259,17 @@ const lex = (a, b) => {
   }
   return 0;
 };
+export function singles(state, selectedDate = null) {
+  const rounds = [...state.rounds].sort((a, b) => b.date.localeCompare(a.date));
+  const round = rounds.find(r => r.date === selectedDate) ||
+    rounds.find(r => r.qualifying && !r.canceled) || rounds[0] || null;
+  const status = !round ? null : round.canceled ? 'Canceled' : round.qualifying ? 'Qualifying' : 'Excluded / nonqualifying';
+  const assigned = new Map(state.teams.flatMap(team => team.players.map(player => [canonical(player), team.name])));
+  const rows = (round?.cards || []).map(card => ({ player: card.player, score: card.score, team: assigned.get(canonical(card.player)) || 'Unassigned' }));
+  rows.sort((a, b) => b.score - a.score || a.player.localeCompare(b.player));
+  rows.forEach((row, index) => { row.rank = index && rows[index - 1].score === row.score ? rows[index - 1].rank : index + 1; });
+  return { rounds, round, status, rows };
+}
 export function league(state) {
   const rounds = state.rounds.filter(r => r.qualifying && !r.canceled).sort((a, b) => a.date.localeCompare(b.date));
   const discardCount = state.settings.complete ? Math.min(state.settings.discardCount, Math.max(0, rounds.length - 1)) : 0;
