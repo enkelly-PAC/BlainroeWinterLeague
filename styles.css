@@ -1,0 +1,70 @@
+:root { color-scheme: light; --green: #1a5e1a; --dark: #124912; --accent: #2d8e2d; --ink: #1a2e1a; --pale: #edf5ed; --border: #d8e6d8; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 1rem/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: var(--ink); background: #f0f4f0; }
+.brand { background: linear-gradient(135deg, var(--green), var(--accent)); color: white; box-shadow: 0 2px 8px rgb(0 0 0 / 20%); }
+.brand-inner { max-width: 1200px; margin: auto; padding: 1.5rem 2rem; display: flex; align-items: center; justify-content: center; gap: 1rem; text-align: center; }
+.brand img { width: auto; height: 70px; object-fit: contain; border-radius: 8px; flex-shrink: 0; }
+h1 { font-size: 1.8rem; line-height: 1.6; margin: 0; }
+.subtitle { font-size: 1rem; margin: .25rem 0 0; }
+.eyebrow { text-transform: uppercase; letter-spacing: .13em; font-size: .85rem; margin: 0; }
+.sponsor { font-size: .9rem; margin: .4rem 0 0; }
+main { max-width: 1200px; margin: 1.5rem auto; padding: 0 1rem; }
+a { color: var(--green); text-underline-offset: .2em; }
+button, input, select { font: inherit; }
+button { background: var(--green); color: white; border: 2px solid var(--green); padding: .55rem 1rem; border-radius: 6px; font-size: .95rem; font-weight: 600; cursor: pointer; }
+button:hover { background: var(--dark); }
+button:disabled { opacity: .55; cursor: not-allowed; }
+:focus-visible { outline: 3px solid #a16c00; outline-offset: 3px; }
+.view-bar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .8rem; background: white; border-radius: 12px; padding: 1rem 1.25rem; box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
+.view-bar > div, .actions { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
+.view-bar button { background: white; color: var(--green); }
+.table-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
+.table-header h2 { margin: 0; }
+.export-button { background: #f0f0f0; color: #333; border: 0; padding: .35rem .8rem; font: 600 .85rem Arial, sans-serif; }
+.export-button:hover { background: #ddd; }
+#status { border-left: 4px solid var(--green); border-radius: 6px; padding: .65rem 1rem; background: var(--pale); overflow-wrap: anywhere; font-size: .9rem; }
+#status.error { border-color: #a12323; background: #fff1f1; }
+.warning { border-left: 4px solid #a16c00; padding: .8rem 1rem; background: #fff7de; }
+.results-card { background: white; border-radius: 12px; padding: 1.5rem; box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
+.tabs { display: flex; flex-wrap: wrap; gap: .25rem; border-bottom: 2px solid var(--border); margin-bottom: 1.25rem; }
+.tabs button { border-radius: 0; background: none; color: #586558; border: 0; border-bottom: 3px solid transparent; padding: .6rem 1.2rem; font-family: Arial, sans-serif; }
+.tabs button:hover { color: var(--green); background: #f4f9f4; }
+.tabs button[aria-selected="true"] { color: var(--green); border-bottom-color: var(--accent); }
+[role="tabpanel"] { padding: 0 0 .5rem; }
+h2, h3, h4 { line-height: 1.25; color: var(--green); }
+h2 { font-size: 1.3rem; }
+h3 { font-size: 1.15rem; }
+.table-wrap { max-width: 100%; max-height: 65vh; overflow: auto; border: 1px solid var(--border); border-radius: 6px; margin: 1rem 0; }
+table { border-collapse: collapse; width: 100%; font-size: .9rem; background: white; }
+caption { padding: .6rem; text-align: left; font-weight: 600; background: #f8fbf8; }
+th, td { padding: .45rem .5rem; border-bottom: 1px solid #e8ece8; text-align: center; vertical-align: top; white-space: nowrap; }
+thead th { padding: .6rem .5rem; background: var(--green); color: white; font-size: .85rem; position: sticky; top: 0; z-index: 1; }
+thead th:nth-child(2), tbody th { text-align: left; }
+tbody th { background: inherit; font-weight: 600; }
+tbody tr:nth-child(even) { background: #fafcfa; }
+tbody tr:hover { background: #f4f9f4; }
+tbody td:first-child { font-weight: 600; color: var(--green); }
+#league-table tbody td:nth-child(4), #final-table tbody td:nth-child(4) { font-weight: 700; background: rgb(26 94 26 / 6%); }
+#league-table thead th:nth-child(4), #final-table thead th:nth-child(4) { background: #267426; }
+#league-table thead th { font-size: .7rem; padding: .2rem .3rem; vertical-align: bottom; }
+#league-table .weekend-column { min-width: 64px; }
+.weekend-date { display: block; font-size: .7rem; margin-bottom: .25rem; }
+.weekend-heading { display: inline-block; writing-mode: vertical-lr; text-orientation: mixed; transform: rotate(180deg); max-height: 120px; white-space: normal; overflow-wrap: anywhere; font-size: .65rem; line-height: 1.2; padding: .3rem .1rem; }
+#league-table tbody td:nth-child(n+7) { font-weight: 600; background: rgb(76 175 80 / 14%); padding: .45rem .5rem; }
+.note { font-size: .9rem; color: #40594b; }
+.admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
+.card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; min-width: 0; box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
+form { display: grid; gap: .85rem; }
+label { display: grid; gap: .3rem; font-weight: 600; }
+input, select { width: 100%; min-width: 0; background: white; color: var(--ink); border: 1px solid #6b8877; border-radius: .3rem; padding: .5rem; }
+.check { display: flex; align-items: center; gap: .6rem; }
+.check input { width: 1.2rem; height: 1.2rem; flex-shrink: 0; }
+fieldset { border: 1px solid var(--border); display: grid; gap: .85rem; min-width: 0; }
+legend { font-weight: 700; padding: 0 .4rem; }
+.round-editor { border-top: 1px solid var(--border); padding: 1rem 0; }
+.actions { margin: 1rem 0; }
+footer { padding: 1.5rem; background: var(--dark); color: white; text-align: center; }
+footer span { display: block; font-size: .85rem; margin-top: .3rem; }
+[hidden] { display: none !important; }
+@media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr; } h1 { font-size: 1.4rem; } .results-card, .card { padding: 1rem; } .view-bar { padding: 1rem; } .tabs button { font-size: .85rem; padding: .5rem .8rem; } }
+@media print { .tabs, .view-bar, button, #admin-panel, footer { display: none; } .brand { color: black; background: white; box-shadow: none; } .table-wrap { max-height: none; overflow: visible; } thead th { position: static; } .results-card, .card { box-shadow: none; } main { padding: 0; } }

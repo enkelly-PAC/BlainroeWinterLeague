@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "settings": {
+    "maxRounds": 10,
+    "discardCount": 2,
+    "complete": false,
+    "finalScoring": "best2"
+  },
+  "teams": [],
+  "rounds": [],
+  "final": null
+}
