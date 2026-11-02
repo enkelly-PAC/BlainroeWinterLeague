@@ -3,10 +3,16 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { EventEmitter } from 'node:events';
 import { emptyState, league } from '../core.js';
-import { STORAGE_KEY } from '../storage.js';
+import { STORAGE_KEY, BASELINE_KEY } from '../storage.js';
+
+async function rosterFixture() {
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  state.rounds = [];
+  return state;
+}
 
 let instance = 0;
-async function workspace(t, source = null, published = emptyState()) {
+async function workspace(t, source = null, published = emptyState(), baseline = null) {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const nodes = new Map();
   const downloads = [];
@@ -28,6 +34,7 @@ async function workspace(t, source = null, published = emptyState()) {
   for (const match of html.matchAll(/\bid="([^"]+)"/g)) nodes.set(match[1], new Node());
   nodes.get('import-type').value = 'scores';
   const values = new Map(source === null ? [] : [[STORAGE_KEY, source]]);
+  if (baseline) values.set(BASELINE_KEY, JSON.stringify({ draft: JSON.parse(source), published: baseline }));
   const original = Object.fromEntries(['document', 'window', 'fetch', 'confirm'].map(key => [key, globalThis[key]]));
   globalThis.document = {
     getElementById: id => nodes.get(id), createElement: () => new Node(), querySelectorAll: () => [],
@@ -55,10 +62,10 @@ async function workspace(t, source = null, published = emptyState()) {
     await new Promise(resolve => setImmediate(resolve));
   }
   const contents = node => [node.textContent, ...node.children.map(contents)].join('\n');
-  return { $, values, preview, reload, contents, downloads };
+  return { $, values, preview, reload, contents, downloads, setPublished: state => { published = state; } };
 }
 test('main PDF download follows the visible published or saved draft and never exports a pending preview', async t => {
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await rosterFixture();
   const state = structuredClone(published);
   state.rounds = [{ date: '2026-11-07', name: 'Saved weekend', qualifying: true, canceled: false,
     cards: [{ player: 'Paddy Daly', score: 29 }, { player: 'Timothy Cummins', score: 24 }] }];
@@ -114,7 +121,7 @@ test('PDF export is disabled with an explanation when no team list is available'
   assert.match($('pdf-help').textContent, /needs an available team list/);
 });
 test('default team leaderboard has an honest empty state and primary upload without committee navigation', async t => {
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await rosterFixture();
   const { $, values, contents } = await workspace(t, null, published);
   assert.equal($('view-label').textContent, 'Published club results');
   assert.equal($('results-empty').hidden, false);
@@ -134,7 +141,7 @@ test('default team leaderboard has an honest empty state and primary upload with
 });
 
 test('old zero-team scores map to published players on explicit update, retain settings and survive reload', async t => {
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await rosterFixture();
   const state = emptyState(); state.settings.maxRounds = 12;
   state.rounds = [{ date: '2026-10-31', name: 'Existing scores', qualifying: false, canceled: false,
     cards: [{ player: 'Paddy Daly', score: 18 }] }];
@@ -180,9 +187,8 @@ test('old zero-team scores map to published players on explicit update, retain s
 });
 
 test('score updates never replace customized teams and combine only the best two mapped cards', async t => {
-  const state = emptyState();
-  state.teams = [{ name: 'Custom team', players: ['Synthetic Alpha', 'Synthetic Beta', 'Synthetic Gamma'] }];
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await rosterFixture(), state = structuredClone(published);
+  state.teams.find(team => team.name === 'Team 34').players = ['Synthetic Alpha', 'Synthetic Beta', 'Synthetic Gamma'];
   const { $, values, preview } = await workspace(t, JSON.stringify(state), published);
   await preview('Played on,08/11/2026\nPlayer,Score\nSynthetic Alpha,29\nSynthetic Beta,24\nSynthetic Gamma,20\nPaddy Daly,40');
   assert.equal($('round-name').value, 'Weekend 2026-11-07');
@@ -196,7 +202,7 @@ test('score updates never replace customized teams and combine only the best two
 });
 
 test('resume attaches the published team list to old saved scores without needing another upload', async t => {
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await rosterFixture();
   const state = emptyState();
   state.rounds = [{ date: '2026-11-07', name: 'Existing scores', qualifying: true, canceled: false,
     cards: [{ player: 'Paddy Daly', score: 29 }, { player: 'Timothy Cummins', score: 24 }] }];
@@ -212,7 +218,7 @@ test('resume attaches the published team list to old saved scores without needin
 });
 
 test('unmatched-only uploads remain actionable without showing invented all-zero standings', async t => {
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await rosterFixture();
   const { $, values, preview, contents } = await workspace(t, null, published);
   await preview('Played on,08/11/2026\nPlayer,Score\nColin Owens,40\nSynthetic Visitor,33');
   $('net-confirm').checked = true;
@@ -249,7 +255,7 @@ test('a failed storage write does not claim updated results were saved on this d
   assert.match($('draft-banner').textContent, /Not saved/);
 });
 test('explicit team-list replacement requires confirmation and keeps existing scores and settings', async t => {
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await rosterFixture();
   const state = emptyState(); state.settings.maxRounds = 12;
   state.rounds = [{ date: '2026-10-31', name: 'Saved scores', qualifying: false, canceled: false,
     cards: [{ player: 'Paddy Daly', score: 25 }] }];
@@ -379,6 +385,7 @@ test('switching type or files invalidates pending and in-flight previews and upd
   let finish;
   $('import-files').files = [{ name: 'slow.csv', size: 40, text: () => new Promise(resolve => { finish = resolve; }) }];
   const reading = $('import-form').emit('submit');
+  await new Promise(resolve => setImmediate(resolve));
   await $('teams-import').emit('click');
   finish('Player,Score\nSynthetic Player,29');
   await reading;
@@ -457,6 +464,7 @@ test('a newer file selection owns automatic preview even when an older asynchron
   let finish;
   $('import-files').files = [{ name: 'synthetic-slow.csv', size: 30, text: () => new Promise(resolve => { finish = resolve; }) }];
   const older = $('import-files').emit('change');
+  await new Promise(resolve => setImmediate(resolve));
   assert.match($('import-status').textContent, /Reading 1 selected file/);
   await preview('Played on,15/11/2026\nPlayer,Score\nSynthetic New,0');
   finish(netReport);
@@ -485,4 +493,90 @@ test('corrupt storage survives results preview and failed apply; JSON replacemen
   globalThis.confirm = () => true;
   await $('apply-form').emit('submit');
   assert.deepEqual(JSON.parse(values.get(STORAGE_KEY)), emptyState());
+});
+
+test('public landing loads real accumulated results, never resumes an older local draft automatically', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const old = await rosterFixture();
+  old.rounds = [{ date: '2026-11-07', name: 'Local only', qualifying: true, canceled: false, cards: [{ player: 'Paddy Daly', score: 30 }] }];
+  const { $, contents, values } = await workspace(t, JSON.stringify(old), published);
+  assert.equal($('view-label').textContent, 'Published club results');
+  assert.equal($('league-table').hidden, false);
+  assert.match($('league-summary').textContent, /45 teams. 1 qualifying weekend/);
+  assert.match(contents($('league-table')), /Team 15/);
+  assert.match(contents($('league-table')), /49/);
+  assert.doesNotMatch(contents($('league-table')), /Local only/);
+  assert.equal(values.get(STORAGE_KEY), JSON.stringify(old));
+});
+test('browser applies weekly results on top of current online history and preserves current-league draft edits', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const old = await rosterFixture();
+  old.settings.maxRounds = 12;
+  old.teams.find(team => team.name === 'Team 34').notes = 'Local committee note';
+  old.rounds = [{ date: '2026-11-07', name: 'Local only', qualifying: true, canceled: false, cards: [{ player: 'Paddy Daly', score: 30 }] }];
+  const source = JSON.stringify(old);
+  const { $, values, preview, setPublished } = await workspace(t, source, published);
+  await preview('Played on,15/11/2026\nPlayer,Score\nPaddy Daly,31');
+  assert.equal(values.get(STORAGE_KEY), source);
+  const newer = structuredClone(published);
+  newer.rounds.push({ date: '2026-11-21', name: 'Published during preview', qualifying: true, canceled: false, cards: [{ player: 'Timothy Cummins', score: 32 }] });
+  setPublished(newer);
+  $('net-confirm').checked = true;
+  await $('apply-form').emit('submit');
+  const saved = JSON.parse(values.get(STORAGE_KEY));
+  assert.deepEqual(saved.rounds.find(round => round.date === '2026-10-31'), published.rounds[0]);
+  assert.deepEqual(saved.rounds.map(round => round.date).sort(), ['2026-10-31', '2026-11-07', '2026-11-14', '2026-11-21']);
+  assert.equal(saved.settings.maxRounds, 12);
+  assert.equal(saved.teams.find(team => team.name === 'Team 34').notes, 'Local committee note');
+  assert.deepEqual(JSON.parse(values.get(BASELINE_KEY)).published, newer);
+});
+test('publication download fetches the latest seed and includes online weekends missing from a saved draft', async t => {
+  const nativeFetch = globalThis.fetch;
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const local = structuredClone(published); local.teams[0].notes = 'Local review';
+  const { $, downloads, setPublished, values } = await workspace(t, JSON.stringify(local), published, published);
+  const newer = structuredClone(published);
+  newer.rounds.push({ date: '2026-11-07', name: 'Later online result', qualifying: true, canceled: false, cards: [{ player: 'Paddy Daly', score: 30 }] });
+  setPublished(newer);
+  await $('publication').emit('click');
+  assert.equal(downloads.at(-1).download, 'published.json');
+  const exported = await (await nativeFetch(downloads.at(-1).href)).json();
+  assert.equal(exported.rounds.length, 2);
+  assert.deepEqual(exported.rounds[1], newer.rounds[1]);
+  assert.equal(exported.teams[0].notes, 'Local review');
+  assert.equal(values.get(STORAGE_KEY), JSON.stringify(local));
+  assert.match($('status').textContent, /No server data was changed/);
+});
+test('conflicting online and local score edits block resume, apply and publication without losing the backup', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const local = structuredClone(published), newer = structuredClone(published);
+  local.rounds[0].cards[0].score++;
+  newer.rounds[0].cards[0].score += 2;
+  const source = JSON.stringify(local);
+  const { $, values, downloads, preview } = await workspace(t, source, newer, published);
+  await $('resume-results').emit('click');
+  assert.match($('status').textContent, /Sync conflict.*preserved.*backup/);
+  assert.equal($('view-label').textContent, 'Published club results');
+  await preview();
+  assert.match($('import-status').textContent, /Sync conflict/);
+  assert.equal($('apply-import').disabled, true);
+  await $('publication').emit('click');
+  assert.equal(downloads.length, 0);
+  assert.equal(values.get(STORAGE_KEY), source);
+  await $('backup').emit('click');
+  assert.equal(downloads.at(-1).download, 'blainroe-draft-backup.json');
+});
+test('unrelated saved team list cannot erase the current roster, and unavailable latest data blocks publication', async t => {
+  const published = await rosterFixture(), unrelated = emptyState();
+  unrelated.teams = [{ name: 'Other season team', players: ['One', 'Two', 'Three'] }];
+  const source = JSON.stringify(unrelated);
+  const { $, preview, values, downloads } = await workspace(t, source, published);
+  await preview();
+  assert.match($('import-status').textContent, /unrelated team list/);
+  assert.equal(values.get(STORAGE_KEY), source);
+  globalThis.fetch = async () => ({ ok: false, status: 503 });
+  await $('publication').emit('click');
+  assert.match($('status').textContent, /latest published.*503/);
+  assert.equal(downloads.length, 0);
+  assert.equal(values.get(STORAGE_KEY), source);
 });

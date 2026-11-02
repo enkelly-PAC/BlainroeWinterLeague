@@ -234,6 +234,9 @@ export function classifyScoreCSV(source) {
 }
 function metadataName(rows) {
   const names = [];
+  const reportIndex = rows.findIndex(row => row.length === 1 && /^Competition Result$/i.test(row[0]));
+  if (reportIndex >= 2 && rows[1]?.length === 1 && !/^Printed:|^Competition Result$/i.test(rows[1][0]))
+    names.push(rows[1][0]);
   for (const row of rows) {
     if (row.map(header).some(cell => ['player', 'name', 'overallposition'].includes(cell))) break;
     if (/^(competition(?: name)?|round(?: name)?)$/i.test(row[0]) && row[1])
@@ -319,8 +322,8 @@ export function importRound(state, input, mode = 'merge') {
     const cards = new Map(existing.cards.map(c => [canonical(c.player), c]));
     for (const card of round.cards) {
       const previous = cards.get(canonical(card.player));
-      if (previous && previous.score !== card.score)
-        fail(`Conflicting card for ${card.player}: existing ${previous.score}, uploaded ${card.score}. Use confirmed replace-weekend with the complete corrected CSV.`);
+      if (previous && (previous.score !== card.score || previous.handicap !== card.handicap))
+        fail(`Conflicting card for ${card.player}: existing ${previous.score} (handicap ${previous.handicap ?? 'not supplied'}), uploaded ${card.score} (handicap ${card.handicap ?? 'not supplied'}). Use confirmed replace-weekend with the complete corrected CSV.`);
       if (!previous) cards.set(canonical(card.player), card);
     }
     round.cards = [...cards.values()];

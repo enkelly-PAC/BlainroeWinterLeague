@@ -8,6 +8,7 @@ import { leaderboardPDFModel, leaderboardPDFDocument } from '../leaderboard-pdf.
 
 test('PDF awaiting-results list keeps all 45 real teams and never asserts zero-score standings', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  state.rounds = [];
   const model = leaderboardPDFModel(state);
   assert.equal(model.hasResults, false);
   assert.equal(model.through, null);
@@ -96,7 +97,7 @@ function finalCard(team, index, total = 40, back9 = 20) {
   return { team: team.name, player: team.players[index], total, back9, back6: Math.min(12, back9), back3: Math.min(6, back9), back1: Math.min(2, back9) };
 }
 
-test('workbook roster preserves numbered teams, vacancy and unresolved entries without invented results', async () => {
+test('workbook roster preserves numbered teams, vacancy and unresolved entries alongside real results', async () => {
   const state = parseJSON(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   assert.equal(state.teams.length, 45);
   assert.equal(state.teams.flatMap(t => t.players).length, 134);
@@ -104,7 +105,8 @@ test('workbook roster preserves numbered teams, vacancy and unresolved entries w
   assert.deepEqual(state.teams.map(t => Number(t.name.slice(5))).sort((a, b) => a - b), Array.from({ length: 45 }, (_, i) => i + 2));
   assert.deepEqual(state.teams.find(t => t.name === 'Team 34').players, ['Paddy Daly', 'Timothy Cummins']);
   assert.match(rosterStatus(state.teams.find(t => t.name === 'Team 37')), /Eugene McCrystal \(away member at Bundoran\): eligibility pending confirmation by Niall/);
-  assert.deepEqual(state.rounds, []);
+  assert.equal(state.rounds.length, 1);
+  assert.equal(state.rounds[0].date, '2026-10-31');
   assert.equal(state.final, null);
   assert.equal(state.settings.complete, false);
   assert.match(reportHTML(state, 'Local review'), /Player 3 vacant/);

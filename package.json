@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node --test",
     "serve": "node tools/serve.mjs",
-    "publish:data": "node tools/publish.mjs"
+    "publish:data": "node tools/publish.mjs",
+    "update:results": "node tools/update-results.mjs"
   }
 }

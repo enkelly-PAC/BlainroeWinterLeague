@@ -374,6 +374,840 @@
       ]
     }
   ],
-  "rounds": [],
+  "rounds": [
+    {
+      "date": "2026-10-31",
+      "name": "Mens Winter League singles - R1 - Alt Day",
+      "qualifying": true,
+      "canceled": false,
+      "cards": [
+        {
+          "player": "Neiland, Michael",
+          "score": 29,
+          "handicap": 7
+        },
+        {
+          "player": "Geraghty Jnr, Michael",
+          "score": 27,
+          "handicap": 3
+        },
+        {
+          "player": "Sheehy, Chris",
+          "score": 26,
+          "handicap": 2
+        },
+        {
+          "player": "O'Sullivan, Mark",
+          "score": 25,
+          "handicap": 5
+        },
+        {
+          "player": "Maughan, Peter",
+          "score": 25,
+          "handicap": 5
+        },
+        {
+          "player": "Moriarty, Declan",
+          "score": 24,
+          "handicap": -1
+        },
+        {
+          "player": "Kiely, Jamie",
+          "score": 24,
+          "handicap": 4
+        },
+        {
+          "player": "Whelan, Barry",
+          "score": 23,
+          "handicap": 2
+        },
+        {
+          "player": "Pickerill, David",
+          "score": 23,
+          "handicap": 7
+        },
+        {
+          "player": "Fitzpatrick, Dylan",
+          "score": 23,
+          "handicap": 6
+        },
+        {
+          "player": "Pickerill, Robert",
+          "score": 23,
+          "handicap": 2
+        },
+        {
+          "player": "Baker, Kevin",
+          "score": 22,
+          "handicap": 5
+        },
+        {
+          "player": "Downey, Samuel",
+          "score": 22,
+          "handicap": 2
+        },
+        {
+          "player": "Nolan, David",
+          "score": 22,
+          "handicap": 4
+        },
+        {
+          "player": "Sammon, Brian",
+          "score": 21,
+          "handicap": 2
+        },
+        {
+          "player": "Whelan, Craig",
+          "score": 21,
+          "handicap": 6
+        },
+        {
+          "player": "McKenna, Dermot B",
+          "score": 21,
+          "handicap": 3
+        },
+        {
+          "player": "O'Brien, Alan",
+          "score": 21,
+          "handicap": 6
+        },
+        {
+          "player": "Kenny, Sean",
+          "score": 20,
+          "handicap": 6
+        },
+        {
+          "player": "Kavanagh, Darragh",
+          "score": 20,
+          "handicap": 3
+        },
+        {
+          "player": "Ryan, Terence",
+          "score": 20,
+          "handicap": 5
+        },
+        {
+          "player": "O'Keefe, Peter",
+          "score": 20,
+          "handicap": 6
+        },
+        {
+          "player": "Byrne, Kenneth",
+          "score": 20,
+          "handicap": 6
+        },
+        {
+          "player": "Brown, Ian",
+          "score": 20,
+          "handicap": 5
+        },
+        {
+          "player": "Heffernan, Liam",
+          "score": 20,
+          "handicap": 3
+        },
+        {
+          "player": "McCoy, David",
+          "score": 20,
+          "handicap": 2
+        },
+        {
+          "player": "O'Sullivan, Philip",
+          "score": 19,
+          "handicap": 6
+        },
+        {
+          "player": "Allen, Greg",
+          "score": 19,
+          "handicap": 6
+        },
+        {
+          "player": "Doyle, Andrew",
+          "score": 19,
+          "handicap": 7
+        },
+        {
+          "player": "Bermingham, John",
+          "score": 19,
+          "handicap": 5
+        },
+        {
+          "player": "Byrne, Cormac",
+          "score": 18,
+          "handicap": 7
+        },
+        {
+          "player": "Baker, Pat",
+          "score": 18,
+          "handicap": 6
+        },
+        {
+          "player": "McCall, Joshua",
+          "score": 18,
+          "handicap": 0
+        },
+        {
+          "player": "Neiland Jnr, Joseph",
+          "score": 18,
+          "handicap": 3
+        },
+        {
+          "player": "Fahey, Rory",
+          "score": 18,
+          "handicap": 4
+        },
+        {
+          "player": "O'Grady, Ken",
+          "score": 18,
+          "handicap": 5
+        },
+        {
+          "player": "Ryan, Kieran",
+          "score": 18,
+          "handicap": 4
+        },
+        {
+          "player": "Kelly, Richard",
+          "score": 17,
+          "handicap": 3
+        },
+        {
+          "player": "Murphy, James",
+          "score": 16,
+          "handicap": 6
+        },
+        {
+          "player": "Porter, James",
+          "score": 15,
+          "handicap": 6
+        },
+        {
+          "player": "Mahon, Chris",
+          "score": 14,
+          "handicap": 6
+        },
+        {
+          "player": "Doolan, Alan",
+          "score": 12,
+          "handicap": 6
+        },
+        {
+          "player": "Woods, David",
+          "score": 27,
+          "handicap": 9
+        },
+        {
+          "player": "Hanway, David",
+          "score": 26,
+          "handicap": 8
+        },
+        {
+          "player": "Winters, David",
+          "score": 25,
+          "handicap": 9
+        },
+        {
+          "player": "Doyle, Don",
+          "score": 24,
+          "handicap": 8
+        },
+        {
+          "player": "Doyle, Ciaran",
+          "score": 23,
+          "handicap": 7
+        },
+        {
+          "player": "Garry, Jack",
+          "score": 23,
+          "handicap": 8
+        },
+        {
+          "player": "Kelly, Thomas",
+          "score": 23,
+          "handicap": 10
+        },
+        {
+          "player": "O'Sullivan, Justin",
+          "score": 23,
+          "handicap": 7
+        },
+        {
+          "player": "O'Malley, Gerard",
+          "score": 23,
+          "handicap": 9
+        },
+        {
+          "player": "Pembrey, Gavin",
+          "score": 23,
+          "handicap": 10
+        },
+        {
+          "player": "Purcell, Brian",
+          "score": 22,
+          "handicap": 7
+        },
+        {
+          "player": "Kennelly, Patrick",
+          "score": 22,
+          "handicap": 8
+        },
+        {
+          "player": "Roche, David",
+          "score": 22,
+          "handicap": 8
+        },
+        {
+          "player": "Kelly, Enda",
+          "score": 22,
+          "handicap": 7
+        },
+        {
+          "player": "Beacom, Ross",
+          "score": 22,
+          "handicap": 9
+        },
+        {
+          "player": "Kenna, DJ",
+          "score": 21,
+          "handicap": 10
+        },
+        {
+          "player": "Butler, Paul",
+          "score": 21,
+          "handicap": 8
+        },
+        {
+          "player": "Murphy, Edward",
+          "score": 21,
+          "handicap": 9
+        },
+        {
+          "player": "Duffy, Mick",
+          "score": 20,
+          "handicap": 9
+        },
+        {
+          "player": "O'Neill, Michael Anthony",
+          "score": 20,
+          "handicap": 8
+        },
+        {
+          "player": "Rainey, Walker",
+          "score": 20,
+          "handicap": 10
+        },
+        {
+          "player": "Pippet, Damian",
+          "score": 19,
+          "handicap": 8
+        },
+        {
+          "player": "Doyle, Patrick",
+          "score": 19,
+          "handicap": 9
+        },
+        {
+          "player": "Burgess, Peter",
+          "score": 19,
+          "handicap": 9
+        },
+        {
+          "player": "Phelan, James",
+          "score": 19,
+          "handicap": 8
+        },
+        {
+          "player": "McElhinney, Mark",
+          "score": 19,
+          "handicap": 9
+        },
+        {
+          "player": "Marren, Padraic",
+          "score": 19,
+          "handicap": 9
+        },
+        {
+          "player": "McDonnell, Brian",
+          "score": 19,
+          "handicap": 7
+        },
+        {
+          "player": "Geraghty, Graham",
+          "score": 18,
+          "handicap": 7
+        },
+        {
+          "player": "Timon, Con",
+          "score": 18,
+          "handicap": 8
+        },
+        {
+          "player": "Feeley, Don",
+          "score": 18,
+          "handicap": 9
+        },
+        {
+          "player": "Connolly, Michael",
+          "score": 17,
+          "handicap": 8
+        },
+        {
+          "player": "Lawlor, Conor",
+          "score": 17,
+          "handicap": 7
+        },
+        {
+          "player": "Fitzpatrick, Liam",
+          "score": 17,
+          "handicap": 7
+        },
+        {
+          "player": "McCormack, Shane",
+          "score": 17,
+          "handicap": 7
+        },
+        {
+          "player": "Seymour, William",
+          "score": 17,
+          "handicap": 9
+        },
+        {
+          "player": "Newsome, Shane",
+          "score": 16,
+          "handicap": 8
+        },
+        {
+          "player": "Marah, Paul",
+          "score": 15,
+          "handicap": 9
+        },
+        {
+          "player": "Farrell, Michael",
+          "score": 14,
+          "handicap": 8
+        },
+        {
+          "player": "O'Neill, Ciaran",
+          "score": 14,
+          "handicap": 7
+        },
+        {
+          "player": "Reid, Alan",
+          "score": 12,
+          "handicap": 8
+        },
+        {
+          "player": "Lynch, Colm",
+          "score": 27,
+          "handicap": 12
+        },
+        {
+          "player": "Costello, Barry",
+          "score": 23,
+          "handicap": 12
+        },
+        {
+          "player": "Whelan, David",
+          "score": 23,
+          "handicap": 10
+        },
+        {
+          "player": "O'Connor, Brian",
+          "score": 23,
+          "handicap": 10
+        },
+        {
+          "player": "Harrington, Eamonn",
+          "score": 23,
+          "handicap": 12
+        },
+        {
+          "player": "McConnell, Scott",
+          "score": 22,
+          "handicap": 11
+        },
+        {
+          "player": "Power, Colm",
+          "score": 21,
+          "handicap": 11
+        },
+        {
+          "player": "Delahunt, Gareth",
+          "score": 21,
+          "handicap": 10
+        },
+        {
+          "player": "Curran, Tomas",
+          "score": 21,
+          "handicap": 11
+        },
+        {
+          "player": "Curran, Frank",
+          "score": 21,
+          "handicap": 11
+        },
+        {
+          "player": "Heffernan, Pat",
+          "score": 20,
+          "handicap": 11
+        },
+        {
+          "player": "Lawlor, Ronan",
+          "score": 20,
+          "handicap": 10
+        },
+        {
+          "player": "Neiland, Joe",
+          "score": 20,
+          "handicap": 12
+        },
+        {
+          "player": "Higgins, Brian",
+          "score": 20,
+          "handicap": 11
+        },
+        {
+          "player": "Stones, Liam",
+          "score": 20,
+          "handicap": 11
+        },
+        {
+          "player": "Keogh, Fergal",
+          "score": 19,
+          "handicap": 13
+        },
+        {
+          "player": "Mulligan, Gerry",
+          "score": 19,
+          "handicap": 13
+        },
+        {
+          "player": "Daly, Patrick",
+          "score": 19,
+          "handicap": 13
+        },
+        {
+          "player": "Moore, Declan",
+          "score": 19,
+          "handicap": 11
+        },
+        {
+          "player": "Rawl, Calum",
+          "score": 19,
+          "handicap": 10
+        },
+        {
+          "player": "Browne, David",
+          "score": 18,
+          "handicap": 12
+        },
+        {
+          "player": "Jennings, Austin",
+          "score": 18,
+          "handicap": 10
+        },
+        {
+          "player": "Noctor, James",
+          "score": 18,
+          "handicap": 13
+        },
+        {
+          "player": "Daly, John",
+          "score": 18,
+          "handicap": 12
+        },
+        {
+          "player": "Forsyth, Kevin",
+          "score": 18,
+          "handicap": 12
+        },
+        {
+          "player": "Fahy, Noel",
+          "score": 17,
+          "handicap": 11
+        },
+        {
+          "player": "Bonus, Philip",
+          "score": 17,
+          "handicap": 12
+        },
+        {
+          "player": "O'Brien, Ian",
+          "score": 17,
+          "handicap": 12
+        },
+        {
+          "player": "Schwartz, Amory",
+          "score": 17,
+          "handicap": 10
+        },
+        {
+          "player": "Kelly, Edward",
+          "score": 16,
+          "handicap": 11
+        },
+        {
+          "player": "O'Leary, Theo",
+          "score": 16,
+          "handicap": 11
+        },
+        {
+          "player": "O'Mahony, Denis",
+          "score": 16,
+          "handicap": 13
+        },
+        {
+          "player": "McDougall, Thomas",
+          "score": 15,
+          "handicap": 11
+        },
+        {
+          "player": "Owens, Colin",
+          "score": 15,
+          "handicap": 10
+        },
+        {
+          "player": "Mulqueen, David",
+          "score": 14,
+          "handicap": 12
+        },
+        {
+          "player": "Dunne, Alan",
+          "score": 14,
+          "handicap": 10
+        },
+        {
+          "player": "McGuinness, Ger",
+          "score": 13,
+          "handicap": 11
+        },
+        {
+          "player": "Fitzpatrick, Kevin",
+          "score": 12,
+          "handicap": 11
+        },
+        {
+          "player": "Mulqueen, John",
+          "score": 12,
+          "handicap": 12
+        },
+        {
+          "player": "Conway, Damian",
+          "score": 11,
+          "handicap": 10
+        },
+        {
+          "player": "O'Malley, Dominic",
+          "score": 26,
+          "handicap": 17
+        },
+        {
+          "player": "Morgan, Michael",
+          "score": 25,
+          "handicap": 15
+        },
+        {
+          "player": "Sheehy, Pat",
+          "score": 24,
+          "handicap": 16
+        },
+        {
+          "player": "Hegarty, Martin",
+          "score": 23,
+          "handicap": 14
+        },
+        {
+          "player": "Ryan, Bill",
+          "score": 23,
+          "handicap": 15
+        },
+        {
+          "player": "Cummins, Timothy",
+          "score": 23,
+          "handicap": 18
+        },
+        {
+          "player": "Rawl, John",
+          "score": 22,
+          "handicap": 19
+        },
+        {
+          "player": "Hawes, Gerry",
+          "score": 22,
+          "handicap": 14
+        },
+        {
+          "player": "Collins, Declan",
+          "score": 22,
+          "handicap": 22
+        },
+        {
+          "player": "Byrne, Nicholas",
+          "score": 21,
+          "handicap": 19
+        },
+        {
+          "player": "Halion, Colin",
+          "score": 20,
+          "handicap": 13
+        },
+        {
+          "player": "Burke, Pascal",
+          "score": 20,
+          "handicap": 17
+        },
+        {
+          "player": "Loughnane, Kevin",
+          "score": 19,
+          "handicap": 22
+        },
+        {
+          "player": "Smyth, David",
+          "score": 19,
+          "handicap": 15
+        },
+        {
+          "player": "Slattery, John",
+          "score": 19,
+          "handicap": 15
+        },
+        {
+          "player": "Timmins, Barry",
+          "score": 18,
+          "handicap": 20
+        },
+        {
+          "player": "Keogh, Stephen",
+          "score": 18,
+          "handicap": 14
+        },
+        {
+          "player": "Waters, John",
+          "score": 18,
+          "handicap": 15
+        },
+        {
+          "player": "Brown, David",
+          "score": 17,
+          "handicap": 21
+        },
+        {
+          "player": "Moriarty, Dan",
+          "score": 17,
+          "handicap": 17
+        },
+        {
+          "player": "Johnson, William",
+          "score": 16,
+          "handicap": 16
+        },
+        {
+          "player": "Lawlor, Martin",
+          "score": 16,
+          "handicap": 15
+        },
+        {
+          "player": "Kearns, Nicholas",
+          "score": 16,
+          "handicap": 20
+        },
+        {
+          "player": "O'Brien, Tim",
+          "score": 16,
+          "handicap": 17
+        },
+        {
+          "player": "Lester, Mark",
+          "score": 16,
+          "handicap": 21
+        },
+        {
+          "player": "Fox, Morgan",
+          "score": 15,
+          "handicap": 20
+        },
+        {
+          "player": "Sparling, David",
+          "score": 15,
+          "handicap": 17
+        },
+        {
+          "player": "Doyle, J. C.",
+          "score": 15,
+          "handicap": 15
+        },
+        {
+          "player": "McDaid, Tom",
+          "score": 14,
+          "handicap": 22
+        },
+        {
+          "player": "Mooney, Sean",
+          "score": 14,
+          "handicap": 15
+        },
+        {
+          "player": "Deignan, Paul F",
+          "score": 14,
+          "handicap": 13
+        },
+        {
+          "player": "Delahunt, Arthur",
+          "score": 14,
+          "handicap": 18
+        },
+        {
+          "player": "O'Neill, Seamus",
+          "score": 13,
+          "handicap": 16
+        },
+        {
+          "player": "Long, Paul",
+          "score": 13,
+          "handicap": 17
+        },
+        {
+          "player": "O'Brien, Hugh",
+          "score": 13,
+          "handicap": 26
+        },
+        {
+          "player": "Gleeson, Kenneth",
+          "score": 12,
+          "handicap": 21
+        },
+        {
+          "player": "Nagle, Colm",
+          "score": 12,
+          "handicap": 14
+        },
+        {
+          "player": "Bradshaw, Leslie T",
+          "score": 11,
+          "handicap": 13
+        },
+        {
+          "player": "Sherwin, Derek",
+          "score": 11,
+          "handicap": 18
+        },
+        {
+          "player": "Beausang, Paul",
+          "score": 11,
+          "handicap": 21
+        },
+        {
+          "player": "Kavanagh, Tom",
+          "score": 11,
+          "handicap": 21
+        },
+        {
+          "player": "Coyle, Sean",
+          "score": 10,
+          "handicap": 15
+        }
+      ]
+    }
+  ],
   "final": null
 }

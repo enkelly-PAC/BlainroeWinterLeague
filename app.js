@@ -1,5 +1,6 @@
 import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML, assignments, isHeld, rosterStatus, replaceTeams, editTeam } from './core.js';
-import { readDraft, saveDraft, STORAGE_KEY } from './storage.js';
+import { readDraft, saveDraft, readBaseline, STORAGE_KEY, BASELINE_KEY } from './storage.js';
+import { synchroniseDraft, protectPublishedHistory } from './publication.js';
 import { createLeaderboardPDF } from './leaderboard-pdf.js';
 
 const $ = id => document.getElementById(id);
@@ -13,6 +14,7 @@ let storage;
 try { storage = window.localStorage; } catch { storage = null; }
 const restored = readDraft(storage);
 draft = restored.state;
+let draftBaseline = draft ? readBaseline(storage, draft) : null;
 draftSaved = Boolean(draft);
 storageBlocked = Boolean(restored.error);
 $('storage-notice').textContent = restored.error || (draft ? 'Saved local draft available. Public view is shown by default.' : 'No local draft saved yet.');
@@ -60,19 +62,20 @@ function working() {
     if (!publishedReady) throw new Error('Published data is unavailable. Refresh it first, or restore a validated JSON backup.');
     draft = structuredClone(published);
   }
-  return draft;
+  return publishedReady ? synchroniseDraft(draft, published, draftBaseline) : draft;
 }
 function importBase() {
   if (storageBlocked) throw new Error('Unreadable draft preserved. Restore a validated JSON backup or explicitly replace/delete the draft before applying imports.');
   if (!draft && !publishedReady) throw new Error('Published data is unavailable. Refresh it first, or restore a validated JSON backup.');
-  return draft || published;
+  return draft && publishedReady ? synchroniseDraft(draft, published, draftBaseline) : draft || published;
 }
 function persist(state, success) {
   validateState(state);
   if (storageBlocked) throw new Error('Unreadable storage preserved. Explicitly replace or delete the local draft first.');
   draft = structuredClone(state);
+  draftBaseline = publishedReady ? structuredClone(published) : null;
   mode = 'draft';
-  const error = saveDraft(storage, draft);
+  const error = saveDraft(storage, draft, draftBaseline);
   draftSaved = !error;
   $('storage-notice').textContent = error || 'Saved on this device. Back up regularly.';
   render();
@@ -301,6 +304,8 @@ function renderRoundEditors() {
     const canceled = labeled(form, 'Weather canceled (entire weekend)', 'checkbox', round.canceled);
     const save = element('button', 'Save weekend metadata'); save.type = 'submit'; form.append(save);
     const remove = element('button', 'Remove this weekend'); remove.type = 'button'; form.append(remove);
+    remove.disabled = published.rounds.some(entry => entry.date === round.date);
+    if (remove.disabled) remove.title = 'Published weekends are permanent history. Exclude or cancel a weekend instead, then request reviewed owner publication.';
     form.addEventListener('submit', safely(() => {
       if (!confirm('Change this weekend for every team? Existing final eligibility may prevent this edit; remove final cards first if needed.')) return;
       const next = structuredClone(working());
@@ -316,12 +321,19 @@ function renderRoundEditors() {
     host.append(form);
   }
 }
+async function loadPublished() {
+  const response = await fetch('./data/published.json', { cache: 'no-store' });
+  if (!response.ok) throw new Error(`Could not load latest published results (HTTP ${response.status}). Retry before importing or exporting publication JSON.`);
+  const state = parseJSON(await response.text());
+  published = state; publishedReady = true;
+}
 async function refresh() {
   try {
-    const response = await fetch('./data/published.json', { cache: 'no-store' });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const source = await response.text();
-    published = parseJSON(source); publishedReady = true;
+    await loadPublished();
+    if (mode === 'draft' && draft) {
+      persist(synchroniseDraft(draft, published, draftBaseline), 'Draft synchronised with latest published history.');
+      return;
+    }
     render(); message('Published results loaded.');
   } catch (error) {
     render();
@@ -352,7 +364,7 @@ $('singles-weekend').addEventListener('change', () => {
   singlesSelection[mode] = $('singles-weekend').value;
   renderSingles(current());
 });
-function resumeResults() { persist(resultsState(working()), 'Saved results opened.'); selectTab(0); }
+async function resumeResults() { await loadPublished(); persist(resultsState(working()), 'Saved results opened with latest published history.'); selectTab(0); }
 $('start-draft').addEventListener('click', safely(resumeResults));
 $('resume-results').addEventListener('click', safely(resumeResults));
 function openResultsUpload() {
@@ -371,8 +383,8 @@ $('reset-draft').addEventListener('click', safely(() => {
 }));
 $('delete-draft').addEventListener('click', safely(() => {
   if (!confirm('Delete the saved local draft and in-memory draft? Public data remains unchanged.')) return;
-  try { storage?.removeItem(STORAGE_KEY); } catch { throw new Error('Browser refused to delete storage. Use browser site-data controls.'); }
-  draft = null; storageBlocked = false; mode = 'published'; clearPreview();
+  try { storage?.removeItem(STORAGE_KEY); storage?.removeItem(BASELINE_KEY); } catch { throw new Error('Browser refused to delete storage. Use browser site-data controls.'); }
+  draft = null; draftBaseline = null; storageBlocked = false; mode = 'published'; clearPreview();
   $('storage-notice').textContent = 'Local draft deleted.'; render(); message('Local draft deleted. Public data unchanged.');
 }));
 $('demo').addEventListener('click', safely(() => {
@@ -474,6 +486,7 @@ async function readImportFiles(revision) {
   const kind = $('import-type').value, files = [...$('import-files').files];
   if (!files.length) throw new Error('Choose a file.');
   if (kind !== 'scores' && files.length !== 1) throw new Error('Choose exactly one file for this import type.');
+  if (kind !== 'restore') await loadPublished();
   if (files.length > 20) throw new Error('Choose at most 20 CSV files per preview.');
   for (const file of files) if (file.size > MAX_BYTES) throw new Error(`${file.name} exceeds the 2 MB file limit.`);
   importMessage(`Reading ${files.length} selected file(s). Nothing is saved yet.`);
@@ -514,7 +527,7 @@ async function readImportFiles(revision) {
     if (dates.length > 1) throw new Error(`Result files contain different weekends (${resultIndices.map(index => files[index].name).join(', ')}). Import each weekend separately.`);
     for (const [index, entry] of parsed.entries()) for (const card of entry.cards) {
       const key = canonical(card.player), previous = cards.get(key);
-      if (previous && previous.score !== card.score) throw new Error(`${files[resultIndices[index]].name}: conflicting uploaded cards for ${card.player}. Choose the correct card and prepare a corrected CSV; no duplicate is counted.`);
+      if (previous && (previous.score !== card.score || previous.handicap !== card.handicap)) throw new Error(`${files[resultIndices[index]].name}: conflicting uploaded cards for ${card.player}. Choose the correct points and handicap metadata and prepare a corrected CSV; no duplicate is counted.`);
       if (!previous) cards.set(key, card);
     }
     data = [...cards.values()];
@@ -525,7 +538,7 @@ async function readImportFiles(revision) {
       (weekendKeys.every(Boolean) ? `Weekend ${dates[0]}` : '');
     $('qualifying').checked = existing?.qualifying ?? true;
     $('net-confirm').checked = false; $('import-mode').value = 'merge';
-    const base = resultsState(draft || published), matches = data.map(card => cardMatch(base.teams, card));
+    const base = resultsState(storageBlocked ? draft || published : importBase()), matches = data.map(card => cardMatch(base.teams, card));
     const matched = matches.filter(match => match.status === 'Matched').length;
     const held = matches.filter(match => match.status.startsWith('Held')).length;
     matchingSummary = ` ${matched} matched, ${matches.length - matched - held} unmatched, ${held} held.`;
@@ -559,12 +572,14 @@ $('weekend-date').addEventListener('change', safelyImport(() => {
   if (existing) { $('round-name').value = existing.name; $('qualifying').checked = existing.qualifying; }
   updateApplyAvailability();
 }));
-$('apply-form').addEventListener('submit', safelyImport(() => {
+$('apply-form').addEventListener('submit', safelyImport(async () => {
   if (!pending) throw new Error('Read a file and preview it first.');
+  await loadPublished();
   let next;
   if (pending.kind === 'restore') {
     if (!confirm('Replace the entire local draft with this validated JSON? Download a backup first.')) return;
-    storageBlocked = false; next = pending.data;
+    next = synchroniseDraft(pending.data, published);
+    storageBlocked = false;
   } else {
     next = structuredClone(importBase());
     if (pending.kind === 'teams') {
@@ -603,9 +618,10 @@ $('clear-final').addEventListener('click', safely(() => {
   if (!confirm('Remove every final card from your draft?')) return;
   const next = structuredClone(working()); next.final = null; persist(next, 'Final cards removed.');
 }));
-$('backup').addEventListener('click', safely(() => { download('blainroe-draft-backup.json', JSON.stringify(validateState(working()), null, 2) + '\n', 'application/json'); }));
-$('publication').addEventListener('click', safely(() => {
-  const state = validateState(working());
+$('backup').addEventListener('click', safely(() => { download('blainroe-draft-backup.json', JSON.stringify(validateState(draft || published), null, 2) + '\n', 'application/json'); }));
+$('publication').addEventListener('click', safely(async () => {
+  await loadPublished();
+  const state = protectPublishedHistory(validateState(working()), published);
   if (!confirm('Export this draft for owner publication? Names will become publicly readable if the owner commits this file. Confirm consent and verify all results first.')) return;
   download('published.json', JSON.stringify(state, null, 2) + '\n', 'application/json');
 }));
