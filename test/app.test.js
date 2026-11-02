@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { emptyState } from '../core.js';
+import { emptyState, league } from '../core.js';
 import { STORAGE_KEY } from '../storage.js';
 
 let instance = 0;
@@ -18,6 +18,7 @@ async function workspace(t, source = null, published = emptyState()) {
     replaceChildren(...children) { this.children = children; }
     setAttribute() {}
     focus() { document.activeElement = this; }
+    click() { this.clicked = true; }
     addEventListener(event, listener) { this.listeners.set(event, listener); }
     async emit(event) { await this.listeners.get(event)?.({ preventDefault() {} }); }
   }
@@ -43,9 +44,149 @@ async function workspace(t, source = null, published = emptyState()) {
     $('import-files').files = [{ name: 'synthetic-results.csv', size: content.length, text: async () => content }];
     await $('import-files').emit('change');
   }
-  return { $, values, preview };
+  async function reload() {
+    await import(`../app.js?test=${++instance}`);
+    await new Promise(resolve => setImmediate(resolve));
+  }
+  const contents = node => [node.textContent, ...node.children.map(contents)].join('\n');
+  return { $, values, preview, reload, contents };
 }
-test('published roster is opt-in for older saved drafts and keeps existing scores and settings', async t => {
+test('default team leaderboard has an honest empty state and primary upload without committee navigation', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const { $, values, contents } = await workspace(t, null, published);
+  assert.equal($('view-label').textContent, 'Published club results');
+  assert.equal($('results-empty').hidden, false);
+  assert.equal($('empty-heading').textContent, 'No results uploaded yet');
+  assert.equal($('league-table').hidden, true);
+  assert.equal($('tie-warning').hidden, true);
+  assert.match($('team-review-summary').textContent, /3 team entries need review/);
+  assert.match(contents($('awaiting-table')), /Team 34/);
+  assert.doesNotMatch(contents($('league-table')), /Team 34/);
+  assert.equal($('upload-panel').children.includes($('results-upload')), true);
+  await $('upload-results').emit('click');
+  assert.equal($('upload-panel').open, true);
+  assert.equal($('import-files').clicked, true);
+  assert.equal(document.activeElement, $('import-files'));
+  assert.equal(values.has(STORAGE_KEY), false);
+  assert.equal($('apply-import').textContent, 'Update leaderboard');
+});
+
+test('old zero-team scores map to published players on explicit update, retain settings and survive reload', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = emptyState(); state.settings.maxRounds = 12;
+  state.rounds = [{ date: '2026-10-31', name: 'Existing scores', qualifying: false, canceled: false,
+    cards: [{ player: 'Paddy Daly', score: 18 }] }];
+  const source = JSON.stringify(state);
+  const { $, values, preview, contents, reload } = await workspace(t, source, published);
+  assert.equal($('resume-notice').hidden, false);
+  await $('upload-results').emit('click');
+  await preview('Competition Name,Synthetic weekend\nPlayed on,08/11/2026\nPlayer,Score\n"Daly, Paddy",29\nTimothy Cummins,24\nColin Owens,40\nSynthetic Visitor,33');
+  assert.equal($('round-name').value, 'Synthetic weekend');
+  assert.match($('preview-summary').textContent, /2 matched, 1 unmatched, 1 held/);
+  assert.match($('preview-summary').textContent, /published team list will be added/);
+  assert.match(contents($('preview-table')), /Paddy Daly/);
+  assert.match(contents($('preview-table')), /Team 10, Team 37/);
+  assert.equal(values.get(STORAGE_KEY), source);
+  $('net-confirm').checked = true; await $('net-confirm').emit('change');
+  assert.equal($('apply-import').disabled, false);
+  await $('apply-form').emit('submit');
+  const saved = JSON.parse(values.get(STORAGE_KEY));
+  assert.deepEqual(saved.teams, published.teams);
+  assert.deepEqual(saved.rounds[0], state.rounds[0]);
+  assert.deepEqual(saved.settings, state.settings);
+  assert.equal(league(saved).rows.find(row => row.team.name === 'Team 34').retained, 53);
+  assert.equal(league(saved).rows.find(row => row.team.name === 'Team 10').retained, 0);
+  assert.equal(league(saved).rows.find(row => row.team.name === 'Team 37').retained, 0);
+  assert.equal($('results-empty').hidden, true);
+  assert.equal($('league-table').hidden, false);
+  assert.match(contents($('league-table')), /Paddy Daly, Timothy Cummins/);
+  assert.match(contents($('league-table')), /53/);
+  assert.doesNotMatch(contents($('league-table')), /\n(?:Raw|Retained|Discarded total|Status)\n/);
+  assert.equal($('matching-review').hidden, false);
+  assert.equal($('matching-review').open, true);
+  assert.match($('matching-summary').textContent, /2 uploaded cards/);
+  assert.match(contents($('matching-table')), /Colin Owens/);
+  assert.match(contents($('matching-table')), /Synthetic Visitor/);
+  assert.equal($('upload-panel').open, false);
+  assert.equal(document.activeElement, $('leaderboard-heading'));
+  await reload();
+  assert.equal($('view-label').textContent, 'Published club results');
+  assert.equal($('resume-notice').hidden, false);
+  await $('resume-results').emit('click');
+  assert.deepEqual(JSON.parse(values.get(STORAGE_KEY)), saved);
+  assert.match(contents($('league-table')), /53/);
+});
+
+test('score updates never replace customized teams and combine only the best two mapped cards', async t => {
+  const state = emptyState();
+  state.teams = [{ name: 'Custom team', players: ['Synthetic Alpha', 'Synthetic Beta', 'Synthetic Gamma'] }];
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const { $, values, preview } = await workspace(t, JSON.stringify(state), published);
+  await preview('Played on,08/11/2026\nPlayer,Score\nSynthetic Alpha,29\nSynthetic Beta,24\nSynthetic Gamma,20\nPaddy Daly,40');
+  assert.equal($('round-name').value, 'Weekend 2026-11-07');
+  assert.match($('preview-summary').textContent, /3 matched, 1 unmatched, 0 held/);
+  $('net-confirm').checked = true;
+  await $('apply-form').emit('submit');
+  const saved = JSON.parse(values.get(STORAGE_KEY));
+  assert.deepEqual(saved.teams, state.teams);
+  assert.equal(league(saved).rows[0].retained, 53);
+  assert.equal(saved.rounds[0].cards.length, 4);
+});
+
+test('resume attaches the published team list to old saved scores without needing another upload', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = emptyState();
+  state.rounds = [{ date: '2026-11-07', name: 'Existing scores', qualifying: true, canceled: false,
+    cards: [{ player: 'Paddy Daly', score: 29 }, { player: 'Timothy Cummins', score: 24 }] }];
+  const source = JSON.stringify(state);
+  const { $, values, contents } = await workspace(t, source, published);
+  assert.equal(values.get(STORAGE_KEY), source);
+  await $('resume-results').emit('click');
+  const saved = JSON.parse(values.get(STORAGE_KEY));
+  assert.deepEqual(saved.teams, published.teams);
+  assert.deepEqual(saved.rounds, state.rounds);
+  assert.equal(league(saved).rows[0].retained, 53);
+  assert.match(contents($('league-table')), /53/);
+});
+
+test('unmatched-only uploads remain actionable without showing invented all-zero standings', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const { $, values, preview, contents } = await workspace(t, null, published);
+  await preview('Played on,08/11/2026\nPlayer,Score\nColin Owens,40\nSynthetic Visitor,33');
+  $('net-confirm').checked = true;
+  await $('apply-form').emit('submit');
+  assert.equal(JSON.parse(values.get(STORAGE_KEY)).rounds[0].cards.length, 2);
+  assert.equal($('league-table').hidden, true);
+  assert.equal($('empty-heading').textContent, 'No team matches yet');
+  assert.equal($('matching-review').hidden, false);
+  assert.match(contents($('matching-table')), /Colin Owens/);
+  assert.match(contents($('matching-table')), /Synthetic Visitor/);
+  assert.equal($('tie-warning').hidden, true);
+});
+
+test('missing metadata asks for essentials and does not invent a date or round name', async t => {
+  const { $, values, preview } = await workspace(t);
+  await preview('Player,Score\nSynthetic Alpha,29');
+  assert.equal($('weekend-date').value, '');
+  assert.equal($('round-name').value, '');
+  $('net-confirm').checked = true; await $('net-confirm').emit('change');
+  assert.equal($('apply-import').disabled, true);
+  assert.match($('import-apply-help').textContent, /weekend date.*round name/);
+  assert.equal(values.has(STORAGE_KEY), false);
+});
+
+test('a failed storage write does not claim updated results were saved on this device', async t => {
+  const { $, values, preview } = await workspace(t);
+  window.localStorage.setItem = () => { throw new Error('Synthetic quota failure'); };
+  await preview();
+  $('net-confirm').checked = true;
+  await $('apply-form').emit('submit');
+  assert.equal(values.has(STORAGE_KEY), false);
+  assert.match($('status').textContent, /in memory only.*backup/);
+  assert.doesNotMatch($('status').textContent, /Saved on this device|Net results saved/);
+  assert.match($('draft-banner').textContent, /Not saved/);
+});
+test('explicit team-list replacement requires confirmation and keeps existing scores and settings', async t => {
   const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   const state = emptyState(); state.settings.maxRounds = 12;
   state.rounds = [{ date: '2026-10-31', name: 'Saved scores', qualifying: false, canceled: false,
@@ -124,7 +265,7 @@ test('results preview is read-only; only a valid explicit apply starts a saved d
   assert.equal(saved.rounds.length, 1);
   assert.equal(saved.rounds[0].date, '2026-11-07');
   assert.equal(saved.rounds[0].cards[0].score, 29);
-  assert.equal($('view-label').textContent, 'Browser-only draft results');
+  assert.equal($('view-label').textContent, 'Results on this device');
   await $('published-view').emit('click');
   assert.equal($('league-summary').textContent.includes('0 registered teams'), true);
   assert.equal(values.get(STORAGE_KEY), JSON.stringify(saved));

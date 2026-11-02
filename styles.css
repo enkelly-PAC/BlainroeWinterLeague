@@ -45,16 +45,26 @@ tbody th { background: inherit; font-weight: 600; }
 tbody tr:nth-child(even) { background: #fafcfa; }
 tbody tr:hover { background: #f4f9f4; }
 tbody td:first-child { font-weight: 600; color: var(--green); }
-#league-table tbody td:nth-child(4), #final-table tbody td:nth-child(4) { font-weight: 700; background: rgb(26 94 26 / 6%); }
-#league-table thead th:nth-child(4), #final-table thead th:nth-child(4) { background: #267426; }
+#league-table tbody td:nth-child(3), #final-table tbody td:nth-child(4) { font-weight: 700; background: rgb(26 94 26 / 6%); }
+#league-table thead th:nth-child(3), #final-table thead th:nth-child(4) { background: #267426; }
 #singles-table tbody td:nth-child(3) { font-weight: 700; background: rgb(26 94 26 / 6%); }
 #singles-table thead th:nth-child(3) { background: #267426; }
 #teams-table td:last-child { white-space: normal; min-width: 16rem; text-align: left; }
-#league-table thead th { font-size: .7rem; padding: .2rem .3rem; vertical-align: bottom; }
-#league-table .weekend-column { min-width: 64px; }
-.weekend-date { display: block; font-size: .7rem; margin-bottom: .25rem; }
-.weekend-heading { display: inline-block; writing-mode: vertical-lr; text-orientation: mixed; transform: rotate(180deg); max-height: 120px; white-space: normal; overflow-wrap: anywhere; font-size: .65rem; line-height: 1.2; padding: .3rem .1rem; }
-#league-table tbody td:nth-child(n+7) { font-weight: 600; background: rgb(76 175 80 / 14%); padding: .45rem .5rem; }
+#league-table thead th { vertical-align: bottom; }
+#league-table .weekend-column { min-width: 8rem; max-width: 12rem; white-space: normal; }
+.weekend-date { display: block; margin-bottom: .25rem; }
+.weekend-heading { display: block; font-size: .8rem; font-weight: 400; overflow-wrap: anywhere; }
+#league-table tbody th { white-space: pre-line; min-width: 14rem; max-width: 24rem; overflow-wrap: anywhere; }
+#league-table tbody td:nth-child(n+4) { font-weight: 600; }
+#awaiting-table td, #matching-table td, #preview-table td { white-space: normal; }
+#more-views { margin-left: auto; padding: .6rem; }
+#more-views summary { font-size: .9rem; }
+.empty-state { text-align: center; padding: 2rem 1rem; background: var(--pale); border-radius: 8px; margin: 1rem 0; }
+.empty-state h3 { font-size: 1.4rem; margin-top: 0; }
+.resume-notice { background: var(--pale); border: 1px solid var(--border); padding: .8rem; margin: 1rem 0; border-radius: 8px; }
+.resume-notice button { margin: .25rem; }
+#team-review, #matching-review { margin: 1rem 0; }
+#upload-panel { background: #f8fbf8; }
 .note { font-size: .9rem; color: #40594b; }
 .admin-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1rem; }
 .card { background: white; border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; min-width: 0; box-shadow: 0 1px 4px rgb(0 0 0 / 8%); }
@@ -74,5 +84,5 @@ legend { font-weight: 700; padding: 0 .4rem; }
 footer { padding: 1.5rem; background: var(--dark); color: white; text-align: center; }
 footer span { display: block; font-size: .85rem; margin-top: .3rem; }
 [hidden] { display: none !important; }
-@media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr; } h1 { font-size: 1.4rem; } .results-card, .card { padding: 1rem; } .view-bar { padding: 1rem; } .tabs button { font-size: .85rem; padding: .5rem .8rem; } }
+@media (max-width: 768px) { .admin-grid { grid-template-columns: 1fr; } h1 { font-size: 1.4rem; } .results-card, .card { padding: 1rem; } .view-bar { padding: 1rem; } .tabs button { font-size: .85rem; padding: .5rem .8rem; } #more-views { margin-left: 0; width: 100%; } .table-header > button { width: 100%; } }
 @media print { .tabs, .view-bar, button, #admin-panel, footer { display: none; } .brand { color: black; background: white; box-shadow: none; } .table-wrap { max-height: none; overflow: visible; } thead th { position: static; } .results-card, .card { box-shadow: none; } main { padding: 0; } }

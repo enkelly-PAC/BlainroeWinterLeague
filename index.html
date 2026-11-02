@@ -20,21 +20,29 @@
   <main>
     <div class="view-bar"><strong id="view-label">Published club results</strong><div><button id="published-view">Return to published view</button><button id="refresh">Refresh published results</button><a href="./README.html">Rules and owner guide</a></div></div>
     <p id="status" role="status" aria-live="polite" aria-atomic="true">Loading published results...</p>
-    <p id="draft-banner" class="warning" hidden><strong>Browser-only draft.</strong> This is not the club's published result. Imports stay on this browser. Export and owner publication are required to update the public site.</p>
+    <p id="draft-banner" class="note" hidden><strong>Saved on this device.</strong> Only the owner's publication updates the public leaderboard. Keep a backup of local results.</p>
+    <div id="resume-notice" class="resume-notice" hidden><span>Results on this device are available.</span> <button id="resume-results">Resume my saved results</button></div>
     <div class="results-card">
     <nav class="tabs" role="tablist" aria-label="Winter League views">
-      <button id="tab-league" role="tab" aria-selected="true" aria-controls="league-panel" tabindex="0">League</button>
+      <button id="tab-league" role="tab" aria-selected="true" aria-controls="league-panel" tabindex="0">Team leaderboard</button>
       <button id="tab-singles" role="tab" aria-selected="false" aria-controls="singles-panel" tabindex="-1">Singles</button>
-      <button id="tab-teams" role="tab" aria-selected="false" aria-controls="teams-panel" tabindex="-1">Teams and weekends</button>
-      <button id="tab-final" role="tab" aria-selected="false" aria-controls="final-panel" tabindex="-1">Final</button>
-      <button id="tab-admin" role="tab" aria-selected="false" aria-controls="admin-panel" tabindex="-1">Administration</button>
+      <details id="more-views"><summary>More: team list, final and committee tools</summary>
+        <button id="tab-teams" role="tab" aria-selected="false" aria-controls="teams-panel" tabindex="-1">Team list and weekends</button>
+        <button id="tab-final" role="tab" aria-selected="false" aria-controls="final-panel" tabindex="-1">Final</button>
+        <button id="tab-admin" role="tab" aria-selected="false" aria-controls="admin-panel" tabindex="-1">Committee tools</button>
+      </details>
     </nav>
     <section id="league-panel" role="tabpanel" aria-labelledby="tab-league">
-      <div class="table-header"><h2>League standings</h2><button id="report" class="export-button">Download league and final HTML report</button></div>
+      <div class="table-header"><h2 id="leaderboard-heading" tabindex="-1">Team leaderboard</h2><button id="upload-results" type="button" aria-controls="upload-panel">Upload HandicapMaster results</button></div>
+      <details id="upload-panel" class="card"><summary>Upload and review results</summary></details>
+      <div id="results-empty" class="empty-state" hidden><h3 id="empty-heading">No results uploaded yet</h3><p id="empty-help">Upload a HandicapMaster net results CSV to match players to the team list and calculate the leaderboard.</p><button id="empty-upload" type="button">Upload HandicapMaster results</button></div>
       <p id="league-summary"></p><p id="tie-warning" class="warning" hidden></p>
-      <p id="roster-warning" class="warning" hidden></p>
+      <details id="team-review" class="note" hidden><summary id="team-review-summary"></summary><p id="roster-warning"></p></details>
+      <details id="matching-review" class="warning" hidden open><summary id="matching-summary"></summary><p>These cards are saved but do not count for a team. Correct the team list or resolve held names in Committee tools. Singles still includes these cards.</p><div id="matching-table"></div></details>
       <div id="league-table"></div>
-      <p class="note">Each qualifying weekend: best 2 of 3 reported 12-hole net Stableford cards; absent cards score zero. Points are used unchanged, with no rescaling to 18 holes or handicap conversions. Live tables have no discards. Committee assumption: tied retained totals compare discarded scores highest first; remaining ties share rank, not alphabetical resolution.</p>
+      <p id="points-help" class="note" hidden>Team points combine the best 2 of 3 net Stableford cards each qualifying weekend. Missing or held cards contribute zero. Weekend points marked "discarded" are excluded from team points after qualification is complete.</p>
+      <details id="awaiting-teams"><summary>Team list: awaiting results</summary><div id="awaiting-table"></div></details>
+      <details class="note"><summary>Scoring details and report</summary><p>Reported 12-hole net Stableford points are used unchanged, with no rescaling or handicap conversions. Live tables have no discards. Committee assumption: tied retained totals compare discarded scores highest first; remaining ties share rank.</p><button id="report" class="export-button">Download league and final HTML report</button></details>
     </section>
     <section id="singles-panel" role="tabpanel" aria-labelledby="tab-singles" hidden>
       <h2>Singles leaderboard</h2>
@@ -53,17 +61,17 @@
       <div class="table-header"><h2>Winter League final</h2><button id="final-template" class="export-button">Download eligible final CSV template</button></div><p><strong>Zero league carryover.</strong> Final date awaiting committee confirmation unless a confirmed date is entered.</p>
       <p id="final-summary" class="warning"></p><div id="final-table"></div>
       <p>All 3 distinct registered players must submit final cards before their team is ranked. Countback aggregates all 3 players' back 9, 6, 3 and 1 in that order. Unresolved ties share rank.</p>
-      <p class="note">Enter final cards through Administration. Template scores are blank, not invented results.</p>
+      <p class="note">Enter final cards through the leaderboard's Upload and review results, then Other imports. Template scores are blank, not invented results.</p>
     </section>
     <section id="admin-panel" role="tabpanel" aria-labelledby="tab-admin" hidden>
-        <section class="card">
-          <h2 id="import-heading">Upload results CSV</h2>
+        <section id="results-upload">
+          <h2 id="import-heading">Upload HandicapMaster results</h2>
           <p id="import-help"><strong>Feeds League and Singles.</strong> Select your results and scorecard CSVs together. Net reports supply points; recognized gross scorecards are excluded.</p>
           <p id="import-example" class="note">Example filename: Competition Report 2026-11-07.csv</p>
-          <p id="import-steps">1. Choose CSV(s) for automatic preview. 2. Review weekend, enter a round name and confirm net points. 3. Save results to your draft.</p>
-          <p class="warning"><strong>Local only, not published.</strong> Preview saves nothing. Apply starts or resumes your browser draft; existing draft data is preserved unless you confirm replacement. Only the owner can publish reviewed JSON through GitHub. Back up your draft.</p>
+          <p id="import-steps">Choose files, review player matches, then update the leaderboard.</p>
+          <p class="note">Preview saves nothing. Updates are saved on this device, not shared automatically. Only the owner can publish reviewed results for everyone.</p>
           <p id="storage-notice" class="note"></p>
-          <div class="actions"><button id="start-draft">Start local draft (optional)</button><button id="results-import" type="button" hidden>Upload results CSV instead</button></div>
+          <div class="actions"><button id="results-import" type="button" hidden>Upload HandicapMaster results instead</button></div>
           <form id="import-form">
             <label><span id="import-file-label">Choose results and scorecard CSVs</span><input id="import-files" type="file" accept=".csv,text/csv" aria-describedby="import-help import-file-help" multiple required></label>
             <p id="import-file-help" class="note">Maximum 2 MB each, up to 20 files. Include Competition Report (Aggregated Net Result) for one weekend. No Return and DQ rows are omitted with preview counts.</p>
@@ -75,30 +83,31 @@
               <p class="note">These use the same choose, preview and apply form. Gross scorecards are recognized only, not stored or scored.</p>
             </details>
           </form>
+          <div id="preview" hidden>
+            <h3 id="preview-heading" tabindex="-1">Import preview (not saved yet)</h3><p id="preview-summary"></p><div id="preview-table"></div>
+          </div>
             <form id="apply-form">
               <fieldset id="score-metadata" hidden disabled><legend>Confirm before saving</legend>
                 <label>Weekend date (Saturday or Sunday, required)<input id="weekend-date" type="date" required></label>
                 <label>Round name (required)<input id="round-name" maxlength="160" placeholder="Enter the competition or round name" aria-describedby="import-apply-help" required></label>
-                <label class="check"><input id="qualifying" type="checkbox" checked>Qualifying weekend</label>
                 <label class="check"><input id="net-confirm" type="checkbox">I confirm these are reported 12-hole net Stableford points, not strokes</label>
+                <details><summary>Weekend options and corrections</summary>
+                <label class="check"><input id="qualifying" type="checkbox" checked>Qualifying weekend</label>
                 <label>Existing weekend action<select id="import-mode"><option value="merge">Merge new players, deduplicate identical cards</option><option value="replace">Replace entire weekend with these cards</option></select></label>
                 <p class="note">For a score conflict, prepare one complete corrected weekend CSV and choose replace. Replacement deletes every previous card for that weekend, with confirmation.</p>
+                </details>
               </fieldset>
               <fieldset id="final-metadata" hidden disabled><legend>Final metadata</legend><label>Confirmed final date (optional)<input id="final-date" type="date"></label><p>Replaces all existing final cards, with confirmation. Blank date means awaiting confirmation.</p></fieldset>
               <p id="import-apply-help" class="note">Choose files above. Save is disabled until a valid preview and required confirmations are ready.</p>
-              <button id="apply-import" type="submit" disabled>Save results to my draft</button><button id="cancel-preview" type="button" hidden>Cancel preview</button>
+              <button id="apply-import" type="submit" disabled>Update leaderboard</button><button id="cancel-preview" type="button" hidden>Cancel preview</button>
             </form>
-          <div id="preview" hidden>
-            <h3 id="preview-heading" tabindex="-1">Import preview (not saved yet)</h3><p id="preview-summary"></p><div id="preview-table"></div>
-          </div>
-          <aside class="scorecard-info" aria-labelledby="scorecard-heading">
-            <h3 id="scorecard-heading">Have a scorecard CSV?</h3>
+          <details class="scorecard-info">
+            <summary id="scorecard-heading">About gross scorecard CSVs</summary>
             <p>Include them with your net results in the same selection. Recognized Competition Scorecards contain hole-by-hole gross data: they are excluded from League and Singles net scoring and are not stored. Keep the originals privately for a separate future Winter Eclectic. Eclectic is not implemented here yet; no gross-to-net conversion is made.</p>
-          </aside>
+          </details>
           <details><summary>Results CSV template</summary><div class="actions"><button id="score-template">Download net results CSV template</button></div></details>
         </section>
-        <section class="card" aria-labelledby="registration-heading">
-          <h3 id="registration-heading">Team registration</h3>
+        <details class="card"><summary id="registration-heading">Edit team list</summary>
           <p>Add or change teams here without editing source files. New teams need three players; Team 34 may keep its vacant third place. Existing team numbers stay fixed.</p>
           <p id="roster-notice" class="warning"></p>
           <label>Team to edit<select id="roster-select" aria-controls="roster-form"></select></label>
@@ -110,16 +119,16 @@
             <label class="check"><input id="roster-held2" type="checkbox">Hold Player 2 score matching (ambiguous name)</label>
             <label>Player 3 (vacant only for Team 34)<input id="roster-player3" maxlength="160"></label>
             <label class="check"><input id="roster-held3" type="checkbox">Hold Player 3 score matching (ambiguous name)</label>
-            <label>Roster notes / pending confirmation<input id="roster-notes" maxlength="160" placeholder="Pending eligibility or committee decision"></label>
+            <label>Team list notes / pending confirmation<input id="roster-notes" maxlength="160" placeholder="Pending eligibility or committee decision"></label>
             <p class="note">Changing a player changes team membership for all weekends. Raw cards are never renamed or deleted. Spelling, accents, punctuation and surname-first names match automatically; other changes can leave old cards unassigned. Held names remain in Singles but contribute zero to team scoring until resolved. Notes record eligibility questions, not eligibility approval or automatic score exclusion. Review unassigned cards and back up first.</p>
             <button type="submit">Save team to my draft</button>
           </form>
-          <div class="actions"><button id="use-published-roster" type="button">Use published roster in my draft</button><button id="roster-export" type="button">Download draft roster CSV</button></div>
-          <details><summary>Replace roster from CSV</summary>
-            <p>Export the current roster to edit it in a spreadsheet, then preview and confirm replacement. All raw scores and settings stay in your draft. Basic CSV imports preserve existing notes and name holds for matching team names. Review missing teams and unassigned cards before publishing.</p>
+          <div class="actions"><button id="use-published-roster" type="button">Use published team list in my draft</button><button id="roster-export" type="button">Download draft team list CSV</button></div>
+          <details><summary>Replace team list from CSV</summary>
+            <p>Export the current team list to edit it in a spreadsheet, then preview and confirm replacement. All raw scores and settings stay in your draft. Basic CSV imports preserve existing notes and name holds for matching team names. Review missing teams and unassigned cards before publishing.</p>
             <div class="actions"><button id="teams-import" type="button">Choose team registration CSV</button><button id="team-template">Team CSV template</button></div>
           </details>
-        </section>
+        </details>
         <details class="card"><summary>Committee settings</summary>
           <form id="settings-form">
             <label>Maximum qualifying weekends<input id="max-rounds" type="number" min="1" max="52" required></label>
@@ -139,11 +148,11 @@
       </details>
       <details class="card"><summary>Advanced: replace, demo or delete local draft</summary>
         <p>These actions require confirmation. Browser storage is not a secure vault or a backup. Public results are unchanged.</p>
-        <div class="actions"><button id="reset-draft">Replace draft with published data</button><button id="demo">Load explicitly synthetic demo</button><button id="delete-draft">Delete local draft</button></div>
+        <div class="actions"><button id="start-draft">Start local draft (optional)</button><button id="reset-draft">Replace draft with published data</button><button id="demo">Load explicitly synthetic demo</button><button id="delete-draft">Delete local draft</button></div>
       </details>
     </section>
     </div>
   </main>
-  <footer>Blainroe Golf Club | Spirit Ford Wicklow <span>Workbook roster included locally. Public results and roster changes require owner publication.</span></footer>
+  <footer>Blainroe Golf Club | Spirit Ford Wicklow <span>Team list included. Public results and team list changes require owner publication.</span></footer>
 </body>
 </html>

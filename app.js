@@ -2,12 +2,16 @@ import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams,
 import { readDraft, saveDraft, STORAGE_KEY } from './storage.js';
 
 const $ = id => document.getElementById(id);
+// Keep the shared import form on the leaderboard, including its advanced import types.
+$('upload-panel').append($('results-upload'));
 let published = emptyState(), publishedReady = false, draft = null, mode = 'published', pending = null, storageBlocked = false, previewRevision = 0;
+let draftSaved = false;
 const singlesSelection = { published: null, draft: null };
 let storage;
 try { storage = window.localStorage; } catch { storage = null; }
 const restored = readDraft(storage);
 draft = restored.state;
+draftSaved = Boolean(draft);
 storageBlocked = Boolean(restored.error);
 $('storage-notice').textContent = restored.error || (draft ? 'Saved local draft available. Public view is shown by default.' : 'No local draft saved yet.');
 function message(value, error = false) {
@@ -32,7 +36,22 @@ function safely(action) {
     try { await action(event); } catch (error) { message(error.message, true); }
   };
 }
-function current() { return mode === 'draft' && draft ? draft : published; }
+function resultsState(state) {
+  return !state.teams.length && publishedReady && published.teams.length
+    ? replaceTeams(state, published.teams) : state;
+}
+function current() { return mode === 'draft' && draft ? resultsState(draft) : published; }
+function cardMatch(teams, card) {
+  const entries = teams.flatMap(team => team.players
+    .filter(player => canonical(player) === canonical(card.player))
+    .map(player => ({ team, player })));
+  const held = entries.some(({ team, player }) => isHeld(team, player));
+  return {
+    player: entries.map(entry => entry.player).filter((value, i, values) => values.indexOf(value) === i).join(', ') || 'Not in team list',
+    team: entries.map(entry => entry.team.name).join(', ') || 'Unassigned',
+    status: held ? 'Held: needs confirmation' : entries.length ? 'Matched' : 'Unmatched'
+  };
+}
 function working() {
   if (!draft) {
     if (storageBlocked) throw new Error('Unreadable draft preserved. Explicitly replace it with published data or delete it before importing.');
@@ -52,9 +71,10 @@ function persist(state, success) {
   draft = structuredClone(state);
   mode = 'draft';
   const error = saveDraft(storage, draft);
-  $('storage-notice').textContent = error || 'Local draft saved on this browser. Back up regularly.';
+  draftSaved = !error;
+  $('storage-notice').textContent = error || 'Saved on this device. Back up regularly.';
   render();
-  message(error ? `${success} ${error}` : `${success} Browser-only draft; public data unchanged.`, Boolean(error));
+  message(error ? `${error} Results are in memory only. Download a backup before leaving this page.` : `${success} Saved on this device. Only owner publication shares results with everyone.`, Boolean(error));
   return error;
 }
 function element(tag, value, className) {
@@ -74,7 +94,7 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
   const head = element('thead'), header = element('tr');
   columns.forEach((column, index) => {
     const th = element('th'); th.scope = 'col';
-    if (id === 'league-table' && index >= 6) {
+    if (id === 'league-table' && index >= 3) {
       th.className = 'weekend-column';
       th.setAttribute('aria-label', column); th.title = column;
       th.append(element('span', column.slice(0, 10), 'weekend-date'), element('span', column.slice(12), 'weekend-heading'));
@@ -117,33 +137,59 @@ function renderSingles(state) {
   summary.classList.toggle('warning', Boolean(result.round && (result.round.canceled || !result.round.qualifying)));
   summary.textContent = result.round
     ? `${result.round.date}: ${result.round.name}. ${result.status}. ${result.round.canceled || !result.round.qualifying ? 'Historical review only, not active official standings. ' : ''}${result.rows.length} imported individual cards.`
-    : 'No imported weekends in this view. The owner can preview and apply net Stableford scores in Administration, then publish reviewed results.';
+    : 'No results uploaded yet. Use Upload HandicapMaster results on the team leaderboard.';
   table('singles-table', `${mode === 'draft' ? 'Local draft' : 'Published'} singles: ${result.round?.date || 'no weekend'} (${result.status || 'no results'})`,
     ['Position', 'Player', 'Net Stableford points', 'Team membership'], result.rows.map(row => [row.rank, row.player, row.score, row.team]),
     result.round ? 'No submitted individual cards for this weekend. No absent players or scores have been invented.' : 'Import weekend scores to see individual results, even before teams are registered.');
 }
 function render() {
   const state = current(), result = league(state);
-  $('view-label').textContent = mode === 'draft' ? 'Browser-only draft results' : publishedReady ? 'Published club results' : 'Published data unavailable';
+  $('view-label').textContent = mode === 'draft' ? 'Results on this device' : publishedReady ? 'Published club results' : 'Published data unavailable';
+  $('resume-notice').hidden = mode === 'draft' || !draft?.rounds.some(round => round.cards.length);
+  $('resume-results').textContent = draftSaved ? 'Resume my saved results' : 'Resume local results (not saved)';
   $('draft-banner').hidden = mode !== 'draft';
+  $('draft-banner').classList.toggle('warning', !draftSaved);
+  $('draft-banner').textContent = draftSaved
+    ? 'Saved on this device. Only owner publication shares these results with everyone. Keep a backup.'
+    : 'Not saved: results are in memory only. Download a backup in Committee tools before leaving this page. Public results are unchanged.';
   $('published-view').disabled = mode === 'published';
+  $('published-view').hidden = mode === 'published';
   $('start-draft').textContent = draft ? 'View / resume my saved draft' : 'Start local draft (optional)';
-  $('league-summary').textContent = `${state.settings.complete ? 'Qualification complete' : 'Provisional league, no discards applied'}: ${result.rounds.length} of at most ${state.settings.maxRounds} qualifying weekends. ${result.discardCount} discarded per team; ${result.rounds.length - result.discardCount} retained. ${state.teams.length} registered teams.`;
+  const activePlayers = new Set(state.teams.flatMap(team => team.players.filter(player => !isHeld(team, player)).map(canonical)));
+  const uploaded = result.rounds.some(round => round.cards.length);
+  const hasResults = result.rounds.some(round => round.cards.some(card => activePlayers.has(canonical(card.player))));
+  $('results-empty').hidden = hasResults;
+  $('empty-heading').textContent = uploaded && !hasResults ? 'No team matches yet' : state.rounds.length ? 'No qualifying results yet' : 'No results uploaded yet';
+  $('empty-help').textContent = uploaded && !hasResults
+    ? 'Results are saved, but no qualifying cards match an active team player. Review the unmatched or held cards below, or correct the team list in Committee tools.'
+    : 'Upload a HandicapMaster net results CSV to match players to the team list and calculate the leaderboard.';
+  $('points-help').hidden = !hasResults;
+  $('awaiting-teams').hidden = hasResults;
+  $('league-table').hidden = !hasResults;
+  $('league-summary').textContent = hasResults
+    ? `${state.teams.length} teams. ${result.rounds.length} qualifying weekend${result.rounds.length === 1 ? '' : 's'}.${state.settings.complete ? ` Qualification complete; ${result.discardCount} worst weekend(s) excluded from team points.` : ' Best two cards count each weekend.'}`
+    : `${state.teams.length} registered teams. Standings appear when qualifying results match the team list.`;
   const warnings = [];
-  if (result.firstUnresolved) warnings.push('First place remains tied after the configured tie hierarchy.');
-  if (result.cutoffUnresolved) warnings.push('Top 16 cutoff is unresolved. No teams are confirmed qualified and final imports are blocked.');
+  if (hasResults && state.settings.complete && result.firstUnresolved) warnings.push('First place remains tied after the configured tie hierarchy.');
+  if (hasResults && state.settings.complete && result.cutoffUnresolved) warnings.push('Top 16 cutoff needs a committee decision before final results can be entered.');
   $('tie-warning').hidden = !warnings.length;
   $('tie-warning').textContent = warnings.join(' ');
   const rosterWarnings = state.teams.filter(t => t.players.length < 3 || t.notes || t.heldPlayers?.length);
-  $('roster-warning').hidden = !rosterWarnings.length;
-  $('roster-warning').textContent = `Roster review required. Standings do not confirm player eligibility. ${rosterWarnings.map(t => `${t.name}: ${rosterStatus(t)}`).join(' | ')}`;
-  table('league-table', `${mode === 'draft' ? 'Local draft' : 'Published'} league standings`, ['Rank', 'Team', 'Raw', 'Retained', 'Discarded total', 'Status', ...result.rounds.map(r => `${r.date}: ${r.name}`)], result.rows.map(r => [
-    r.rank, r.team.name, r.raw, r.retained, r.raw - r.retained,
-    result.cutoffUnresolved ? (r.rank <= 16 ? 'Cutoff unresolved' : 'Outside top 16') : result.eligible.includes(r.team.name) ? (state.settings.complete ? 'Final eligible' : 'Provisional top 16') : 'Outside top 16',
-    ...r.scores.map(s => `${s.total}${s.discarded ? ' (discarded)' : ''}; ${s.missed} missed`)
-  ]));
+  $('team-review').hidden = !rosterWarnings.length;
+  $('team-review-summary').textContent = `${rosterWarnings.length} team entries need review`;
+  $('roster-warning').textContent = `Standings do not confirm player eligibility. ${rosterWarnings.map(t => `${t.name}: ${rosterStatus(t)}`).join(' | ')}`;
+  table('league-table', `${mode === 'draft' ? 'Local' : 'Published'} team leaderboard`, ['Rank', 'Team and players', 'Team points', ...result.rounds.map(r => `${r.date}: ${r.name}`)], hasResults ? result.rows.map(r => [
+    r.rank, `${r.team.name}\n${r.team.players.join(', ')}`, r.retained,
+    ...r.scores.map(s => `${s.total}${s.discarded ? ' (discarded)' : ''}`)
+  ]) : []);
+  table('awaiting-table', 'Team list, awaiting qualifying results', ['Team', 'Players'], state.teams.map(t => [t.name, t.players.join(', ')]));
+  const unmatched = state.rounds.flatMap(round => round.cards.map(card => ({ round, card, match: cardMatch(state.teams, card) })))
+    .filter(entry => entry.match.status !== 'Matched');
+  $('matching-review').hidden = !unmatched.length;
+  $('matching-summary').textContent = `${unmatched.length} uploaded cards need a team match or confirmation`;
+  table('matching-table', 'Cards not counted for teams', ['Weekend', 'Player', 'Net points', 'Team', 'Review'], unmatched.map(({ round, card, match }) => [round.date, card.player, card.score, match.team, match.status]));
   renderSingles(state);
-  table('teams-table', 'Registered roster (team numbers preserved)', ['Team', 'Player 1', 'Player 2', 'Player 3', 'Roster status'], state.teams.map(t => [t.name, t.players[0], t.players[1], t.players[2] || 'Vacant', rosterStatus(t)]));
+  table('teams-table', 'Team list (team numbers preserved)', ['Team', 'Player 1', 'Player 2', 'Player 3', 'Team notes'], state.teams.map(t => [t.name, t.players[0], t.players[1], t.players[2] || 'Vacant', rosterStatus(t)]));
   table('rounds-table', 'All imported weekends', ['Weekend', 'Round', 'Status', 'Cards'], [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).map(r => [r.date, r.name, r.canceled ? 'Canceled for everyone' : r.qualifying ? 'Qualifying' : 'Excluded / nonqualifying', r.cards.length]));
   const assigned = assignments(state.teams);
   table('cards-table', 'All individual weekend cards', ['Weekend', 'Player', 'Team', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.map(c => [r.date, c.player, assigned.get(canonical(c.player)) || 'Unassigned', c.score, c.handicap ?? 'Not supplied'])));
@@ -195,17 +241,17 @@ $('roster-form').addEventListener('submit', safely(() => {
   const team = { name: $('roster-name').value.trim(), players: players.filter(Boolean),
     notes: $('roster-notes').value.trim(), heldPlayers: players.filter((p, i) => p && $('roster-held' + (i + 1)).checked) };
   const next = editTeam(importBase(), original, team);
-  if (!confirm('Save this roster change for every weekend? Raw cards and settings stay unchanged; changed names may leave cards unassigned. Back up first.')) return;
+  if (!confirm('Save this team list change for every weekend? Raw cards and settings stay unchanged; changed names may leave cards unassigned. Back up first.')) return;
   persist(next, 'Team saved. Review Teams, Singles and unassigned cards before publishing.');
   $('roster-select').value = team.name;
   loadRosterTeam();
   if (pending?.kind === 'teams') clearPreview();
 }));
 $('use-published-roster').addEventListener('click', safely(() => {
-  if (!publishedReady || !published.teams.length) throw new Error('Published roster is unavailable. Refresh published data first.');
+  if (!publishedReady || !published.teams.length) throw new Error('Published team list is unavailable. Refresh published data first.');
   const next = replaceTeams(importBase(), published.teams);
   if (!confirm(`Replace draft registration with ${published.teams.length} published teams? Draft raw scores and settings remain; omitted teams are removed. Back up first.`)) return;
-  persist(next, 'Published roster copied into draft. Existing raw scores retained.');
+  persist(next, 'Published team list copied into draft. Existing raw scores retained.');
   if (pending?.kind === 'teams') clearPreview();
 }));
 $('roster-export').addEventListener('click', safely(() => {
@@ -252,7 +298,7 @@ async function refresh() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const source = await response.text();
     published = parseJSON(source); publishedReady = true;
-    render(); message('Published results loaded. Local imports never change these results.');
+    render(); message('Published results loaded.');
   } catch (error) {
     render();
     message(`Could not refresh published results: ${error.message}. ${publishedReady ? 'Keeping the last validated published data.' : 'No published result is available. Use a local HTTP server, not file://, for local viewing.'}`, true);
@@ -260,6 +306,7 @@ async function refresh() {
 }
 const tabs = [...document.querySelectorAll('[role="tab"]')];
 function selectTab(index, focus = false) {
+  if (index >= 2) $('more-views').open = true;
   tabs.forEach((tab, i) => {
     tab.setAttribute('aria-selected', String(index === i));
     tab.tabIndex = index === i ? 0 : -1;
@@ -281,7 +328,18 @@ $('singles-weekend').addEventListener('change', () => {
   singlesSelection[mode] = $('singles-weekend').value;
   renderSingles(current());
 });
-$('start-draft').addEventListener('click', safely(() => { persist(working(), 'Local draft opened.'); }));
+function resumeResults() { persist(resultsState(working()), 'Saved results opened.'); selectTab(0); }
+$('start-draft').addEventListener('click', safely(resumeResults));
+$('resume-results').addEventListener('click', safely(resumeResults));
+function openResultsUpload() {
+  selectTab(0);
+  if ($('import-type').value !== 'scores') chooseImportType('scores');
+  $('upload-panel').open = true;
+  $('import-files').focus();
+  $('import-files').click();
+}
+$('upload-results').addEventListener('click', openResultsUpload);
+$('empty-upload').addEventListener('click', openResultsUpload);
 $('reset-draft').addEventListener('click', safely(() => {
   if (!publishedReady) throw new Error('Published data is unavailable; refresh first.');
   if (!confirm('Replace the entire local draft with current published data? Download a backup first.')) return;
@@ -311,7 +369,7 @@ function clearPreview(keepRecognized = false) {
   updateApplyAvailability();
 }
 function updateApplyAvailability() {
-  let help = pending ? 'Preview ready. Review the rows, then apply to your local draft. Replacement requires confirmation.' : 'Choose files above. Save is disabled until a valid preview and required confirmations are ready.';
+  let help = pending ? 'Preview ready. Review the rows before updating. Replacement requires confirmation.' : 'Choose files above to preview. Nothing is saved yet.';
   let ready = Boolean(pending);
   if (pending?.kind === 'scores') {
     const missing = [];
@@ -319,7 +377,7 @@ function updateApplyAvailability() {
     if (!$('round-name').value.trim()) missing.push('a round name');
     if (!$('net-confirm').checked) missing.push('confirmation of reported 12-hole net Stableford points');
     ready = !missing.length;
-    help = missing.length ? `Before saving, provide ${missing.join(', ')}.` : 'Ready to save net results to your local draft. Recognized gross scorecards will not be stored.';
+    help = missing.length ? `Before updating, provide ${missing.join(', ')}.` : 'Ready to update the leaderboard on this device. Recognized gross scorecards will not be stored.';
     $('round-name').classList.toggle('needs-input', !$('round-name').value.trim());
   }
   if (pending && pending.kind !== 'restore' && storageBlocked) {
@@ -334,7 +392,7 @@ function updateImportType() {
   clearPreview();
   const kind = $('import-type').value;
   const labels = {
-    scores: ['Upload results CSV', 'Choose results and scorecard CSVs', 'Preview results / retry', 'Save results to my draft'],
+    scores: ['Upload HandicapMaster results', 'Choose results and scorecard CSVs', 'Preview results / retry', 'Update leaderboard'],
     teams: ['Upload team registration CSV', 'Choose team registration CSV', 'Preview teams', 'Save teams to my draft'],
     final: ['Upload final player cards CSV', 'Choose final cards CSV', 'Preview final cards', 'Save final cards to my draft'],
     restore: ['Restore JSON backup', 'Choose JSON backup', 'Preview JSON restore', 'Replace my draft with this JSON']
@@ -342,7 +400,7 @@ function updateImportType() {
   ['import-heading', 'import-file-label', 'preview-import', 'apply-import'].forEach((id, i) => { $(id).textContent = labels[i]; });
   $('import-help').textContent = {
     scores: 'Feeds League and Singles. Select your results and scorecard CSVs together. Net reports supply points; recognized gross scorecards are excluded.',
-    teams: 'Replaces the roster after confirmation, keeping raw scores and settings. Team 34 may have a vacant third place. Existing notes and holds are retained unless CSV columns explicitly replace them.',
+    teams: 'Replaces the team list after confirmation, keeping raw scores and settings. Team 34 may have a vacant third place. Existing notes and holds are retained unless CSV columns explicitly replace them.',
     final: 'Final only, not weekly League or Singles results. Requires completed qualification and eligible registered players.',
     restore: 'Restores a validated JSON backup or publication file. Replaces the entire local draft only after confirmation.'
   }[kind];
@@ -353,7 +411,7 @@ function updateImportType() {
     restore: 'Example filename: blainroe-draft-backup.json'
   }[kind];
   $('import-steps').textContent = kind === 'scores'
-    ? '1. Choose CSV(s) for automatic preview. 2. Review weekend, enter a round name and confirm net points. 3. Save results to your draft.'
+    ? '1. Choose CSV(s) for automatic preview. 2. Review player matches, weekend and round name; confirm net points. 3. Update leaderboard.'
     : '1. Choose a file. 2. Preview. 3. Review and confirm replacement. 4. Apply to your local draft.';
   $('import-file-help').textContent = kind === 'scores'
     ? 'Maximum 2 MB each, up to 20 files. Include Competition Report (Aggregated Net Result) for one weekend. Identical cards are deduplicated; conflicts are rejected. No Return and DQ rows are omitted with preview counts.'
@@ -366,6 +424,8 @@ function updateImportType() {
   $('import-status').classList.toggle('error', false);
 }
 function chooseImportType(kind) {
+  selectTab(0);
+  $('upload-panel').open = true;
   $('import-type').value = kind;
   updateImportType();
   $('import-files').focus();
@@ -397,11 +457,11 @@ async function readImportFiles(revision) {
     try { return await file.text(); } catch { throw new Error(`${file.name}: could not read this file. Select it again or export a fresh CSV.`); }
   }));
   if (revision !== previewRevision) return;
-  let data, rows, columns, omissions = '';
+  let data, rows, columns, omissions = '', matchingSummary = '';
   if (kind === 'teams') {
     data = replaceTeams(importBase(), parseTeams(sources[0])).teams;
     rows = data.map(t => [t.name, t.players[0], t.players[1], t.players[2] || 'Vacant', rosterStatus(t)]);
-    columns = ['Team', 'Player 1', 'Player 2', 'Player 3', 'Roster status'];
+    columns = ['Team', 'Player 1', 'Player 2', 'Player 3', 'Team notes'];
   } else if (kind === 'scores') {
     const recognized = [], resultIndices = [];
     for (let index = 0; index < sources.length; index++) {
@@ -436,12 +496,18 @@ async function readImportFiles(revision) {
     data = [...cards.values()];
     $('weekend-date').value = weekendKeys.every(Boolean) ? dates[0] : '';
     const existing = (draft || published).rounds.find(r => r.date === dates[0]);
-    $('round-name').value = existing?.name || '';
+    const reportNames = [...new Set(parsed.map(entry => entry.name).filter(Boolean))];
+    $('round-name').value = existing?.name || (reportNames.length === 1 ? reportNames[0] : '') ||
+      (weekendKeys.every(Boolean) ? `Weekend ${dates[0]}` : '');
     $('qualifying').checked = existing?.qualifying ?? true;
     $('net-confirm').checked = false; $('import-mode').value = 'merge';
-    const registered = new Set((draft || published).teams.flatMap(t => t.players.filter(p => !isHeld(t, p)).map(canonical)));
-    rows = data.map(c => [c.player, c.score, c.handicap ?? '', registered.has(canonical(c.player)) ? 'Registered' : 'Unassigned']);
-    columns = ['Player', 'Net points', 'Handicap (metadata)', 'Assignment'];
+    const base = resultsState(draft || published), matches = data.map(card => cardMatch(base.teams, card));
+    const matched = matches.filter(match => match.status === 'Matched').length;
+    const held = matches.filter(match => match.status.startsWith('Held')).length;
+    matchingSummary = ` ${matched} matched, ${matches.length - matched - held} unmatched, ${held} held.`;
+    if (draft && !draft.teams.length && base.teams.length) matchingSummary += ' The published team list will be added when you update; existing scores and settings stay unchanged.';
+    rows = data.map((card, index) => [card.player, matches[index].player, matches[index].team, card.score, matches[index].status]);
+    columns = ['Report player', 'Team list player', 'Team', 'Net points', 'Match'];
   } else if (kind === 'restore') {
     data = parseJSON(sources[0]); rows = [[data.teams.length, data.rounds.length, data.final?.cards.length || 0]]; columns = ['Teams', 'Weekends', 'Final cards'];
   } else {
@@ -449,14 +515,14 @@ async function readImportFiles(revision) {
     rows = data.cards.map(c => [c.team, c.player, c.total, c.back9, c.back6, c.back3, c.back1]); columns = ['Team', 'Player', 'Total', 'Back9', 'Back6', 'Back3', 'Back1'];
   }
   pending = { kind, data };
-  $('preview-summary').textContent = `${files.map(f => f.name).join(', ')}: ${rows.length} preview rows. Review all names and values. Nothing has been saved.${omissions}${kind === 'scores' && !$('weekend-date').value ? ' A file has no usable weekend date: explicitly assign the committee weekend below.' : ''}`;
+  $('preview-summary').textContent = `${files.map(f => f.name).join(', ')}: ${rows.length} preview rows.${matchingSummary} Review all names and values. Nothing has been saved.${omissions}${kind === 'scores' && !$('weekend-date').value ? ' A file has no usable weekend date: explicitly assign the committee weekend below.' : ''}`;
   table('preview-table', 'Pending import', columns, rows);
   $('score-metadata').hidden = kind !== 'scores'; $('final-metadata').hidden = kind !== 'final';
   $('score-metadata').disabled = kind !== 'scores'; $('final-metadata').disabled = kind !== 'final';
   $('cancel-preview').hidden = false;
   $('preview').hidden = false;
   updateApplyAvailability();
-  importMessage(`Preview ready: ${rows.length} valid ${kind === 'scores' ? 'net cards' : 'rows'}.${omissions} Review the required metadata below, then save to your local draft. Nothing is saved yet.`, false, true);
+  importMessage(`Preview ready: ${rows.length} valid ${kind === 'scores' ? 'net cards' : 'rows'}.${matchingSummary}${omissions} Review the matches and required details, then update the leaderboard. Nothing is saved yet.`, false, true);
 }
 $('import-form').addEventListener('submit', previewFiles);
 $('round-name').addEventListener('input', updateApplyAvailability);
@@ -482,6 +548,7 @@ $('apply-form').addEventListener('submit', safelyImport(() => {
       if (!confirm(`Replace all draft registrations with ${pending.data.length} previewed teams? Removed teams: ${removed.join(', ') || 'none'}. Raw scores remain unchanged and will recalculate; review unassigned cards. Back up first.`)) return;
       next = replaceTeams(next, pending.data);
     } else if (pending.kind === 'scores') {
+      next = resultsState(next);
       if (!$('net-confirm').checked) throw new Error('Confirm net Stableford points before importing.');
       const date = weekendDate($('weekend-date').value), existing = next.rounds.find(r => r.date === date);
       if ($('import-mode').value === 'replace' && existing && !confirm(`Replace EVERY card in ${date} with this preview? Omitted players will have zero. This cannot be undone without a backup.`)) return;
@@ -491,9 +558,16 @@ $('apply-form').addEventListener('submit', safelyImport(() => {
       next.final = { ...pending.data, date: $('final-date').value || null };
     }
   }
-  const error = persist(next, pending.kind === 'scores' ? 'Net results saved to your draft. Recognized gross scorecards were not stored.' : 'Import applied.');
+  const scoreImport = pending.kind === 'scores';
+  const error = persist(next, scoreImport ? 'Net results saved. Leaderboard updated. Recognized gross scorecards were not stored.' : 'Import applied.');
   clearPreview(true);
   importMessage($('status').textContent, Boolean(error), true);
+  if (scoreImport) {
+    selectTab(0);
+    $('upload-panel').open = false;
+    $('matching-review').open = true;
+    $('leaderboard-heading').focus();
+  }
 }));
 $('settings-form').addEventListener('submit', safely(() => {
   if (!confirm('Apply committee settings? Completion enables common-schedule discards and final eligibility. Confirm the interpretations before publication.')) return;

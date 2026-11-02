@@ -210,6 +210,13 @@ test('metadata dates are explicit, with no current-date fallback', () => {
   assert.equal(parseScores('Date,2026-11-07\nName,Score\nPlayer A1,42').playedOn, '2026-11-07');
   assert.throws(() => parseScores('Played on,31/02/2026\nName,Score\nPlayer A1,42'), /Invalid date/);
 });
+test('explicit competition metadata supplies a round name but conflicting names do not', () => {
+  const cards = '\nPlayed on,7 November 2026\nPlayer,Score\nSynthetic Player,29';
+  assert.equal(parseScores('Competition Name,Synthetic Net Weekend' + cards).name, 'Synthetic Net Weekend');
+  assert.equal(parseScores('Competition Result: Synthetic Net Weekend' + cards).name, 'Synthetic Net Weekend');
+  assert.equal(parseScores('Competition Name,Synthetic One\nRound Name,Synthetic Two' + cards).name, undefined);
+  assert.equal(parseScores('Synthetic Golf Club\nCompetition Result' + cards).name, undefined);
+});
 test('non-Stableford, missing and invalid scores are rejected', () => {
   for (const score of ['NR', '', '-1', '42 strokes', '42.5', 'Infinity', '301']) {
     assert.throws(() => parseScores(`Player,Score\nPlayer A1,${score}`), /score|Score/);

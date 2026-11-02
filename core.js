@@ -79,14 +79,14 @@ export function assignments(teams) {
   const assigned = new Map();
   for (const team of teams) for (const player of team.players) {
     const key = canonical(player);
-    if (isHeld(team, player)) assigned.set(key, 'Unassigned (roster name held for confirmation)');
+    if (isHeld(team, player)) assigned.set(key, 'Unassigned (team list name held for confirmation)');
     else assigned.set(key, team.name);
   }
   return assigned;
 }
 export function rosterStatus(team) {
   return [team.players.length < 3 ? 'Player 3 vacant' : '',
-    team.heldPlayers?.length ? `Score matching held: ${team.heldPlayers.join(', ')}` : '', team.notes || ''].filter(Boolean).join('. ') || 'No roster notes';
+    team.heldPlayers?.length ? `Score matching held: ${team.heldPlayers.join(', ')}` : '', team.notes || ''].filter(Boolean).join('. ') || 'No team list notes';
 }
 export function replaceTeams(state, teams) {
   const next = structuredClone(state);
@@ -232,6 +232,18 @@ export function classifyScoreCSV(source) {
       rows.some(row => header(row[0] || '') === 'overallposition')) return 'results';
   return grossScorecardRows(rows) ? 'scorecards' : 'results';
 }
+function metadataName(rows) {
+  const names = [];
+  for (const row of rows) {
+    if (row.map(header).some(cell => ['player', 'name', 'overallposition'].includes(cell))) break;
+    if (/^(competition(?: name)?|round(?: name)?)$/i.test(row[0]) && row[1])
+      names.push(row[1]);
+    const title = row[0]?.match(/^(?:competition(?: name| result)?|round(?: name)?)\s*:\s*(.+)$/i);
+    if (title) names.push(title[1]);
+  }
+  const distinct = [...new Set(names.map(name => name.trim()))];
+  return distinct.length === 1 ? text(distinct[0], 'Competition name') : null;
+}
 export function parseScores(source) {
   const rows = parseCSV(source);
   if (grossScorecardRows(rows)) fail('Competition Scorecards contain gross hole-by-hole strokes, PU and NR, not Winter League net Stableford results. Use Competition Report (Aggregated Net Result) instead. No scores were converted.');
@@ -292,7 +304,8 @@ export function parseScores(source) {
   });
   if (!cards.length) fail('Scores CSV has no cards.');
   unique(cards.map(c => c.player), 'Player in uploaded scores');
-  return { cards, playedOn: metadataDate(rows), ...(aggregate ? { omitted } : {}) };
+  const name = metadataName(rows);
+  return { cards, playedOn: metadataDate(rows), ...(name ? { name } : {}), ...(aggregate ? { omitted } : {}) };
 }
 export function importRound(state, input, mode = 'merge') {
   if (!['merge', 'replace'].includes(mode)) fail('Choose merge or replace-weekend mode.');
