@@ -113,7 +113,7 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
   const grouped = definitions.some(column => column.group);
   const leaves = element('tr');
   definitions.forEach((column, index) => {
-    const th = element('th'); th.scope = 'col';
+    const th = element('th', undefined, column.className); th.scope = 'col';
     th.setAttribute('aria-sort', sort?.key === column.key ? sort.direction : 'none');
     const button = element('button', undefined, 'table-sort');
     button.type = 'button';
@@ -121,7 +121,7 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
     button.append(element('span', column.label));
     const arrow = element('span', indicator, 'sort-indicator'); arrow.setAttribute('aria-hidden', 'true');
     button.append(arrow);
-    button.setAttribute('aria-label', `${column.group ? `${column.group}: ` : ''}${column.label}, sort ${sort?.key === column.key && sort.direction === 'ascending' ? 'descending' : 'ascending'}`);
+    button.setAttribute('aria-label', `${column.group ? `${column.groupDetail || column.group}: ` : ''}${column.label}, sort ${sort?.key === column.key && sort.direction === 'ascending' ? 'descending' : 'ascending'}`);
     button.addEventListener('click', () => {
       tableSorts.set(id, { key: column.key, direction: sort?.key === column.key && sort.direction === 'ascending' ? 'descending' : 'ascending' });
       const scrollLeft = wrapper.scrollLeft, scrollTop = wrapper.scrollTop;
@@ -133,11 +133,15 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
     if (grouped && column.group) {
       if (definitions[index - 1]?.group !== column.group) {
         const group = element('th', column.group, 'weekend-column');
+        if (column.groupDetail) {
+          group.title = column.groupDetail;
+          group.setAttribute('aria-label', column.groupDetail);
+        }
         group.scope = 'colgroup';
         group.colSpan = definitions.filter(entry => entry.group === column.group).length;
         header.append(group);
       }
-      if (definitions[index - 1]?.group !== column.group) th.className = 'round-start';
+      if (definitions[index - 1]?.group !== column.group) th.className = `${column.className || ''} round-start`;
       leaves.append(th);
     } else {
       if (grouped) th.rowSpan = 2;
@@ -163,8 +167,9 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
   }
   ordered.forEach(({ values }) => { const row = element('tr'); values.forEach((value, i) => {
     const rowHeader = i === (id === 'teams-table' ? 0 : 1);
-    const cell = element(rowHeader ? 'th' : 'td', String(cellText(value)));
-    if (definitions[i].group && definitions[i - 1]?.group !== definitions[i].group) cell.className = 'round-start';
+    const cell = element(rowHeader ? 'th' : 'td', String(cellText(value)), definitions[i].className);
+    if (definitions[i].group && definitions[i - 1]?.group !== definitions[i].group) cell.className = `${definitions[i].className || ''} round-start`;
+    if (value?.detail) { cell.title = value.detail; cell.setAttribute('aria-label', value.detail); }
     if (rowHeader) cell.scope = 'row';
     row.append(cell);
   }); body.append(row); });
@@ -220,7 +225,7 @@ function renderSingles(state) {
 }
 function render() {
   const state = current(), result = league(state);
-  $('view-label').textContent = mode === 'draft' ? 'Results on this device' : publishedReady ? 'Published club results' : 'Published data unavailable';
+  $('view-label').textContent = mode === 'draft' ? 'DRAFT: results on this device' : publishedReady ? 'PUBLISHED: club results' : 'Published data unavailable';
   $('resume-notice').hidden = mode === 'draft' || !draft?.rounds.some(round => round.cards.length);
   $('resume-results').textContent = draftSaved ? 'Resume my saved results' : 'Resume local results (not saved)';
   $('draft-banner').hidden = mode !== 'draft';
@@ -248,7 +253,7 @@ function render() {
   $('awaiting-teams').hidden = hasResults;
   $('league-table').hidden = !hasResults;
   $('league-summary').textContent = hasResults
-    ? `${state.teams.length} teams. ${result.rounds.length} qualifying weekend${result.rounds.length === 1 ? '' : 's'}.${state.settings.complete ? ` Qualification complete; ${result.discardCount} worst weekend(s) excluded from team points.` : ' Best two cards count each weekend.'}`
+    ? `${state.teams.length} teams. ${result.rounds.length} qualifying weekend${result.rounds.length === 1 ? '' : 's'}.${state.settings.complete ? ` Qualification complete; ${result.discardCount} worst weekend(s) excluded from team points.` : ''}`
     : `${state.teams.length} registered teams. Standings appear when qualifying results match the team list.`;
   const warnings = [];
   if (hasResults && state.settings.complete && result.firstUnresolved) warnings.push('First place remains tied after the configured tie hierarchy.');
@@ -260,17 +265,26 @@ function render() {
   $('team-review-summary').textContent = `${rosterWarnings.length} team entries need review`;
   $('roster-warning').textContent = `Standings do not confirm player eligibility. ${rosterWarnings.map(t => `${t.name}: ${rosterStatus(t)}`).join(' | ')}`;
   const roundCards = new Map(result.rounds.map(round => [round.date, new Map(round.cards.map(card => [canonical(card.player), card.score]))]));
-  table('league-table', `${mode === 'draft' ? 'Local' : 'Published'} team leaderboard`, ['Rank', 'Team and players', 'Team points', ...result.rounds.flatMap((round, index) =>
-    ['P1', 'P2', 'P3', 'Team total'].map((label, player) => ({
-      key: `${round.date}:${player}`, label, group: `Round ${index + 1}: ${round.date}\n${round.name}`
+  const shortDate = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
+  table('league-table', `${mode === 'draft' ? 'Local draft' : 'Published'} team leaderboard`, [
+    { key: 'Rank', label: 'Rank', className: 'rank-column' },
+    { key: 'Team', label: 'Team', className: 'team-column' },
+    ...[1, 2, 3].map(player => ({ key: `Player ${player}`, label: `Player ${player}`, className: 'player-column' })),
+    { key: 'Team points', label: 'Total', className: 'total-column' },
+    ...result.rounds.flatMap((round, index) =>
+    ['P1', 'P2', 'P3', 'Team'].map((label, player) => ({
+      key: `${round.date}:${player}`, label, group: `Round ${index + 1}\n${shortDate(round.date)}`,
+      groupDetail: `Round ${index + 1}: ${round.date}, ${round.name}`,
+      className: player === 3 ? 'round-total-column' : 'score-column'
     })))], hasResults ? result.rows.map(r => [
-    r.rank, displayCell(`${r.team.name}\n${[0, 1, 2].map(index => `P${index + 1}: ${r.team.players[index] || 'Vacant'}`).join('\n')}`, r.team.name), r.retained,
+    r.rank, r.team.name, ...[0, 1, 2].map(index => r.team.players[index] || 'Vacant'), r.retained,
     ...r.scores.flatMap(score => [
       ...[0, 1, 2].map(index => {
         const player = r.team.players[index], raw = player ? roundCards.get(score.date).get(canonical(player)) : undefined;
         return displayCell(raw === undefined ? 'NA' : `${raw}${isHeld(r.team, player) ? ' H' : ''}`, raw ?? null);
       }),
-      displayCell(`${score.total}${score.discarded ? ' (discarded)' : ''}`, score.total)
+      { ...displayCell(`${score.total}${score.discarded ? ' D' : ''}`, score.total),
+        detail: score.discarded ? `${score.total}, discarded weekend, excluded from Total` : undefined }
     ])
   ]) : []);
   table('awaiting-table', 'Team list, awaiting qualifying results', ['Team', 'Players'], state.teams.map(t => [t.name, t.players.join(', ')]));
@@ -278,6 +292,8 @@ function render() {
     .filter(entry => entry.match.status !== 'Matched');
   $('matching-review').hidden = !unmatched.length;
   $('matching-summary').textContent = `${unmatched.length} uploaded cards need a team match or confirmation`;
+  $('review-notice').hidden = !unmatched.length && !rosterWarnings.length;
+  $('review-count').textContent = `${unmatched.length} cards not counted for teams; ${rosterWarnings.length} team entries need review.`;
   table('matching-table', 'Cards not counted for teams', ['Weekend', 'Player', 'Net points', 'Team', 'Review'], unmatched.map(({ round, card, match }) => [round.date, card.player, card.score, match.team, match.status]));
   renderSingles(state);
   table('teams-table', 'Team list (team numbers preserved)', ['Team', 'Player 1', 'Player 2', 'Player 3', 'Team notes'], state.teams.map(t => [t.name, t.players[0], t.players[1], t.players[2] || 'Vacant', rosterStatus(t)]));
@@ -668,7 +684,7 @@ $('apply-form').addEventListener('submit', safelyImport(async () => {
   if (scoreImport) {
     selectTab(0);
     $('upload-panel').open = false;
-    $('matching-review').open = true;
+    $('matching-review').open = false;
     $('leaderboard-heading').focus();
   }
 }));

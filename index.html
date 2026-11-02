@@ -34,16 +34,19 @@
     </nav>
     <section id="league-panel" role="tabpanel" aria-labelledby="tab-league">
       <div class="table-header"><h2 id="leaderboard-heading" tabindex="-1">Team leaderboard</h2><div class="leaderboard-actions"><button id="upload-results" type="button" aria-controls="upload-panel">Upload HandicapMaster results</button><button id="export-leaderboard-pdf" type="button" aria-describedby="pdf-help" disabled>Export leaderboard PDF</button></div></div>
-      <p id="pdf-help" class="note">Loading the team list for PDF export...</p>
-      <details id="upload-panel" class="card"><summary>Upload and review results</summary></details>
+      <p id="pdf-help" class="visually-hidden">Loading the team list for PDF export...</p>
       <div id="results-empty" class="empty-state" hidden><h3 id="empty-heading">No results uploaded yet</h3><p id="empty-help">Upload a HandicapMaster net results CSV to match players to the team list and calculate the leaderboard.</p><button id="empty-upload" type="button">Upload HandicapMaster results</button></div>
       <p id="league-summary"></p><p id="tie-warning" class="warning" hidden></p>
-      <details id="team-review" class="note" hidden><summary id="team-review-summary"></summary><p id="roster-warning"></p></details>
-      <details id="matching-review" class="warning" hidden open><summary id="matching-summary"></summary><p>These cards are saved but do not count for a team. Correct the team list or resolve held names in Committee tools. Singles still includes these cards.</p><div id="matching-table"></div></details>
-      <p id="points-help" class="note" hidden>Scroll across for round scores. P1/P2/P3 match the labelled players. NA = no card or vacant; H = held raw card, not counted; individual 0 = submitted zero. Best two count each active qualifying weekend; missing/held cards contribute zero. Discarded totals do not count towards team points. Cancelled/excluded weekends: Team list and weekends. Select a header to sort or reverse.</p>
+      <p id="review-notice" class="note" hidden><span id="review-count"></span> <a href="#results-review">Review details below</a></p>
+      <p id="points-help" class="note" hidden>Best two count. P1/P2/P3 = Player 1/2/3. NA: no card/vacant. H: held. D: discarded. Scroll for rounds; select headers to sort.</p>
       <div id="league-table"></div>
       <details id="awaiting-teams"><summary>Team list: awaiting results</summary><div id="awaiting-table"></div></details>
-      <details class="note"><summary>Scoring details and report</summary><p>Reported 12-hole net Stableford points are used unchanged, with no rescaling or handicap conversions. Live tables have no discards. Committee assumption: tied retained totals compare discarded scores highest first; remaining ties share rank.</p><button id="report" class="export-button">Download league and final HTML report</button></details>
+      <section id="results-review" aria-label="Results review">
+        <details id="matching-review" class="review-detail" hidden><summary id="matching-summary"></summary><p>These cards are saved but do not count for a team. Correct the team list or resolve held names in Committee tools. Singles still includes these cards.</p><div id="matching-table"></div></details>
+        <details id="team-review" class="review-detail" hidden><summary id="team-review-summary"></summary><p id="roster-warning"></p></details>
+      </section>
+      <details class="note review-detail"><summary>Scoring details and report</summary><p>Reported 12-hole net Stableford points are used unchanged, with no rescaling or handicap conversions. Individual 0 means a submitted zero. Missing and held cards contribute zero to the best-two calculation, but are not displayed as submitted zeros. Total is cumulative after any discards; D marks an excluded team weekend score. Cancelled and excluded weekends remain in Team list and weekends. Full round titles are available on the round headings. Live tables have no discards. Committee assumption: tied retained totals compare discarded scores highest first; remaining ties share rank.</p><button id="report" class="export-button">Download league and final HTML report</button></details>
+      <details id="upload-panel" class="card"><summary>Upload and review results</summary></details>
     </section>
     <section id="singles-panel" role="tabpanel" aria-labelledby="tab-singles" hidden>
       <h2>Singles leaderboard</h2>
