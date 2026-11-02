@@ -20,6 +20,10 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .view-bar button { background: white; color: var(--green); }
 .table-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; margin-bottom: 1rem; }
 .table-header h2 { margin: 0; }
+.leaderboard-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+#export-leaderboard-pdf { background: white; color: var(--green); }
+#export-leaderboard-pdf:hover { background: var(--pale); }
+@media (max-width: 768px) { .leaderboard-actions, .leaderboard-actions button { width: 100%; } }
 .export-button { background: #f0f0f0; color: #333; border: 0; padding: .35rem .8rem; font: 600 .85rem Arial, sans-serif; }
 .export-button:hover { background: #ddd; }
 #status, .import-feedback { border-left: 4px solid var(--green); border-radius: 6px; padding: .65rem 1rem; background: var(--pale); overflow-wrap: anywhere; font-size: .9rem; }

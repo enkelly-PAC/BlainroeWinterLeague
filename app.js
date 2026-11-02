@@ -1,11 +1,13 @@
 import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML, assignments, isHeld, rosterStatus, replaceTeams, editTeam } from './core.js';
 import { readDraft, saveDraft, STORAGE_KEY } from './storage.js';
+import { createLeaderboardPDF } from './leaderboard-pdf.js';
 
 const $ = id => document.getElementById(id);
 // Keep the shared import form on the leaderboard, including its advanced import types.
 $('upload-panel').append($('results-upload'));
 let published = emptyState(), publishedReady = false, draft = null, mode = 'published', pending = null, storageBlocked = false, previewRevision = 0;
 let draftSaved = false;
+let pdfBusy = false;
 const singlesSelection = { published: null, draft: null };
 let storage;
 try { storage = window.localStorage; } catch { storage = null; }
@@ -121,6 +123,23 @@ function download(filename, content, type) {
 function csvDownload(filename, columns, rows) {
   download(filename, [columns, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n', 'text/csv;charset=utf-8');
 }
+$('export-leaderboard-pdf').addEventListener('click', safely(async () => {
+  if (pdfBusy) return;
+  if (mode === 'published' && !publishedReady) throw new Error('Published results are unavailable. Refresh before exporting.');
+  const state = structuredClone(current());
+  const context = { mode, saved: draftSaved };
+  pdfBusy = true;
+  $('export-leaderboard-pdf').disabled = true;
+  $('export-leaderboard-pdf').textContent = 'Preparing PDF...';
+  message('Preparing your leaderboard PDF on this device...');
+  try {
+    const { filename, buffer } = await createLeaderboardPDF(state, context);
+    download(filename, buffer, 'application/pdf');
+  } finally {
+    pdfBusy = false;
+    render();
+  }
+}));
 function renderSingles(state) {
   const result = singles(state, singlesSelection[mode]);
   singlesSelection[mode] = result.round?.date || null;
@@ -158,6 +177,11 @@ function render() {
   const activePlayers = new Set(state.teams.flatMap(team => team.players.filter(player => !isHeld(team, player)).map(canonical)));
   const uploaded = result.rounds.some(round => round.cards.length);
   const hasResults = result.rounds.some(round => round.cards.some(card => activePlayers.has(canonical(card.player))));
+  $('export-leaderboard-pdf').disabled = pdfBusy || !state.teams.length || (mode === 'published' && !publishedReady);
+  $('export-leaderboard-pdf').textContent = pdfBusy ? 'Preparing PDF...' : 'Export leaderboard PDF';
+  $('pdf-help').textContent = !state.teams.length || (mode === 'published' && !publishedReady)
+    ? 'PDF export needs an available team list. Refresh published results or resume a valid draft.'
+    : `${hasResults ? 'Download the visible leaderboard and all imported weekend details' : 'Download the registered team list, awaiting qualifying results (no invented ranks or totals)'}. ${mode === 'draft' ? draftSaved ? 'Saved local draft, clearly marked DRAFT.' : 'Unsaved local results, clearly marked DRAFT: not saved.' : 'Published view; any saved local draft is not included.'} Nothing is published or sent to another service.`;
   $('results-empty').hidden = hasResults;
   $('empty-heading').textContent = uploaded && !hasResults ? 'No team matches yet' : state.rounds.length ? 'No qualifying results yet' : 'No results uploaded yet';
   $('empty-help').textContent = uploaded && !hasResults

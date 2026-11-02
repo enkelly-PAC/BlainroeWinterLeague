@@ -1,0 +1,18 @@
+PDF export dependencies (served locally, no CDN or remote score processing)
+
+pdfmake 0.2.20: pdfmake.min.js and vfs_fonts.js
+Source: https://github.com/bpampuch/pdfmake/tree/0.2.20/build
+Copyright (c) 2014-2015 bpampuch, 2016-2025 liborm85
+MIT licence: pdfmake-LICENSE.txt. The distributed bundle retains its
+upstream licence comments and embeds its third-party notices.
+Literal dash punctuation in the JavaScript distribution is represented with
+equivalent Unicode escapes; runtime strings and regular expressions are unchanged.
+
+The bundled Roboto font metadata identifies version 3.011 (2025),
+copyright 2011 The Roboto Project Authors.
+SIL Open Font License 1.1: Roboto-LICENSE.txt
+Source: https://github.com/googlefonts/roboto-classic/blob/main/OFL.txt
+Fonts are unmodified and embedded in vfs_fonts.js.
+
+These are pinned browser distributions, not runtime npm dependencies.
+Keep both licence files with the distributions when updating or deploying.

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { EventEmitter } from 'node:events';
 import { emptyState, league } from '../core.js';
 import { STORAGE_KEY } from '../storage.js';
 
@@ -8,6 +9,7 @@ let instance = 0;
 async function workspace(t, source = null, published = emptyState()) {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const nodes = new Map();
+  const downloads = [];
   class Node {
     constructor() {
       this.value = ''; this.textContent = ''; this.files = []; this.hidden = false;
@@ -19,6 +21,7 @@ async function workspace(t, source = null, published = emptyState()) {
     setAttribute() {}
     focus() { document.activeElement = this; }
     click() { this.clicked = true; }
+    remove() {}
     addEventListener(event, listener) { this.listeners.set(event, listener); }
     async emit(event) { await this.listeners.get(event)?.({ preventDefault() {} }); }
   }
@@ -27,12 +30,15 @@ async function workspace(t, source = null, published = emptyState()) {
   const values = new Map(source === null ? [] : [[STORAGE_KEY, source]]);
   const original = Object.fromEntries(['document', 'window', 'fetch', 'confirm'].map(key => [key, globalThis[key]]));
   globalThis.document = {
-    getElementById: id => nodes.get(id), createElement: () => new Node(), querySelectorAll: () => []
+    getElementById: id => nodes.get(id), createElement: () => new Node(), querySelectorAll: () => [],
+    body: { append: node => downloads.push(node) },
+    head: { append: node => queueMicrotask(() => node.onload()) }
   };
   globalThis.window = { localStorage: {
     getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key)
   } };
-  globalThis.fetch = async () => ({ ok: true, text: async () => JSON.stringify(published) });
+  globalThis.fetch = async () => ({ ok: true, text: async () => JSON.stringify(published),
+    arrayBuffer: async () => new Uint8Array([137, 80, 78, 71]).buffer });
   globalThis.confirm = () => true;
   t.after(() => { for (const [key, value] of Object.entries(original)) {
     if (value === undefined) delete globalThis[key]; else globalThis[key] = value;
@@ -49,8 +55,64 @@ async function workspace(t, source = null, published = emptyState()) {
     await new Promise(resolve => setImmediate(resolve));
   }
   const contents = node => [node.textContent, ...node.children.map(contents)].join('\n');
-  return { $, values, preview, reload, contents };
+  return { $, values, preview, reload, contents, downloads };
 }
+test('main PDF download follows the visible published or saved draft and never exports a pending preview', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = structuredClone(published);
+  state.rounds = [{ date: '2026-11-07', name: 'Saved weekend', qualifying: true, canceled: false,
+    cards: [{ player: 'Paddy Daly', score: 29 }, { player: 'Timothy Cummins', score: 24 }] }];
+  const { $, values, preview, downloads } = await workspace(t, JSON.stringify(state), published);
+  const definitions = [];
+  window.pdfMake = { createPdf: definition => {
+    definitions.push(definition);
+    return { getStream: () => Object.assign(new EventEmitter(), {
+      end() { this.emit('data', new TextEncoder().encode('%PDF-1.3\nsynthetic transport stub')); this.emit('end'); }
+    }) };
+  } };
+  assert.equal($('export-leaderboard-pdf').disabled, false);
+  assert.match($('pdf-help').textContent, /awaiting qualifying results.*Published view/);
+  const saved = values.get(STORAGE_KEY);
+  await $('export-leaderboard-pdf').emit('click');
+  assert.equal(downloads.at(-1).download, 'blainroe-winter-league-2026-2027-published-awaiting-results.pdf');
+  assert.match(definitions.at(-1).info.subject, /PUBLISHED/);
+  assert.doesNotMatch(JSON.stringify(definitions.at(-1)), /Saved weekend/);
+  await $('resume-results').emit('click');
+  await preview('Played on,15/11/2026\nPlayer,Score\nPaddy Daly,40');
+  await $('export-leaderboard-pdf').emit('click');
+  assert.equal(downloads.at(-1).download, 'blainroe-winter-league-2026-2027-draft-2026-11-07.pdf');
+  const definition = definitions.at(-1);
+  assert.match(definition.info.subject, /DRAFT: saved on this device, not published/);
+  assert.match(JSON.stringify(definition), /Team 34 \* \(53\)/);
+  assert.doesNotMatch(JSON.stringify(definition), /15 Nov/);
+  assert.equal(values.get(STORAGE_KEY), saved);
+  await $('published-view').emit('click');
+  await $('export-leaderboard-pdf').emit('click');
+  assert.match(downloads.at(-1).download, /published-awaiting-results.pdf$/);
+  assert.equal($('export-leaderboard-pdf').disabled, false);
+  const createPdf = window.pdfMake.createPdf;
+  window.pdfMake.createPdf = () => { throw new Error('Synthetic PDF failure'); };
+  await $('export-leaderboard-pdf').emit('click');
+  assert.match($('status').textContent, /Synthetic PDF failure/);
+  assert.equal($('export-leaderboard-pdf').disabled, false);
+  window.pdfMake.createPdf = createPdf;
+  await $('export-leaderboard-pdf').emit('click');
+  assert.match(downloads.at(-1).download, /published-awaiting-results.pdf$/);
+  const count = downloads.length;
+  window.pdfMake.createPdf = () => ({ getStream: () => Object.assign(new EventEmitter(), {
+    end() { this.emit('error', new Error('Synthetic stream failure')); }
+  }) });
+  await $('export-leaderboard-pdf').emit('click');
+  assert.match($('status').textContent, /Synthetic stream failure/);
+  assert.equal(downloads.length, count);
+  assert.equal($('export-leaderboard-pdf').disabled, false);
+});
+
+test('PDF export is disabled with an explanation when no team list is available', async t => {
+  const { $ } = await workspace(t);
+  assert.equal($('export-leaderboard-pdf').disabled, true);
+  assert.match($('pdf-help').textContent, /needs an available team list/);
+});
 test('default team leaderboard has an honest empty state and primary upload without committee navigation', async t => {
   const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   const { $, values, contents } = await workspace(t, null, published);

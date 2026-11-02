@@ -33,7 +33,8 @@
       </details>
     </nav>
     <section id="league-panel" role="tabpanel" aria-labelledby="tab-league">
-      <div class="table-header"><h2 id="leaderboard-heading" tabindex="-1">Team leaderboard</h2><button id="upload-results" type="button" aria-controls="upload-panel">Upload HandicapMaster results</button></div>
+      <div class="table-header"><h2 id="leaderboard-heading" tabindex="-1">Team leaderboard</h2><div class="leaderboard-actions"><button id="upload-results" type="button" aria-controls="upload-panel">Upload HandicapMaster results</button><button id="export-leaderboard-pdf" type="button" aria-describedby="pdf-help" disabled>Export leaderboard PDF</button></div></div>
+      <p id="pdf-help" class="note">Loading the team list for PDF export...</p>
       <details id="upload-panel" class="card"><summary>Upload and review results</summary></details>
       <div id="results-empty" class="empty-state" hidden><h3 id="empty-heading">No results uploaded yet</h3><p id="empty-help">Upload a HandicapMaster net results CSV to match players to the team list and calculate the leaderboard.</p><button id="empty-upload" type="button">Upload HandicapMaster results</button></div>
       <p id="league-summary"></p><p id="tie-warning" class="warning" hidden></p>

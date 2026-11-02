@@ -4,6 +4,73 @@ import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { emptyState, canonical, validateState, parseJSON, parseCSV, parseTeams, parseScores, classifyScoreCSV, importRound, weekendDate, league, singles, validateFinal, parseFinal, finalTable, reportHTML, MAX_BYTES, editTeam, replaceTeams, rosterStatus, csvCell } from '../core.js';
 import { readDraft, saveDraft, STORAGE_KEY } from '../storage.js';
+import { leaderboardPDFModel, leaderboardPDFDocument } from '../leaderboard-pdf.js';
+
+test('PDF awaiting-results list keeps all 45 real teams and never asserts zero-score standings', async () => {
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const model = leaderboardPDFModel(state);
+  assert.equal(model.hasResults, false);
+  assert.equal(model.through, null);
+  const definition = leaderboardPDFDocument(state);
+  const summary = definition.content.find(node => node.table).table;
+  assert.equal(summary.body.length, 46);
+  assert.deepEqual(summary.body[0].map(node => node.text), ['Team', 'Player 1', 'Player 2', 'Player 3']);
+  assert.match(JSON.stringify(summary), /Brian O.Reilly/);
+  state.rounds = [{ date: '2026-11-07', name: 'Unmatched only', qualifying: true, canceled: false,
+    cards: [{ player: 'Synthetic Visitor', score: 40 }, { player: 'Colin Owens', score: 30 }] }];
+  assert.equal(leaderboardPDFModel(state).hasResults, false);
+  assert.equal(leaderboardPDFModel(state).unmatched, 2);
+  state.rounds[0].cards.push({ player: 'Paddy Daly', score: 0 });
+  assert.equal(leaderboardPDFModel(state).hasResults, true, 'A submitted zero card is a real result');
+});
+
+test('PDF keeps league totals, shared ranks, held cards and every weekend over grouped long seasons', () => {
+  const state = emptyState();
+  state.settings = { maxRounds: 52, discardCount: 2, complete: true, finalScoring: 'best2' };
+  state.teams = teams(45);
+  state.teams[0].heldPlayers = [state.teams[0].players[2]];
+  state.rounds = Array.from({ length: 54 }, (_, index) => round(index, Array(45).fill(54), state.teams));
+  state.rounds[52].canceled = true;
+  state.rounds[53].qualifying = false;
+  const before = structuredClone(state), expected = league(state);
+  const model = leaderboardPDFModel(state, { mode: 'draft', saved: false });
+  assert.equal(model.through, dateAt(51), 'Cancelled/excluded uploads cannot advance qualifying results-through');
+  assert.equal(model.rounds.length, 54);
+  assert.equal(model.result.discardCount, 2);
+  assert.match(model.status, /DRAFT: not saved, not published/);
+  const definition = leaderboardPDFDocument(state, { mode: 'draft', saved: false });
+  const tables = definition.content.filter(node => node.table).map(node => node.table);
+  assert.equal(tables.length, 10);
+  assert.equal(tables[0].body.length, 46);
+  assert.deepEqual(tables[0].body.slice(1).map(row => [Number(row[0].text), Number(row.at(-1).text)]),
+    expected.rows.map(row => [row.rank, row.retained]));
+  assert.equal(tables.slice(1).reduce((count, item) => count + item.widths.length - 1, 0), 54);
+  assert.ok(tables.every(item => item.headerRows === 1 && item.dontBreakRows));
+  assert.match(JSON.stringify(tables), /0 H/);
+  assert.match(JSON.stringify(tables), /54 D/);
+  assert.match(JSON.stringify(tables), /CANCELLED/);
+  assert.match(JSON.stringify(tables), /EXCLUDED/);
+  assert.match(JSON.stringify(definition), /Top 16 cutoff requires a committee decision/);
+  assert.deepEqual(state, before);
+  state.settings.complete = false;
+  assert.equal(leaderboardPDFModel(state).result.discardCount, 0);
+});
+
+test('PDF uses literal Unicode names and safe fixed metadata and filenames instead of HTML interpolation', () => {
+  const state = emptyState();
+  state.teams = [{ name: '<Team & "one">', players: ['Éamonn O’Reilly', "D'Arcy Ó Briain", '<script>alert(1)</script>'] }];
+  state.rounds = [{ date: '2026-11-07', name: '<Weekend & "one">', qualifying: true, canceled: false,
+    cards: [{ player: 'Éamonn O’Reilly', score: 29 }] }];
+  const definition = leaderboardPDFDocument(state, { mode: 'draft', saved: true });
+  const table = definition.content.find(node => node.table).table;
+  assert.equal(table.body[1][1].text, '<Team & "one">');
+  assert.equal(table.body[1][2].text, 'Éamonn O’Reilly');
+  assert.equal(table.body[1][4].text.replace(/\u200b/gu, ''), '<script>alert(1)</script>');
+  assert.doesNotMatch(definition.info.title, /<|>|&/);
+  assert.equal(leaderboardPDFModel(state, { mode: 'draft' }).filename,
+    'blainroe-winter-league-2026-2027-draft-2026-11-07.pdf');
+  assert.throws(() => leaderboardPDFModel(emptyState()), /Register a team/);
+});
 
 const teams = count => Array.from({ length: count }, (_, i) => ({ name: `Synthetic Team ${i + 1}`, players: [1, 2, 3].map(n => `Player T${i + 1}P${n}`) }));
 function dateAt(index) {
