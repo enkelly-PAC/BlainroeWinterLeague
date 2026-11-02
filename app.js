@@ -1,4 +1,4 @@
-import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML } from './core.js';
+import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML, assignments, isHeld, rosterStatus, replaceTeams, editTeam } from './core.js';
 import { readDraft, saveDraft, STORAGE_KEY } from './storage.js';
 
 const $ = id => document.getElementById(id);
@@ -84,8 +84,9 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
   head.append(header); tbl.append(head);
   const body = element('tbody');
   rows.forEach(values => { const row = element('tr'); values.forEach((value, i) => {
-    const cell = element(i === 1 ? 'th' : 'td', String(value));
-    if (i === 1) cell.scope = 'row';
+    const rowHeader = i === (id === 'teams-table' ? 0 : 1);
+    const cell = element(rowHeader ? 'th' : 'td', String(value));
+    if (rowHeader) cell.scope = 'row';
     row.append(cell);
   }); body.append(row); });
   tbl.append(body); wrapper.append(tbl); host.append(wrapper);
@@ -133,17 +134,21 @@ function render() {
   if (result.cutoffUnresolved) warnings.push('Top 16 cutoff is unresolved. No teams are confirmed qualified and final imports are blocked.');
   $('tie-warning').hidden = !warnings.length;
   $('tie-warning').textContent = warnings.join(' ');
+  const rosterWarnings = state.teams.filter(t => t.players.length < 3 || t.notes || t.heldPlayers?.length);
+  $('roster-warning').hidden = !rosterWarnings.length;
+  $('roster-warning').textContent = `Roster review required. Standings do not confirm player eligibility. ${rosterWarnings.map(t => `${t.name}: ${rosterStatus(t)}`).join(' | ')}`;
   table('league-table', `${mode === 'draft' ? 'Local draft' : 'Published'} league standings`, ['Rank', 'Team', 'Raw', 'Retained', 'Discarded total', 'Status', ...result.rounds.map(r => `${r.date}: ${r.name}`)], result.rows.map(r => [
     r.rank, r.team.name, r.raw, r.retained, r.raw - r.retained,
     result.cutoffUnresolved ? (r.rank <= 16 ? 'Cutoff unresolved' : 'Outside top 16') : result.eligible.includes(r.team.name) ? (state.settings.complete ? 'Final eligible' : 'Provisional top 16') : 'Outside top 16',
     ...r.scores.map(s => `${s.total}${s.discarded ? ' (discarded)' : ''}; ${s.missed} missed`)
   ]));
   renderSingles(state);
-  table('teams-table', 'Registered teams (3 players each)', ['Number', 'Team', 'Player 1', 'Player 2', 'Player 3'], state.teams.map((t, i) => [i + 1, t.name, ...t.players]));
+  table('teams-table', 'Registered roster (team numbers preserved)', ['Team', 'Player 1', 'Player 2', 'Player 3', 'Roster status'], state.teams.map(t => [t.name, t.players[0], t.players[1], t.players[2] || 'Vacant', rosterStatus(t)]));
   table('rounds-table', 'All imported weekends', ['Weekend', 'Round', 'Status', 'Cards'], [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).map(r => [r.date, r.name, r.canceled ? 'Canceled for everyone' : r.qualifying ? 'Qualifying' : 'Excluded / nonqualifying', r.cards.length]));
-  const assigned = new Map(state.teams.flatMap(t => t.players.map(player => [canonical(player), t.name])));
+  const assigned = assignments(state.teams);
   table('cards-table', 'All individual weekend cards', ['Weekend', 'Player', 'Team', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.map(c => [r.date, c.player, assigned.get(canonical(c.player)) || 'Unassigned', c.score, c.handicap ?? 'Not supplied'])));
-  table('unassigned-table', 'Unassigned raw cards', ['Weekend', 'Player', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.filter(c => !assigned.has(canonical(c.player))).map(c => [r.date, c.player, c.score, c.handicap ?? 'Not supplied'])));
+  const matched = new Set(state.teams.flatMap(t => t.players.filter(p => !isHeld(t, p)).map(canonical)));
+  table('unassigned-table', 'Unassigned raw cards (including held names)', ['Weekend', 'Player', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.filter(c => !matched.has(canonical(c.player))).map(c => [r.date, c.player, c.score, c.handicap ?? 'Not supplied'])));
   const finals = finalTable(state);
   $('final-summary').textContent = !state.settings.complete ? 'Final locked: qualification is not complete.' : result.cutoffUnresolved ? 'Final locked: unresolved top 16 cutoff.' : `Final open for ${result.eligible.length} eligible teams. Team total: ${state.settings.finalScoring === 'best2' ? 'best 2 cards (committee assumption)' : 'all 3 cards (committee-selected interpretation)'}. Countback: all 3 cards. Date: ${state.final?.date || 'awaiting confirmation'}.`;
   table('final-table', 'Final standings, no league carryover', ['Rank', 'Team', 'Cards / 3', 'Final total', 'Back 9', 'Back 6', 'Back 3', 'Back 1'], finals.map(r => [r.rank ?? 'Unranked (missing cards)', r.team.name, r.cards, r.cards === 3 ? r.total : 'Pending', ...r.countback]));
@@ -154,8 +159,60 @@ function render() {
   $('complete').checked = settings.complete;
   $('final-scoring').value = settings.finalScoring;
   renderRoundEditors();
+  renderRosterEditor();
   updateApplyAvailability();
 }
+function loadRosterTeam() {
+  const team = (draft || published).teams.find(t => t.name === $('roster-select').value);
+  $('roster-name').value = team?.name || '';
+  $('roster-name').readOnly = Boolean(team);
+  for (let i = 1; i <= 3; i++) {
+    $('roster-player' + i).value = team?.players[i - 1] || '';
+    $('roster-held' + i).checked = Boolean(team && isHeld(team, team.players[i - 1] || ''));
+  }
+  $('roster-notes').value = team?.notes || '';
+}
+function renderRosterEditor() {
+  const state = draft || published, selector = $('roster-select'), selected = selector.value;
+  selector.replaceChildren();
+  const add = element('option', 'Add a new three-player team'); add.value = ''; selector.append(add);
+  for (const team of state.teams) {
+    const option = element('option', `${team.name}: ${team.players.join(', ')}`);
+    option.value = team.name; selector.append(option);
+  }
+  selector.value = state.teams.some(t => t.name === selected) ? selected : '';
+  loadRosterTeam();
+  const flagged = state.teams.filter(t => t.players.length < 3 || t.notes || t.heldPlayers?.length);
+  $('roster-notice').textContent = `${draft ? 'Editing saved local draft' : 'Editing will create a local draft from published data'}. ${state.teams.length} teams. ${flagged.map(t => `${t.name}: ${rosterStatus(t)}`).join(' | ')}`;
+  $('use-published-roster').disabled = !publishedReady || !published.teams.length;
+}
+$('roster-select').addEventListener('change', loadRosterTeam);
+$('roster-form').addEventListener('submit', safely(() => {
+  const original = $('roster-select').value || null;
+  const players = [1, 2, 3].map(i => $('roster-player' + i).value.trim());
+  if (!players[0] || !players[1] || (!players[2] && canonical($('roster-name').value) !== 'team34'))
+    throw new Error('Provide three named players. Only Team 34 may leave Player 3 vacant.');
+  const team = { name: $('roster-name').value.trim(), players: players.filter(Boolean),
+    notes: $('roster-notes').value.trim(), heldPlayers: players.filter((p, i) => p && $('roster-held' + (i + 1)).checked) };
+  const next = editTeam(importBase(), original, team);
+  if (!confirm('Save this roster change for every weekend? Raw cards and settings stay unchanged; changed names may leave cards unassigned. Back up first.')) return;
+  persist(next, 'Team saved. Review Teams, Singles and unassigned cards before publishing.');
+  $('roster-select').value = team.name;
+  loadRosterTeam();
+  if (pending?.kind === 'teams') clearPreview();
+}));
+$('use-published-roster').addEventListener('click', safely(() => {
+  if (!publishedReady || !published.teams.length) throw new Error('Published roster is unavailable. Refresh published data first.');
+  const next = replaceTeams(importBase(), published.teams);
+  if (!confirm(`Replace draft registration with ${published.teams.length} published teams? Draft raw scores and settings remain; omitted teams are removed. Back up first.`)) return;
+  persist(next, 'Published roster copied into draft. Existing raw scores retained.');
+  if (pending?.kind === 'teams') clearPreview();
+}));
+$('roster-export').addEventListener('click', safely(() => {
+  const state = importBase();
+  csvDownload('team-roster.csv', ['Team Name', 'Player1', 'Player2', 'Player3', 'Notes', 'Held Players'],
+    state.teams.map(t => [t.name, t.players[0], t.players[1], t.players[2] || '', t.notes || '', (t.heldPlayers || []).join('|')]));
+}));
 function labeled(form, label, type, value) {
   const wrapper = element('label', label), input = element('input');
   input.type = type;
@@ -285,7 +342,7 @@ function updateImportType() {
   ['import-heading', 'import-file-label', 'preview-import', 'apply-import'].forEach((id, i) => { $(id).textContent = labels[i]; });
   $('import-help').textContent = {
     scores: 'Feeds League and Singles. Select your results and scorecard CSVs together. Net reports supply points; recognized gross scorecards are excluded.',
-    teams: 'Registers three players per team. Replaces draft registration after confirmation; existing results are retained.',
+    teams: 'Replaces the roster after confirmation, keeping raw scores and settings. Team 34 may have a vacant third place. Existing notes and holds are retained unless CSV columns explicitly replace them.',
     final: 'Final only, not weekly League or Singles results. Requires completed qualification and eligible registered players.',
     restore: 'Restores a validated JSON backup or publication file. Replaces the entire local draft only after confirmation.'
   }[kind];
@@ -342,7 +399,9 @@ async function readImportFiles(revision) {
   if (revision !== previewRevision) return;
   let data, rows, columns, omissions = '';
   if (kind === 'teams') {
-    data = parseTeams(sources[0]); rows = data.map(t => [t.name, ...t.players]); columns = ['Team', 'Player 1', 'Player 2', 'Player 3'];
+    data = replaceTeams(importBase(), parseTeams(sources[0])).teams;
+    rows = data.map(t => [t.name, t.players[0], t.players[1], t.players[2] || 'Vacant', rosterStatus(t)]);
+    columns = ['Team', 'Player 1', 'Player 2', 'Player 3', 'Roster status'];
   } else if (kind === 'scores') {
     const recognized = [], resultIndices = [];
     for (let index = 0; index < sources.length; index++) {
@@ -380,7 +439,7 @@ async function readImportFiles(revision) {
     $('round-name').value = existing?.name || '';
     $('qualifying').checked = existing?.qualifying ?? true;
     $('net-confirm').checked = false; $('import-mode').value = 'merge';
-    const registered = new Set((draft || published).teams.flatMap(t => t.players.map(canonical)));
+    const registered = new Set((draft || published).teams.flatMap(t => t.players.filter(p => !isHeld(t, p)).map(canonical)));
     rows = data.map(c => [c.player, c.score, c.handicap ?? '', registered.has(canonical(c.player)) ? 'Registered' : 'Unassigned']);
     columns = ['Player', 'Net points', 'Handicap (metadata)', 'Assignment'];
   } else if (kind === 'restore') {
@@ -419,8 +478,9 @@ $('apply-form').addEventListener('submit', safelyImport(() => {
   } else {
     next = structuredClone(importBase());
     if (pending.kind === 'teams') {
-      if (!confirm('Replace all draft registrations with the previewed teams? Raw scores remain and will recalculate.')) return;
-      next.teams = pending.data;
+      const removed = next.teams.filter(t => !pending.data.some(p => canonical(p.name) === canonical(t.name))).map(t => t.name);
+      if (!confirm(`Replace all draft registrations with ${pending.data.length} previewed teams? Removed teams: ${removed.join(', ') || 'none'}. Raw scores remain unchanged and will recalculate; review unassigned cards. Back up first.`)) return;
+      next = replaceTeams(next, pending.data);
     } else if (pending.kind === 'scores') {
       if (!$('net-confirm').checked) throw new Error('Confirm net Stableford points before importing.');
       const date = weekendDate($('weekend-date').value), existing = next.rounds.find(r => r.date === date);
@@ -456,11 +516,12 @@ $('report').addEventListener('click', safely(() => {
   download('blainroe-winter-league-report.html', reportHTML(current(), mode === 'draft' ? 'Browser-only draft, NOT official results' : 'Owner-published data'), 'text/html;charset=utf-8');
 }));
 $('team-template').addEventListener('click', () => csvDownload('team-template.csv', ['Team Name', 'Player1', 'Player2', 'Player3'], []));
-$('score-template').addEventListener('click', () => csvDownload('net-stableford-template.csv', ['Player', 'Score', 'Handicap'], current().teams.flatMap(t => t.players.map(p => [p, '', '']))));
+$('score-template').addEventListener('click', () => csvDownload('net-stableford-template.csv', ['Player', 'Score', 'Handicap'],
+  [...new Map(current().teams.flatMap(t => t.players.map(p => [canonical(p), p]))).values()].map(p => [p, '', ''])));
 $('final-template').addEventListener('click', safely(() => {
   const state = current(), eligible = league(state).eligible;
   if (!state.settings.complete || league(state).cutoffUnresolved) throw new Error('Final template locked until qualification is complete and cutoff is resolved.');
-  csvDownload('final-template.csv', ['Team', 'Player', 'Total', 'Back9', 'Back6', 'Back3', 'Back1'], state.teams.filter(t => eligible.includes(t.name)).flatMap(t => t.players.map(p => [t.name, p, '', '', '', '', ''])));
+  csvDownload('final-template.csv', ['Team', 'Player', 'Total', 'Back9', 'Back6', 'Back3', 'Back1'], state.teams.filter(t => eligible.includes(t.name)).flatMap(t => t.players.filter(p => !isHeld(t, p)).map(p => [t.name, p, '', '', '', '', ''])));
 }));
 updateImportType();
 render();

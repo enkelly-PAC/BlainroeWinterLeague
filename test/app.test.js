@@ -5,7 +5,7 @@ import { emptyState } from '../core.js';
 import { STORAGE_KEY } from '../storage.js';
 
 let instance = 0;
-async function workspace(t, source = null) {
+async function workspace(t, source = null, published = emptyState()) {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const nodes = new Map();
   class Node {
@@ -31,7 +31,7 @@ async function workspace(t, source = null) {
   globalThis.window = { localStorage: {
     getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key)
   } };
-  globalThis.fetch = async () => ({ ok: true, text: async () => JSON.stringify(emptyState()) });
+  globalThis.fetch = async () => ({ ok: true, text: async () => JSON.stringify(published) });
   globalThis.confirm = () => true;
   t.after(() => { for (const [key, value] of Object.entries(original)) {
     if (value === undefined) delete globalThis[key]; else globalThis[key] = value;
@@ -45,6 +45,66 @@ async function workspace(t, source = null) {
   }
   return { $, values, preview };
 }
+test('published roster is opt-in for older saved drafts and keeps existing scores and settings', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = emptyState(); state.settings.maxRounds = 12;
+  state.rounds = [{ date: '2026-10-31', name: 'Saved scores', qualifying: false, canceled: false,
+    cards: [{ player: 'Paddy Daly', score: 25 }] }];
+  const source = JSON.stringify(state);
+  const { $, values } = await workspace(t, source, published);
+  assert.equal(values.get(STORAGE_KEY), source);
+  assert.equal($('view-label').textContent, 'Published club results');
+  globalThis.confirm = () => false;
+  await $('use-published-roster').emit('click');
+  assert.equal(values.get(STORAGE_KEY), source);
+  globalThis.confirm = () => true;
+  await $('use-published-roster').emit('click');
+  const saved = JSON.parse(values.get(STORAGE_KEY));
+  assert.deepEqual(saved.teams, published.teams);
+  assert.deepEqual(saved.rounds, state.rounds);
+  assert.deepEqual(saved.settings, state.settings);
+  $('roster-select').value = 'Team 34';
+  await $('roster-select').emit('change');
+  assert.equal($('roster-name').readOnly, true);
+  assert.equal($('roster-player3').value, '');
+  await $('roster-form').emit('submit');
+  assert.equal(JSON.parse(values.get(STORAGE_KEY)).teams.find(t => t.name === 'Team 34').players.length, 2);
+  await $('published-view').emit('click');
+  assert.equal($('view-label').textContent, 'Published club results');
+  assert.match($('roster-warning').textContent, /Eugene McCrystal .*eligibility pending/);
+});
+test('editor saves changes and new teams without touching raw cards; duplicate and incomplete saves are atomic', async t => {
+  const state = emptyState();
+  state.teams = [{ name: 'Team 2', players: ['Synthetic One', 'Synthetic Two', 'Synthetic Three'] }];
+  state.rounds = [{ date: '2026-10-31', name: 'Saved scores', qualifying: true, canceled: false,
+    cards: [{ player: 'Synthetic One', score: 25 }] }];
+  const { $, values } = await workspace(t, JSON.stringify(state));
+  $('roster-select').value = 'Team 2'; await $('roster-select').emit('change');
+  $('roster-player1').value = 'One, Synthetic';
+  $('roster-notes').value = 'Synthetic pending committee review';
+  await $('roster-form').emit('submit');
+  let saved = JSON.parse(values.get(STORAGE_KEY));
+  assert.equal(saved.teams[0].players[0], 'One, Synthetic');
+  assert.equal(saved.teams[0].notes, 'Synthetic pending committee review');
+  assert.deepEqual(saved.rounds, state.rounds);
+  $('roster-select').value = ''; await $('roster-select').emit('change');
+  assert.equal($('roster-name').readOnly, false);
+  $('roster-name').value = 'Team 47'; $('roster-player1').value = 'Synthetic Four'; $('roster-player2').value = 'Synthetic Five';
+  const before = values.get(STORAGE_KEY);
+  await $('roster-form').emit('submit');
+  assert.equal(values.get(STORAGE_KEY), before);
+  assert.match($('status').textContent, /three named players/);
+  $('roster-player3').value = 'SYNTHETIC TWO';
+  await $('roster-form').emit('submit');
+  assert.equal(values.get(STORAGE_KEY), before);
+  assert.match($('status').textContent, /duplicate/);
+  $('roster-player3').value = 'Synthetic Six';
+  await $('roster-form').emit('submit');
+  saved = JSON.parse(values.get(STORAGE_KEY));
+  assert.equal(saved.teams.length, 2);
+  assert.deepEqual(saved.rounds, state.rounds);
+  assert.equal($('roster-select').value, 'Team 47');
+});
 
 test('results preview is read-only; only a valid explicit apply starts a saved draft', async t => {
   const { $, values, preview } = await workspace(t);

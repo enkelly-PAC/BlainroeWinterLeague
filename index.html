@@ -32,6 +32,7 @@
     <section id="league-panel" role="tabpanel" aria-labelledby="tab-league">
       <div class="table-header"><h2>League standings</h2><button id="report" class="export-button">Download league and final HTML report</button></div>
       <p id="league-summary"></p><p id="tie-warning" class="warning" hidden></p>
+      <p id="roster-warning" class="warning" hidden></p>
       <div id="league-table"></div>
       <p class="note">Each qualifying weekend: best 2 of 3 reported 12-hole net Stableford cards; absent cards score zero. Points are used unchanged, with no rescaling to 18 holes or handicap conversions. Live tables have no discards. Committee assumption: tied retained totals compare discarded scores highest first; remaining ties share rank, not alphabetical resolution.</p>
     </section>
@@ -98,8 +99,26 @@
         </section>
         <section class="card" aria-labelledby="registration-heading">
           <h3 id="registration-heading">Team registration</h3>
-          <p>Register three players per team separately. Results can be imported first; unassigned cards are retained.</p>
-          <div class="actions"><button id="teams-import" type="button">Choose team registration CSV</button><button id="team-template">Team CSV template</button></div>
+          <p>Add or change teams here without editing source files. New teams need three players; Team 34 may keep its vacant third place. Existing team numbers stay fixed.</p>
+          <p id="roster-notice" class="warning"></p>
+          <label>Team to edit<select id="roster-select" aria-controls="roster-form"></select></label>
+          <form id="roster-form">
+            <label>Team name / number<input id="roster-name" maxlength="160" placeholder="Team 47" required></label>
+            <label>Player 1<input id="roster-player1" maxlength="160" required></label>
+            <label class="check"><input id="roster-held1" type="checkbox">Hold Player 1 score matching (ambiguous name)</label>
+            <label>Player 2<input id="roster-player2" maxlength="160" required></label>
+            <label class="check"><input id="roster-held2" type="checkbox">Hold Player 2 score matching (ambiguous name)</label>
+            <label>Player 3 (vacant only for Team 34)<input id="roster-player3" maxlength="160"></label>
+            <label class="check"><input id="roster-held3" type="checkbox">Hold Player 3 score matching (ambiguous name)</label>
+            <label>Roster notes / pending confirmation<input id="roster-notes" maxlength="160" placeholder="Pending eligibility or committee decision"></label>
+            <p class="note">Changing a player changes team membership for all weekends. Raw cards are never renamed or deleted. Spelling, accents, punctuation and surname-first names match automatically; other changes can leave old cards unassigned. Held names remain in Singles but contribute zero to team scoring until resolved. Notes record eligibility questions, not eligibility approval or automatic score exclusion. Review unassigned cards and back up first.</p>
+            <button type="submit">Save team to my draft</button>
+          </form>
+          <div class="actions"><button id="use-published-roster" type="button">Use published roster in my draft</button><button id="roster-export" type="button">Download draft roster CSV</button></div>
+          <details><summary>Replace roster from CSV</summary>
+            <p>Export the current roster to edit it in a spreadsheet, then preview and confirm replacement. All raw scores and settings stay in your draft. Basic CSV imports preserve existing notes and name holds for matching team names. Review missing teams and unassigned cards before publishing.</p>
+            <div class="actions"><button id="teams-import" type="button">Choose team registration CSV</button><button id="team-template">Team CSV template</button></div>
+          </details>
         </section>
         <details class="card"><summary>Committee settings</summary>
           <form id="settings-form">
@@ -125,6 +144,6 @@
     </section>
     </div>
   </main>
-  <footer>Blainroe Golf Club | Spirit Ford Wicklow <span>Public results are owner-published. No player data is included initially.</span></footer>
+  <footer>Blainroe Golf Club | Spirit Ford Wicklow <span>Workbook roster included locally. Public results and roster changes require owner publication.</span></footer>
 </body>
 </html>

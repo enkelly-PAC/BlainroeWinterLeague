@@ -49,6 +49,7 @@ tbody td:first-child { font-weight: 600; color: var(--green); }
 #league-table thead th:nth-child(4), #final-table thead th:nth-child(4) { background: #267426; }
 #singles-table tbody td:nth-child(3) { font-weight: 700; background: rgb(26 94 26 / 6%); }
 #singles-table thead th:nth-child(3) { background: #267426; }
+#teams-table td:last-child { white-space: normal; min-width: 16rem; text-align: left; }
 #league-table thead th { font-size: .7rem; padding: .2rem .3rem; vertical-align: bottom; }
 #league-table .weekend-column { min-width: 64px; }
 .weekend-date { display: block; font-size: .7rem; margin-bottom: .25rem; }

@@ -50,13 +50,61 @@ export function weekendDate(value) {
 export function validateTeams(teams) {
   if (!Array.isArray(teams) || teams.length > 500) fail('Teams: expected an array of at most 500 teams.');
   unique(teams.map(t => t?.name), 'Team');
-  const members = [];
+  const members = new Map();
   for (const team of teams) {
-    shape(team, ['name', 'players'], 'Team');
-    if (!Array.isArray(team.players) || team.players.length !== 3) fail(`Team "${team.name}" must have exactly 3 players.`);
-    members.push(...team.players);
+    shape(team, ['name', 'players', 'notes', 'heldPlayers'], 'Team');
+    if (!Array.isArray(team.players) || (team.players.length !== 3 && !(canonical(team.name) === 'team34' && team.players.length === 2)))
+      fail(`Team "${team.name}" must have exactly 3 players. Only existing Team 34 may have 2 with a vacant third place.`);
+    unique(team.players, 'Player within team');
+    if (team.notes !== undefined && team.notes !== '') text(team.notes, 'Team notes');
+    if (team.heldPlayers !== undefined) {
+      if (!Array.isArray(team.heldPlayers)) fail('Held players: expected an array.');
+      unique(team.heldPlayers, 'Held player');
+      if (team.heldPlayers.some(p => !team.players.some(member => canonical(member) === canonical(p))))
+        fail('Held players must be named members of this team.');
+    }
+    for (const player of team.players) {
+      const key = canonical(player);
+      if (!members.has(key)) members.set(key, []);
+      members.get(key).push({ team, player });
+    }
   }
-  unique(members, 'Player (globally unique)');
+  for (const entries of members.values()) {
+    if (entries.length > 1 && entries.some(({ team, player }) => !isHeld(team, player)))
+      fail(`Player (globally unique): duplicate "${entries[0].player}". Correct the names or explicitly hold score matching in every affected team.`);
+  }
+}
+export const isHeld = (team, player) => (team.heldPlayers || []).some(p => canonical(p) === canonical(player));
+export function assignments(teams) {
+  const assigned = new Map();
+  for (const team of teams) for (const player of team.players) {
+    const key = canonical(player);
+    if (isHeld(team, player)) assigned.set(key, 'Unassigned (roster name held for confirmation)');
+    else assigned.set(key, team.name);
+  }
+  return assigned;
+}
+export function rosterStatus(team) {
+  return [team.players.length < 3 ? 'Player 3 vacant' : '',
+    team.heldPlayers?.length ? `Score matching held: ${team.heldPlayers.join(', ')}` : '', team.notes || ''].filter(Boolean).join('. ') || 'No roster notes';
+}
+export function replaceTeams(state, teams) {
+  const next = structuredClone(state);
+  next.teams = teams.map(team => {
+    const old = state.teams.find(t => canonical(t.name) === canonical(team.name));
+    const updated = structuredClone(team);
+    if (old?.notes && updated.notes === undefined) updated.notes = old.notes;
+    if (old?.heldPlayers && updated.heldPlayers === undefined)
+      updated.heldPlayers = old.heldPlayers.filter(p => updated.players.some(member => canonical(p) === canonical(member)));
+    return updated;
+  });
+  return validateState(next);
+}
+export function editTeam(state, originalName, team) {
+  if (originalName !== null && team.name !== originalName) fail('Keep the existing team name / number unchanged.');
+  if (originalName !== null && !state.teams.some(t => t.name === originalName)) fail('Team no longer exists. Reload the roster editor.');
+  const teams = originalName === null ? [...state.teams, team] : state.teams.map(t => t.name === originalName ? team : t);
+  return replaceTeams(state, teams);
 }
 export function validateState(state) {
   if (!state || state.version !== 1) fail('Unsupported state version. Expected version 1.');
@@ -142,7 +190,13 @@ export function parseTeams(source) {
   const teamIndex = columns.findIndex(h => h === 'team' || h === 'teamname');
   const indices = [1, 2, 3].map(n => columns.indexOf(`player${n}`));
   if (indices.includes(-1)) fail('Teams CSV requires Team Name, Player1, Player2, Player3.');
-  const teams = data.map(row => ({ name: text(row[teamIndex], 'Team'), players: indices.map(i => text(row[i], 'Player')) }));
+  const teams = data.map(row => {
+    const team = { name: text(row[teamIndex], 'Team'), players: indices.slice(0, 2).map(i => text(row[i], 'Player')) };
+    if (row[indices[2]]) team.players.push(text(row[indices[2]], 'Player'));
+    if (columns.includes('notes')) team.notes = row[columns.indexOf('notes')] || '';
+    if (columns.includes('heldplayers')) team.heldPlayers = (row[columns.indexOf('heldplayers')] || '').split('|').map(p => p.trim()).filter(Boolean);
+    return team;
+  });
   if (!teams.length) fail('Teams CSV has no teams.');
   validateTeams(teams);
   return teams;
@@ -273,7 +327,7 @@ export function singles(state, selectedDate = null) {
   const round = rounds.find(r => r.date === selectedDate) ||
     rounds.find(r => r.qualifying && !r.canceled) || rounds[0] || null;
   const status = !round ? null : round.canceled ? 'Canceled' : round.qualifying ? 'Qualifying' : 'Excluded / nonqualifying';
-  const assigned = new Map(state.teams.flatMap(team => team.players.map(player => [canonical(player), team.name])));
+  const assigned = assignments(state.teams);
   const rows = (round?.cards || []).map(card => ({ player: card.player, score: card.score, team: assigned.get(canonical(card.player)) || 'Unassigned' }));
   rows.sort((a, b) => b.score - a.score || a.player.localeCompare(b.player));
   rows.forEach((row, index) => { row.rank = index && rows[index - 1].score === row.score ? rows[index - 1].rank : index + 1; });
@@ -285,8 +339,8 @@ export function league(state) {
   const rows = state.teams.map(team => {
     const scores = rounds.map(round => {
       const cards = new Map(round.cards.map(c => [canonical(c.player), c.score]));
-      const values = team.players.map(player => cards.get(canonical(player)) ?? 0).sort((a, b) => b - a);
-      return { date: round.date, total: values[0] + values[1], missed: team.players.filter(p => !cards.has(canonical(p))).length };
+      const values = team.players.map(player => isHeld(team, player) ? 0 : cards.get(canonical(player)) ?? 0).sort((a, b) => b - a);
+      return { date: round.date, total: (values[0] || 0) + (values[1] || 0), missed: 3 - team.players.filter(p => !isHeld(team, p) && cards.has(canonical(p))).length };
     });
     const ordered = scores.map((score, index) => ({ ...score, index })).sort((a, b) => a.total - b.total || a.index - b.index);
     const discarded = ordered.slice(0, discardCount);
@@ -318,6 +372,7 @@ export function validateFinal(state, final) {
     const team = state.teams.find(t => canonical(t.name) === canonical(card.team));
     if (!team || !table.eligible.includes(team.name)) fail(`Final team "${card.team}" is not an eligible registered team.`);
     if (!team.players.some(p => canonical(p) === canonical(card.player))) fail(`Final player "${card.player}" is not registered in "${team.name}".`);
+    if (isHeld(team, card.player)) fail(`Final player "${card.player}" has score matching held. Resolve the roster name first.`);
     integer(card.total, `Final total for ${card.player}`);
     let previous = card.total;
     for (const field of countbackFields) {
@@ -359,8 +414,8 @@ export const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({ '&'
 export function reportHTML(state, label) {
   validateState(state);
   const table = league(state);
-  const headers = ['Rank', 'Team', 'Players', 'Raw', 'Retained', 'Discarded', ...table.rounds.map(r => r.date)];
-  const rowHTML = table.rows.map(r => `<tr>${[r.rank, r.team.name, r.team.players.join(', '), r.raw, r.retained, r.discarded.join(', ') || 'None', ...r.scores.map(s => `${s.total}${s.discarded ? ' (discarded)' : ''}; ${s.missed} missed`)].map(v => `<td>${escapeHTML(v)}</td>`).join('')}</tr>`).join('');
+  const headers = ['Rank', 'Team', 'Players', 'Roster status', 'Raw', 'Retained', 'Discarded', ...table.rounds.map(r => r.date)];
+  const rowHTML = table.rows.map(r => `<tr>${[r.rank, r.team.name, r.team.players.join(', '), rosterStatus(r.team), r.raw, r.retained, r.discarded.join(', ') || 'None', ...r.scores.map(s => `${s.total}${s.discarded ? ' (discarded)' : ''}; ${s.missed} missed`)].map(v => `<td>${escapeHTML(v)}</td>`).join('')}</tr>`).join('');
   const finals = finalTable(state).map(r => `<tr>${[r.rank ?? 'Unranked', r.team.name, r.cards, r.total, ...r.countback].map(v => `<td>${escapeHTML(v)}</td>`).join('')}</tr>`).join('');
   return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'"><title>Blainroe Winter League report</title><body><h1>Blainroe Men's Winter League 2026/2027</h1><p>Sponsored by Spirit Ford Wicklow</p><p>${escapeHTML(label)}. ${state.settings.complete ? 'Qualification complete' : 'Provisional: no discards yet'}. Discards applied: ${table.discardCount}.</p><p>Committee assumptions: league ties compare discarded scores highest first. Final scoring: ${escapeHTML(state.settings.finalScoring)}, countback uses all 3 cards. Final date: ${escapeHTML(state.final?.date || 'awaiting confirmation')}.</p><p>${table.cutoffUnresolved ? 'Top 16 cutoff unresolved: no confirmed qualifiers.' : 'No cutoff tie across place 16.'} ${table.firstUnresolved ? 'First place unresolved.' : ''}</p><table><caption>League</caption><thead><tr>${headers.map(h => `<th scope="col">${escapeHTML(h)}</th>`).join('')}</tr></thead><tbody>${rowHTML}</tbody></table><h2>Final (zero carryover)</h2><table><thead><tr>${['Rank', 'Team', 'Cards', 'Total', 'Back9', 'Back6', 'Back3', 'Back1'].map(h => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${finals}</tbody></table></body></html>`;
 }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
-import { emptyState, canonical, validateState, parseJSON, parseCSV, parseTeams, parseScores, classifyScoreCSV, importRound, weekendDate, league, singles, validateFinal, parseFinal, finalTable, reportHTML, MAX_BYTES } from '../core.js';
+import { emptyState, canonical, validateState, parseJSON, parseCSV, parseTeams, parseScores, classifyScoreCSV, importRound, weekendDate, league, singles, validateFinal, parseFinal, finalTable, reportHTML, MAX_BYTES, editTeam, replaceTeams, rosterStatus, csvCell } from '../core.js';
 import { readDraft, saveDraft, STORAGE_KEY } from '../storage.js';
 
 const teams = count => Array.from({ length: count }, (_, i) => ({ name: `Synthetic Team ${i + 1}`, players: [1, 2, 3].map(n => `Player T${i + 1}P${n}`) }));
@@ -29,9 +29,19 @@ function finalCard(team, index, total = 40, back9 = 20) {
   return { team: team.name, player: team.players[index], total, back9, back6: Math.min(12, back9), back3: Math.min(6, back9), back1: Math.min(2, back9) };
 }
 
-test('deployed publication is empty and versioned, without invented players', async () => {
+test('workbook roster preserves numbered teams, vacancy and unresolved entries without invented results', async () => {
   const state = parseJSON(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
-  assert.deepEqual(state, emptyState());
+  assert.equal(state.teams.length, 45);
+  assert.equal(state.teams.flatMap(t => t.players).length, 134);
+  assert.equal(new Set(state.teams.flatMap(t => t.players.map(canonical))).size, 133);
+  assert.deepEqual(state.teams.map(t => Number(t.name.slice(5))).sort((a, b) => a - b), Array.from({ length: 45 }, (_, i) => i + 2));
+  assert.deepEqual(state.teams.find(t => t.name === 'Team 34').players, ['Paddy Daly', 'Timothy Cummins']);
+  assert.match(rosterStatus(state.teams.find(t => t.name === 'Team 37')), /Eugene McCrystal \(away member at Bundoran\): eligibility pending confirmation by Niall/);
+  assert.deepEqual(state.rounds, []);
+  assert.equal(state.final, null);
+  assert.equal(state.settings.complete, false);
+  assert.match(reportHTML(state, 'Local review'), /Player 3 vacant/);
+  assert.match(reportHTML(state, 'Local review'), /Score matching held: Colin Owens/);
 });
 test('canonical names match surname-first, punctuation, accents and case', () => {
   assert.equal(canonical("O'Br\u00eden, S\u00e9\u00e1n"), canonical('SEAN OBRIEN'));
@@ -57,7 +67,55 @@ test('registration rejects duplicate teams, globally duplicated members and wron
   assert.throws(() => parseTeams('Team,Player1,Player2,Player3\nAlpha,"Test, Given",A2,A3\nBeta,Given Test,B2,B3'), /globally unique/);
   const state = emptyState(); state.teams = [{ name: 'Alpha', players: ['A1', 'A2'] }];
   assert.throws(() => validateState(state), /exactly 3/);
-  assert.throws(() => parseTeams('Team,Player1,Player2,Player3\nAlpha,A1,A2,'), /Player/);
+  assert.throws(() => parseTeams('Team,Player1,Player2,Player3\nAlpha,A1,A2,'), /exactly 3/);
+});
+test('Team 34 vacancy survives CSV and storage, scores only real cards and can be filled', () => {
+  const state = emptyState();
+  state.teams = parseTeams('Team,Player1,Player2,Player3\nTeam 34,Synthetic One,Synthetic Two,');
+  state.rounds = [{ date: dateAt(0), name: 'Synthetic weekend', qualifying: true, canceled: false,
+    cards: [{ player: 'Synthetic One', score: 20 }, { player: 'Synthetic Two', score: 25 }] }];
+  const restored = parseJSON(JSON.stringify(state));
+  assert.equal(league(restored).rows[0].scores[0].total, 45);
+  assert.equal(league(restored).rows[0].scores[0].missed, 1);
+  assert.equal(league(editTeam(restored, 'Team 34', { name: 'Team 34', players: ['Synthetic One', 'Synthetic Two', 'Synthetic Three'] })).rows[0].raw, 45);
+  assert.throws(() => parseTeams('Team,Player1,Player2,Player3\nTeam 34,Synthetic One,,Synthetic Three'), /Player/);
+  assert.throws(() => parseTeams('Team,Player1,Player2,Player3\nTeam 35,Synthetic One,Synthetic Two,'), /exactly 3/);
+});
+test('ambiguous duplicate roster names require explicit holds on both teams and never score twice', () => {
+  const state = fixture([[50, 40]]);
+  state.teams[0].players[0] = 'Synthetic Shared';
+  state.teams[1].players[0] = 'Shared, Synthetic';
+  state.teams.forEach(t => { t.heldPlayers = [t.players[0]]; });
+  state.rounds[0].cards.push({ player: 'Synthetic Shared', score: 99 });
+  validateState(state);
+  assert.deepEqual(league(state).rows.map(r => r.raw), [25, 20]);
+  assert.match(singles(state).rows[0].team, /Unassigned.*held/);
+  const invalid = structuredClone(state); invalid.teams[1].heldPlayers = [];
+  assert.throws(() => validateState(invalid), /duplicate/);
+  const corrected = editTeam(state, state.teams[1].name, { ...state.teams[1], players: ['Synthetic Different', ...state.teams[1].players.slice(1)], heldPlayers: [] });
+  const released = editTeam(corrected, state.teams[0].name, { ...state.teams[0], heldPlayers: [] });
+  assert.equal(league(released).rows.find(r => r.team.name === state.teams[0].name).raw, 124);
+  assert.deepEqual(released.rounds, state.rounds);
+});
+test('roster edits and CSV replacement preserve raw data, metadata and backward-compatible backups', () => {
+  const state = fixture([[50]]);
+  state.teams[0].notes = 'Eligibility pending committee confirmation';
+  state.teams[0].heldPlayers = [state.teams[0].players[2]];
+  const basic = parseTeams(`Team,Player1,Player2,Player3\n${state.teams[0].name},${state.teams[0].players.join(',')}`);
+  assert.deepEqual(replaceTeams(state, basic), state);
+  const columns = ['Team', 'Player1', 'Player2', 'Player3', 'Notes', 'Held Players'];
+  const team = state.teams[0];
+  const csv = [columns, [team.name, ...team.players, team.notes, team.heldPlayers.join('|')]].map(row => row.map(csvCell).join(',')).join('\n');
+  assert.deepEqual(parseTeams(csv), state.teams);
+  const edited = editTeam(state, team.name, { ...team, players: ['New Synthetic', ...team.players.slice(1)] });
+  assert.deepEqual(edited.rounds, state.rounds);
+  assert.deepEqual(edited.settings, state.settings);
+  assert.equal(singles(edited).rows.find(r => r.player === team.players[0]).team, 'Unassigned');
+  assert.throws(() => editTeam(state, team.name, { ...team, name: 'Renumbered' }), /unchanged/);
+  const finalState = fixture([[50]], true);
+  finalState.final = { date: null, cards: [finalCard(finalState.teams[0], 0)] };
+  assert.throws(() => editTeam(finalState, finalState.teams[0].name, { ...finalState.teams[0], players: ['New Synthetic', ...finalState.teams[0].players.slice(1)] }), /not registered/);
+  assert.equal(finalState.final.cards.length, 1);
 });
 test('team header-only imports are rejected, not treated as registration deletion', () => {
   assert.throws(() => parseTeams('Team Name,Player1,Player2,Player3\n'), /no teams/);

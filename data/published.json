@@ -6,7 +6,374 @@
     "complete": false,
     "finalScoring": "best2"
   },
-  "teams": [],
+  "teams": [
+    {
+      "name": "Team 21",
+      "players": [
+        "Amory Swartz",
+        "Trevor Townsend",
+        "David Starling"
+      ]
+    },
+    {
+      "name": "Team 2",
+      "players": [
+        "Austin Jennings",
+        "Noel Fahy",
+        "Sean Algar"
+      ]
+    },
+    {
+      "name": "Team 3",
+      "players": [
+        "Barry Whelan",
+        "Craig Whelan",
+        "John Slattery"
+      ]
+    },
+    {
+      "name": "Team 4",
+      "players": [
+        "Bill Ryan",
+        "Ronan Lawlor",
+        "Pascal Burke"
+      ]
+    },
+    {
+      "name": "Team 5",
+      "players": [
+        "Billy Nelson",
+        "Con Timon",
+        "Mike Farrell"
+      ]
+    },
+    {
+      "name": "Team 6",
+      "players": [
+        "Brian O’Reilly",
+        "Robert Pickerill",
+        "John Paul Comerford"
+      ]
+    },
+    {
+      "name": "Team 7",
+      "players": [
+        "Brian Purcell",
+        "David Nolan",
+        "Chris Sheehy"
+      ]
+    },
+    {
+      "name": "Team 8",
+      "players": [
+        "Brian Sammon",
+        "Brian McDonnell",
+        "David McCoy"
+      ]
+    },
+    {
+      "name": "Team 9",
+      "players": [
+        "Chris Mahon",
+        "Luke Byrne",
+        "Ken O'Grady"
+      ]
+    },
+    {
+      "name": "Team 10",
+      "players": [
+        "Colin Owens",
+        "Ger McGuinness",
+        "Paul Long"
+      ],
+      "heldPlayers": [
+        "Colin Owens"
+      ]
+    },
+    {
+      "name": "Team 11",
+      "players": [
+        "Colm Lynch",
+        "Gareth Delahunt",
+        "Mark McElhinny"
+      ]
+    },
+    {
+      "name": "Team 12",
+      "players": [
+        "Dan Moriarty",
+        "William Johnson",
+        "Stephen Keogh"
+      ]
+    },
+    {
+      "name": "Team 13",
+      "players": [
+        "David Hanway",
+        "Alan Doolan",
+        "Gerry Hawes"
+      ]
+    },
+    {
+      "name": "Team 14",
+      "players": [
+        "Declan Moore",
+        "James Murphy",
+        "Shane McCormack"
+      ]
+    },
+    {
+      "name": "Team 15",
+      "players": [
+        "Dominic O'Malley",
+        "Gerard O'Malley",
+        "Ken Forsyth"
+      ]
+    },
+    {
+      "name": "Team 16",
+      "players": [
+        "Don Doyle",
+        "Tommy Kelly",
+        "Samuel Downey"
+      ]
+    },
+    {
+      "name": "Team 17",
+      "players": [
+        "Eamonn Harrington",
+        "Ian Brown",
+        "Rory Fahey"
+      ]
+    },
+    {
+      "name": "Team 18",
+      "players": [
+        "Edward Kelly",
+        "Nick Byrne",
+        "Brian O'Connor"
+      ]
+    },
+    {
+      "name": "Team 19",
+      "players": [
+        "Enda Kelly",
+        "Ross Beacom",
+        "Alan Dunne"
+      ]
+    },
+    {
+      "name": "Team 20",
+      "players": [
+        "Finn O'Reilly",
+        "John Daly",
+        "David Woods"
+      ]
+    },
+    {
+      "name": "Team 22",
+      "players": [
+        "Frank Curran",
+        "Brian Higgins",
+        "Fergal Keogh"
+      ]
+    },
+    {
+      "name": "Team 23",
+      "players": [
+        "Gavin Pembrey",
+        "Owen McConnell",
+        "Scott McConnell"
+      ]
+    },
+    {
+      "name": "Team 24",
+      "players": [
+        "James Phelan",
+        "Callum Rawl",
+        "John Rawl"
+      ]
+    },
+    {
+      "name": "Team 25",
+      "players": [
+        "James Porter",
+        "Padraic Marren",
+        "Alan Reid"
+      ]
+    },
+    {
+      "name": "Team 26",
+      "players": [
+        "Jim Graham",
+        "D.J. Kenna",
+        "Patrick Kennelly"
+      ]
+    },
+    {
+      "name": "Team 27",
+      "players": [
+        "Joe Neiland",
+        "Joe Neiland Jnr",
+        "Michael Neiland"
+      ]
+    },
+    {
+      "name": "Team 28",
+      "players": [
+        "Josh McCall",
+        "Patrick Doyle",
+        "Pat Sheehy"
+      ]
+    },
+    {
+      "name": "Team 29",
+      "players": [
+        "Keiran Ryan",
+        "Conor Lawlor",
+        "Darragh Kavanagh"
+      ]
+    },
+    {
+      "name": "Team 30",
+      "players": [
+        "Liam Fitzpatrick",
+        "Denis O'Mahony",
+        "Ian O'Brien"
+      ]
+    },
+    {
+      "name": "Team 31",
+      "players": [
+        "Liam Heffernan",
+        "Pat Heffernan",
+        "Derek Sherwin"
+      ]
+    },
+    {
+      "name": "Team 32",
+      "players": [
+        "Mark Lester",
+        "Paul Murphy",
+        "Kevin Loughnane"
+      ]
+    },
+    {
+      "name": "Team 33",
+      "players": [
+        "Michael Morgan",
+        "Brian J. Connor",
+        "Philip Bonus"
+      ]
+    },
+    {
+      "name": "Team 34",
+      "players": [
+        "Paddy Daly",
+        "Timothy Cummins"
+      ]
+    },
+    {
+      "name": "Team 35",
+      "players": [
+        "Pat Baker",
+        "Kevin Baker",
+        "Greg Allen"
+      ]
+    },
+    {
+      "name": "Team 36",
+      "players": [
+        "Peter Burgess",
+        "Paul Deignan",
+        "David Brown"
+      ]
+    },
+    {
+      "name": "Team 37",
+      "players": [
+        "Peter O'Keefe",
+        "Colin Owens",
+        "Eugene McCrystal"
+      ],
+      "heldPlayers": [
+        "Colin Owens"
+      ],
+      "notes": "Eugene McCrystal (away member at Bundoran): eligibility pending confirmation by Niall."
+    },
+    {
+      "name": "Team 38",
+      "players": [
+        "Philip O'Sullivan",
+        "Mark O'Sullivan",
+        "Paul Marah"
+      ]
+    },
+    {
+      "name": "Team 39",
+      "players": [
+        "Ray Moran",
+        "Ciaran O'Neill",
+        "Graeme Lang"
+      ]
+    },
+    {
+      "name": "Team 40",
+      "players": [
+        "Richard Kelly",
+        "Kevin Conroy",
+        "Seamus O'Neill"
+      ]
+    },
+    {
+      "name": "Team 41",
+      "players": [
+        "Shane Newsome",
+        "Michael A. O'Neill",
+        "James Noctor"
+      ]
+    },
+    {
+      "name": "Team 42",
+      "players": [
+        "Stephen Tymlin",
+        "Jonathan Tymlin",
+        "Aidan Whelan"
+      ]
+    },
+    {
+      "name": "Team 43",
+      "players": [
+        "Terence Ryan",
+        "Graham Geraghty",
+        "Michael Geraghty Jnr"
+      ]
+    },
+    {
+      "name": "Team 44",
+      "players": [
+        "Theo O'Leary",
+        "Leonard, Dean",
+        "Dylan Fitzpatrick"
+      ]
+    },
+    {
+      "name": "Team 45",
+      "players": [
+        "Tim O'Brien",
+        "David Smyth",
+        "J.C. Doyle"
+      ]
+    },
+    {
+      "name": "Team 46",
+      "players": [
+        "William Seymour",
+        "David Seymour",
+        "Jack Garry"
+      ]
+    }
+  ],
   "rounds": [],
   "final": null
 }
