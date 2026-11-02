@@ -17,14 +17,18 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
   const nodes = new Map();
   const downloads = [];
   class Node {
-    constructor() {
+    constructor(tagName = '') {
+      this.tagName = tagName; this.attributes = new Map();
       this.value = ''; this.textContent = ''; this.files = []; this.hidden = false;
       this.checked = false; this.children = []; this.listeners = new Map();
       this.classList = { toggle() {} };
     }
     append(...children) { this.children.push(...children); }
     replaceChildren(...children) { this.children = children; }
-    setAttribute() {}
+    setAttribute(name, value) { this.attributes.set(name, value); }
+    querySelectorAll(tagName) {
+      return this.children.flatMap(child => [...(child.tagName === tagName ? [child] : []), ...child.querySelectorAll(tagName)]);
+    }
     focus() { document.activeElement = this; }
     click() { this.clicked = true; }
     remove() {}
@@ -37,7 +41,7 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
   if (baseline) values.set(BASELINE_KEY, JSON.stringify({ draft: JSON.parse(source), published: baseline }));
   const original = Object.fromEntries(['document', 'window', 'fetch', 'confirm'].map(key => [key, globalThis[key]]));
   globalThis.document = {
-    getElementById: id => nodes.get(id), createElement: () => new Node(), querySelectorAll: () => [],
+    getElementById: id => nodes.get(id), createElement: tagName => new Node(tagName), querySelectorAll: () => [],
     body: { append: node => downloads.push(node) },
     head: { append: node => queueMicrotask(() => node.onload()) }
   };
@@ -64,6 +68,150 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
   const contents = node => [node.textContent, ...node.children.map(contents)].join('\n');
   return { $, values, preview, reload, contents, downloads, setPublished: state => { published = state; } };
 }
+function renderedTable($, id = 'league-table') {
+  const wrapper = $(id).children[0], table = wrapper.children[0];
+  const head = table.children[1], body = table.children[2];
+  return { wrapper, head, body, buttons: head.querySelectorAll('button'), rows: body.children.map(row => row.children.map(cell => cell.textContent)) };
+}
+function sortingFixture() {
+  const state = emptyState();
+  state.teams = [10, 2, 3].map(number => ({ name: `Team ${number}`, players: ['Alpha', 'Beta', 'Gamma'].map(name => `${name} ${number}`) }));
+  state.rounds = [{ date: '2026-10-31', name: 'SYNTHETIC first round', qualifying: true, canceled: false,
+    cards: [{ player: 'Alpha 10', score: 9, handicap: 9 }, { player: 'Alpha 2', score: 20, handicap: 20 }, { player: 'Alpha 3', score: 0, handicap: 0 },
+      { player: 'Beta 10', score: 0 }] }];
+  return state;
+}
+test('table headers sort numeric points and natural team names both ways without changing ranks or stored state', async t => {
+  const state = sortingFixture(), original = JSON.stringify(state);
+  const { $, values } = await workspace(t, null, state);
+  const ranks = new Map(league(state).rows.map(row => [row.team.name, String(row.rank)]));
+  let view = renderedTable($);
+  assert.equal(view.wrapper.tabIndex, 0);
+  assert.equal(view.wrapper.attributes.get('role'), 'region');
+  assert.equal(view.wrapper.attributes.get('aria-describedby'), 'points-help');
+  assert.equal(view.head.children[0].children[3].scope, 'colgroup');
+  assert.equal(view.head.children[0].children[3].colSpan, 4);
+  assert.equal(view.head.children[0].children[0].rowSpan, 2);
+  assert.equal(view.buttons.every(button => button.tagName === 'button' && button.type === 'button'), true);
+  assert.equal(view.buttons[0].listeners.has('keydown'), false); // Native buttons provide Enter and Space.
+  await view.buttons[2].emit('click');
+  view = renderedTable($);
+  assert.deepEqual(view.rows.map(row => row[2]), ['0', '9', '20']);
+  assert.equal(view.head.children[0].children[2].attributes.get('aria-sort'), 'ascending');
+  assert.equal(view.head.children[0].children[0].attributes.get('aria-sort'), 'none');
+  assert.match(view.buttons[2].attributes.get('aria-label'), /sort descending/);
+  assert.equal(document.activeElement, view.buttons[2]);
+  view.wrapper.scrollLeft = 120;
+  await view.buttons[2].emit('click');
+  view = renderedTable($);
+  assert.deepEqual(view.rows.map(row => row[2]), ['20', '9', '0']);
+  assert.equal(view.wrapper.scrollLeft, 120);
+  assert.equal(view.head.children[0].children[2].attributes.get('aria-sort'), 'descending');
+  await view.buttons[1].emit('click');
+  assert.deepEqual(renderedTable($).rows.map(row => row[1].split('\n')[0]), ['Team 2', 'Team 3', 'Team 10']);
+  await renderedTable($).buttons[1].emit('click');
+  view = renderedTable($);
+  assert.deepEqual(view.rows.map(row => row[1].split('\n')[0]), ['Team 10', 'Team 3', 'Team 2']);
+  for (const row of view.rows) assert.equal(row[0], ranks.get(row[1].split('\n')[0]));
+  assert.equal(JSON.stringify(state), original);
+  assert.equal(values.has(STORAGE_KEY), false);
+  for (const id of ['singles-table', 'teams-table', 'rounds-table', 'cards-table', 'unassigned-table', 'awaiting-table']) {
+    if ($(id).querySelectorAll('table').length) {
+      const { head, buttons } = renderedTable($, id);
+      assert.equal(buttons.length, head.querySelectorAll('th').length, id);
+      assert.equal(head.querySelectorAll('th').every(th => th.scope === 'col' && th.attributes.has('aria-sort')), true, id);
+    }
+  }
+});
+
+test('round columns preserve actual player order, held and zero cards, vacancies and best-two discarded totals', async t => {
+  const state = sortingFixture();
+  state.settings.complete = true; state.settings.discardCount = 1;
+  state.teams[0].heldPlayers = ['Alpha 10'];
+  state.teams.push({ name: 'Team 34', players: ['Vacancy Alpha', 'Vacancy Beta'] });
+  state.rounds[0].cards.push({ player: 'Gamma 10', score: 5 });
+  state.rounds[0].cards[0].score = 99;
+  state.rounds.push({ date: '2026-11-07', name: 'SYNTHETIC second round', qualifying: true, canceled: false,
+    cards: [{ player: 'Gamma 10', score: 6 }, { player: 'Beta 10', score: 8 }, { player: 'Vacancy Alpha', score: 0 }] },
+  { date: '2026-11-14', name: 'SYNTHETIC cancelled', qualifying: true, canceled: true, cards: [{ player: 'Alpha 2', score: 50 }] },
+  { date: '2026-11-21', name: 'SYNTHETIC excluded', qualifying: false, canceled: false, cards: [{ player: 'Alpha 2', score: 50 }] });
+  const { $, contents } = await workspace(t, null, state);
+  const view = renderedTable($), row = view.rows.find(row => row[1].startsWith('Team 10\n'));
+  assert.match(row[1], /P1: Alpha 10\nP2: Beta 10\nP3: Gamma 10/);
+  assert.deepEqual(row.slice(2), ['14', '99 H', '0', '5', '5 (discarded)', 'NA', '8', '6', '14']);
+  const vacant = view.rows.find(row => row[1].startsWith('Team 34\n'));
+  assert.match(vacant[1], /P3: Vacant/);
+  assert.deepEqual(vacant.slice(3), ['NA', 'NA', 'NA', '0 (discarded)', '0', 'NA', 'NA', '0']);
+  assert.equal(view.head.children[0].children.filter(th => th.scope === 'colgroup').length, 2);
+  assert.doesNotMatch(contents($('league-table')), /SYNTHETIC cancelled|SYNTHETIC excluded/);
+  assert.match(contents($('rounds-table')), /Canceled for everyone/);
+  assert.match(contents($('rounds-table')), /Excluded \/ nonqualifying/);
+  await view.buttons[3].emit('click');
+  assert.deepEqual(renderedTable($).rows.map(row => row[3]), ['0', '20', '99 H', 'NA']);
+  await renderedTable($).buttons[3].emit('click');
+  assert.deepEqual(renderedTable($).rows.map(row => row[3]), ['99 H', '20', '0', 'NA']);
+});
+
+test('sort choices survive rerenders, ties stay stable, removed round columns reset to official rank order', async t => {
+  const state = sortingFixture();
+  state.rounds[0].cards[1].score = 9;
+  const { $, setPublished } = await workspace(t, null, state);
+  await renderedTable($).buttons[3].emit('click');
+  assert.deepEqual(renderedTable($).rows.map(row => row[3]), ['0', '9', '9']);
+  const tied = renderedTable($).rows.filter(row => row[3] === '9').map(row => row[1]);
+  await renderedTable($).buttons[3].emit('click');
+  assert.deepEqual(renderedTable($).rows.filter(row => row[3] === '9').map(row => row[1]), tied);
+  await $('refresh').emit('click');
+  assert.equal(renderedTable($).head.children[1].children[0].attributes.get('aria-sort'), 'descending');
+  const next = structuredClone(state);
+  next.rounds[0].date = '2026-11-07';
+  setPublished(next);
+  await $('refresh').emit('click');
+  assert.equal(renderedTable($).head.children[0].children[0].attributes.get('aria-sort'), 'ascending');
+  assert.deepEqual(renderedTable($).rows.map(row => row[0]), league(next).rows.map(row => String(row.rank)));
+});
+
+test('ordinary tables sort dates chronologically and metadata numerically with absent values last', async t => {
+  const state = sortingFixture();
+  for (const [index, player] of ['zed', 'alpha', 'Beta'].entries()) {
+    state.teams[index].players[0] = player;
+    state.rounds[0].cards[index].player = player;
+  }
+  state.rounds.push({ date: '2026-11-07', name: 'SYNTHETIC later', qualifying: true, canceled: false, cards: [{ player: 'Beta 2', score: 5 }] });
+  state.rounds.reverse();
+  const { $ } = await workspace(t, null, state);
+  await renderedTable($, 'rounds-table').buttons[0].emit('click');
+  assert.deepEqual(renderedTable($, 'rounds-table').rows.map(row => row[0]), ['2026-10-31', '2026-11-07']);
+  await renderedTable($, 'rounds-table').buttons[0].emit('click');
+  assert.deepEqual(renderedTable($, 'rounds-table').rows.map(row => row[0]), ['2026-11-07', '2026-10-31']);
+  await renderedTable($, 'cards-table').buttons[4].emit('click');
+  assert.deepEqual(renderedTable($, 'cards-table').rows.map(row => row[4]), ['0', '9', '20', 'Not supplied', 'Not supplied']);
+  await renderedTable($, 'cards-table').buttons[4].emit('click');
+  assert.deepEqual(renderedTable($, 'cards-table').rows.map(row => row[4]), ['20', '9', '0', 'Not supplied', 'Not supplied']);
+  await renderedTable($, 'cards-table').buttons[1].emit('click');
+  assert.deepEqual(renderedTable($, 'cards-table').rows.map(row => row[1]), ['alpha', 'Beta', 'Beta 2', 'Beta 10', 'zed']);
+  await renderedTable($, 'cards-table').buttons[1].emit('click');
+  assert.deepEqual(renderedTable($, 'cards-table').rows.map(row => row[1]), ['zed', 'Beta 10', 'Beta 2', 'Beta', 'alpha']);
+});
+
+test('final pending totals and unranked entries sort last in either direction without inventing results', async t => {
+  const state = sortingFixture();
+  state.settings.complete = true;
+  state.final = { date: null, cards: state.teams[1].players.map(player => ({
+    team: 'Team 2', player, total: 20, back9: 15, back6: 10, back3: 5, back1: 1
+  })) };
+  const { $ } = await workspace(t, null, state);
+  for (const column of [0, 3]) {
+    await renderedTable($, 'final-table').buttons[column].emit('click');
+    let rows = renderedTable($, 'final-table').rows;
+    assert.equal(rows[0][1], 'Team 2');
+    assert.deepEqual(rows.slice(1).map(row => row[column]), [column ? 'Pending' : 'Unranked (missing cards)', column ? 'Pending' : 'Unranked (missing cards)']);
+    await renderedTable($, 'final-table').buttons[column].emit('click');
+    rows = renderedTable($, 'final-table').rows;
+    assert.equal(rows[0][1], 'Team 2');
+  }
+});
+
 test('main PDF download follows the visible published or saved draft and never exports a pending preview', async t => {
   const published = await rosterFixture();
   const state = structuredClone(published);
@@ -85,12 +233,15 @@ test('main PDF download follows the visible published or saved draft and never e
   assert.match(definitions.at(-1).info.subject, /PUBLISHED/);
   assert.doesNotMatch(JSON.stringify(definitions.at(-1)), /Saved weekend/);
   await $('resume-results').emit('click');
+  await renderedTable($).buttons[2].emit('click');
+  assert.equal(renderedTable($).rows[0][2], '0');
   await preview('Played on,15/11/2026\nPlayer,Score\nPaddy Daly,40');
   await $('export-leaderboard-pdf').emit('click');
   assert.equal(downloads.at(-1).download, 'blainroe-winter-league-2026-2027-draft-2026-11-07.pdf');
   const definition = definitions.at(-1);
   assert.match(definition.info.subject, /DRAFT: saved on this device, not published/);
   assert.match(JSON.stringify(definition), /Team 34 \* \(53\)/);
+  assert.equal(definition.content.find(entry => entry.table).table.body[1][1].text, 'Team 34 *');
   assert.doesNotMatch(JSON.stringify(definition), /15 Nov/);
   assert.equal(values.get(STORAGE_KEY), saved);
   await $('published-view').emit('click');
@@ -168,7 +319,7 @@ test('old zero-team scores map to published players on explicit update, retain s
   assert.equal(league(saved).rows.find(row => row.team.name === 'Team 37').retained, 0);
   assert.equal($('results-empty').hidden, true);
   assert.equal($('league-table').hidden, false);
-  assert.match(contents($('league-table')), /Paddy Daly, Timothy Cummins/);
+  assert.match(contents($('league-table')), /P1: Paddy Daly\nP2: Timothy Cummins\nP3: Vacant/);
   assert.match(contents($('league-table')), /53/);
   assert.doesNotMatch(contents($('league-table')), /\n(?:Raw|Retained|Discarded total|Status)\n/);
   assert.equal($('matching-review').hidden, false);

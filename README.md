@@ -16,6 +16,10 @@ Public results read `data/published.json`. Uploads and committee tools change on
 
 ## Weekly accumulated results
 
+Select any table column header to sort ascending, then select it again to reverse. Arrows show the active sort; keyboard users can Tab to a header and use Enter or Space. Sorting changes display order only, not ranks, stored results or PDF/report order. Sort choices last while the page stays open and reset if the selected column disappears.
+
+On the team leaderboard, scroll across for each active qualifying round's P1, P2, P3 and best-two team total. Rank and team/player identity stay visible. P1 to P3 refer to the labelled players in the team column. NA means no card or vacant; 0 is an actual submitted score; H marks a held raw card which does not count. Discarded team totals are labelled after completion. Cancelled/excluded weekends remain in Team list and weekends and the PDF, not the qualifying leaderboard.
+
 The shared publication now includes the real **Mens Winter League singles - R1 - Alt Day**, played **31 October and 1 November 2026**, keyed as weekend **2026-10-31**. The report contains 168 processed rows: **165 scoring cards**, with **1 NR and 2 DQ excluded**. There are **98 matched, 66 unmatched and 1 held** scoring cards. Teams **15 and 27 share first place on 49 points**. All raw accepted net points and reported playing handicaps are preserved; team best-two scoring is unchanged. Colin Owens' held card counts for neither team.
 
 Private source, read without changing it:

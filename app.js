@@ -88,29 +88,83 @@ function element(tag, value, className) {
   if (className) node.className = className;
   return node;
 }
+const tableSorts = new Map();
+const tableCollator = new Intl.Collator('en-GB', { sensitivity: 'base', numeric: true });
+const displayCell = (text, sortValue) => ({ text, sortValue });
+const cellText = value => value && typeof value === 'object' ? value.text : value;
+const cellValue = value => value && typeof value === 'object' ? value.sortValue : value;
 function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owner will publish reviewed registration and results.') {
+  const definitions = columns.map(column => typeof column === 'string' ? { key: column, label: column } : column);
+  let sort = tableSorts.get(id);
+  if (sort && !definitions.some(column => column.key === sort.key)) {
+    tableSorts.delete(id);
+    sort = null;
+  }
+  if (!sort && id === 'league-table') sort = { key: 'Rank', direction: 'ascending' };
   const host = $(id);
   host.replaceChildren();
   if (!rows.length) { host.append(element('p', emptyMessage)); return; }
   const wrapper = element('div', undefined, 'table-wrap');
   wrapper.tabIndex = 0; wrapper.setAttribute('role', 'region'); wrapper.setAttribute('aria-label', `${caption}, horizontally scrollable`);
+  if (id === 'league-table') wrapper.setAttribute('aria-describedby', 'points-help');
   const tbl = element('table');
   tbl.append(element('caption', caption));
   const head = element('thead'), header = element('tr');
-  columns.forEach((column, index) => {
+  const grouped = definitions.some(column => column.group);
+  const leaves = element('tr');
+  definitions.forEach((column, index) => {
     const th = element('th'); th.scope = 'col';
-    if (id === 'league-table' && index >= 3) {
-      th.className = 'weekend-column';
-      th.setAttribute('aria-label', column); th.title = column;
-      th.append(element('span', column.slice(0, 10), 'weekend-date'), element('span', column.slice(12), 'weekend-heading'));
-    } else th.textContent = column;
-    header.append(th);
+    th.setAttribute('aria-sort', sort?.key === column.key ? sort.direction : 'none');
+    const button = element('button', undefined, 'table-sort');
+    button.type = 'button';
+    const indicator = sort?.key === column.key ? sort.direction === 'ascending' ? ' ▲' : ' ▼' : ' ↕';
+    button.append(element('span', column.label));
+    const arrow = element('span', indicator, 'sort-indicator'); arrow.setAttribute('aria-hidden', 'true');
+    button.append(arrow);
+    button.setAttribute('aria-label', `${column.group ? `${column.group}: ` : ''}${column.label}, sort ${sort?.key === column.key && sort.direction === 'ascending' ? 'descending' : 'ascending'}`);
+    button.addEventListener('click', () => {
+      tableSorts.set(id, { key: column.key, direction: sort?.key === column.key && sort.direction === 'ascending' ? 'descending' : 'ascending' });
+      const scrollLeft = wrapper.scrollLeft, scrollTop = wrapper.scrollTop;
+      table(id, caption, columns, rows, emptyMessage);
+      host.children[0].scrollLeft = scrollLeft; host.children[0].scrollTop = scrollTop;
+      host.querySelectorAll('button')[index].focus({ preventScroll: true });
+    });
+    th.append(button);
+    if (grouped && column.group) {
+      if (definitions[index - 1]?.group !== column.group) {
+        const group = element('th', column.group, 'weekend-column');
+        group.scope = 'colgroup';
+        group.colSpan = definitions.filter(entry => entry.group === column.group).length;
+        header.append(group);
+      }
+      if (definitions[index - 1]?.group !== column.group) th.className = 'round-start';
+      leaves.append(th);
+    } else {
+      if (grouped) th.rowSpan = 2;
+      header.append(th);
+    }
   });
-  head.append(header); tbl.append(head);
+  head.append(header);
+  if (grouped) head.append(leaves);
+  tbl.append(head);
   const body = element('tbody');
-  rows.forEach(values => { const row = element('tr'); values.forEach((value, i) => {
+  const ordered = rows.map((values, index) => ({ values, index }));
+  if (sort) {
+    const column = definitions.findIndex(entry => entry.key === sort.key);
+    ordered.sort((a, b) => {
+      const left = cellValue(a.values[column]), right = cellValue(b.values[column]);
+      const missing = value => value === null || value === undefined || value === '';
+      // Missing cards and unranked entries stay last in either direction. A real zero is not missing.
+      if (missing(left) || missing(right)) return Number(missing(left)) - Number(missing(right)) || a.index - b.index;
+      const comparison = typeof left === 'number' && typeof right === 'number'
+        ? left - right : tableCollator.compare(String(left), String(right));
+      return (sort.direction === 'descending' ? -comparison : comparison) || a.index - b.index;
+    });
+  }
+  ordered.forEach(({ values }) => { const row = element('tr'); values.forEach((value, i) => {
     const rowHeader = i === (id === 'teams-table' ? 0 : 1);
-    const cell = element(rowHeader ? 'th' : 'td', String(value));
+    const cell = element(rowHeader ? 'th' : 'td', String(cellText(value)));
+    if (definitions[i].group && definitions[i - 1]?.group !== definitions[i].group) cell.className = 'round-start';
     if (rowHeader) cell.scope = 'row';
     row.append(cell);
   }); body.append(row); });
@@ -184,7 +238,7 @@ function render() {
   $('export-leaderboard-pdf').textContent = pdfBusy ? 'Preparing PDF...' : 'Export leaderboard PDF';
   $('pdf-help').textContent = !state.teams.length || (mode === 'published' && !publishedReady)
     ? 'PDF export needs an available team list. Refresh published results or resume a valid draft.'
-    : `${hasResults ? 'Download the visible leaderboard and all imported weekend details' : 'Download the registered team list, awaiting qualifying results (no invented ranks or totals)'}. ${mode === 'draft' ? draftSaved ? 'Saved local draft, clearly marked DRAFT.' : 'Unsaved local results, clearly marked DRAFT: not saved.' : 'Published view; any saved local draft is not included.'} Nothing is published or sent to another service.`;
+    : `${hasResults ? 'Download the leaderboard in official rank order and all imported weekend details' : 'Download the registered team list, awaiting qualifying results (no invented ranks or totals)'}. ${mode === 'draft' ? draftSaved ? 'Saved local draft, clearly marked DRAFT.' : 'Unsaved local results, clearly marked DRAFT: not saved.' : 'Published view; any saved local draft is not included.'} Nothing is published or sent to another service.`;
   $('results-empty').hidden = hasResults;
   $('empty-heading').textContent = uploaded && !hasResults ? 'No team matches yet' : state.rounds.length ? 'No qualifying results yet' : 'No results uploaded yet';
   $('empty-help').textContent = uploaded && !hasResults
@@ -205,9 +259,19 @@ function render() {
   $('team-review').hidden = !rosterWarnings.length;
   $('team-review-summary').textContent = `${rosterWarnings.length} team entries need review`;
   $('roster-warning').textContent = `Standings do not confirm player eligibility. ${rosterWarnings.map(t => `${t.name}: ${rosterStatus(t)}`).join(' | ')}`;
-  table('league-table', `${mode === 'draft' ? 'Local' : 'Published'} team leaderboard`, ['Rank', 'Team and players', 'Team points', ...result.rounds.map(r => `${r.date}: ${r.name}`)], hasResults ? result.rows.map(r => [
-    r.rank, `${r.team.name}\n${r.team.players.join(', ')}`, r.retained,
-    ...r.scores.map(s => `${s.total}${s.discarded ? ' (discarded)' : ''}`)
+  const roundCards = new Map(result.rounds.map(round => [round.date, new Map(round.cards.map(card => [canonical(card.player), card.score]))]));
+  table('league-table', `${mode === 'draft' ? 'Local' : 'Published'} team leaderboard`, ['Rank', 'Team and players', 'Team points', ...result.rounds.flatMap((round, index) =>
+    ['P1', 'P2', 'P3', 'Team total'].map((label, player) => ({
+      key: `${round.date}:${player}`, label, group: `Round ${index + 1}: ${round.date}\n${round.name}`
+    })))], hasResults ? result.rows.map(r => [
+    r.rank, displayCell(`${r.team.name}\n${[0, 1, 2].map(index => `P${index + 1}: ${r.team.players[index] || 'Vacant'}`).join('\n')}`, r.team.name), r.retained,
+    ...r.scores.flatMap(score => [
+      ...[0, 1, 2].map(index => {
+        const player = r.team.players[index], raw = player ? roundCards.get(score.date).get(canonical(player)) : undefined;
+        return displayCell(raw === undefined ? 'NA' : `${raw}${isHeld(r.team, player) ? ' H' : ''}`, raw ?? null);
+      }),
+      displayCell(`${score.total}${score.discarded ? ' (discarded)' : ''}`, score.total)
+    ])
   ]) : []);
   table('awaiting-table', 'Team list, awaiting qualifying results', ['Team', 'Players'], state.teams.map(t => [t.name, t.players.join(', ')]));
   const unmatched = state.rounds.flatMap(round => round.cards.map(card => ({ round, card, match: cardMatch(state.teams, card) })))
@@ -219,12 +283,12 @@ function render() {
   table('teams-table', 'Team list (team numbers preserved)', ['Team', 'Player 1', 'Player 2', 'Player 3', 'Team notes'], state.teams.map(t => [t.name, t.players[0], t.players[1], t.players[2] || 'Vacant', rosterStatus(t)]));
   table('rounds-table', 'All imported weekends', ['Weekend', 'Round', 'Status', 'Cards'], [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).map(r => [r.date, r.name, r.canceled ? 'Canceled for everyone' : r.qualifying ? 'Qualifying' : 'Excluded / nonqualifying', r.cards.length]));
   const assigned = assignments(state.teams);
-  table('cards-table', 'All individual weekend cards', ['Weekend', 'Player', 'Team', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.map(c => [r.date, c.player, assigned.get(canonical(c.player)) || 'Unassigned', c.score, c.handicap ?? 'Not supplied'])));
+  table('cards-table', 'All individual weekend cards', ['Weekend', 'Player', 'Team', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.map(c => [r.date, c.player, assigned.get(canonical(c.player)) || 'Unassigned', c.score, displayCell(c.handicap ?? 'Not supplied', c.handicap ?? null)])));
   const matched = new Set(state.teams.flatMap(t => t.players.filter(p => !isHeld(t, p)).map(canonical)));
-  table('unassigned-table', 'Unassigned raw cards (including held names)', ['Weekend', 'Player', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.filter(c => !matched.has(canonical(c.player))).map(c => [r.date, c.player, c.score, c.handicap ?? 'Not supplied'])));
+  table('unassigned-table', 'Unassigned raw cards (including held names)', ['Weekend', 'Player', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.filter(c => !matched.has(canonical(c.player))).map(c => [r.date, c.player, c.score, displayCell(c.handicap ?? 'Not supplied', c.handicap ?? null)])));
   const finals = finalTable(state);
   $('final-summary').textContent = !state.settings.complete ? 'Final locked: qualification is not complete.' : result.cutoffUnresolved ? 'Final locked: unresolved top 16 cutoff.' : `Final open for ${result.eligible.length} eligible teams. Team total: ${state.settings.finalScoring === 'best2' ? 'best 2 cards (committee assumption)' : 'all 3 cards (committee-selected interpretation)'}. Countback: all 3 cards. Date: ${state.final?.date || 'awaiting confirmation'}.`;
-  table('final-table', 'Final standings, no league carryover', ['Rank', 'Team', 'Cards / 3', 'Final total', 'Back 9', 'Back 6', 'Back 3', 'Back 1'], finals.map(r => [r.rank ?? 'Unranked (missing cards)', r.team.name, r.cards, r.cards === 3 ? r.total : 'Pending', ...r.countback]));
+  table('final-table', 'Final standings, no league carryover', ['Rank', 'Team', 'Cards / 3', 'Final total', 'Back 9', 'Back 6', 'Back 3', 'Back 1'], finals.map(r => [displayCell(r.rank ?? 'Unranked (missing cards)', r.rank), r.team.name, r.cards, displayCell(r.cards === 3 ? r.total : 'Pending', r.cards === 3 ? r.total : null), ...r.countback]));
   $('final-template').disabled = !state.settings.complete || result.cutoffUnresolved || !result.eligible.length;
   const settings = draft?.settings || state.settings;
   $('max-rounds').value = settings.maxRounds;
