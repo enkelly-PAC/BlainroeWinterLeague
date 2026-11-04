@@ -20,10 +20,11 @@ button:disabled { opacity: .55; cursor: not-allowed; }
 .view-bar button { background: white; color: var(--green); }
 .table-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .5rem; margin-bottom: .75rem; }
 .table-header h2 { margin: 0; }
-.leaderboard-actions { display: flex; flex-wrap: wrap; gap: .6rem; }
+.leaderboard-actions { display: flex; flex-wrap: wrap; align-items: flex-end; gap: .6rem; }
+.leaderboard-actions button, .leaderboard-actions select { min-height: 3rem; }
 #export-leaderboard-pdf { background: white; color: var(--green); }
 #export-leaderboard-pdf:hover { background: var(--pale); }
-@media (max-width: 768px) { .leaderboard-actions, .leaderboard-actions button { width: 100%; } }
+@media (max-width: 768px) { .leaderboard-actions, .leaderboard-actions button, .leaderboard-actions label { width: 100%; } }
 .export-button { background: #f0f0f0; color: #333; border: 0; padding: .35rem .8rem; font: 600 .85rem Arial, sans-serif; }
 .export-button:hover { background: #ddd; }
 #status, .import-feedback { border-left: 4px solid var(--green); border-radius: 6px; padding: .65rem 1rem; background: var(--pale); overflow-wrap: anywhere; font-size: .9rem; }
@@ -73,6 +74,8 @@ tbody td:first-child { font-weight: 600; color: var(--green); }
 #league-table .total-column { width: 5rem; min-width: 5rem; max-width: 5rem; background: var(--pale); color: var(--dark); font-weight: 750; }
 #league-table tbody .total-column { font-size: 1.0625rem; }
 #league-table .score-column { width: 3.5rem; min-width: 3.5rem; max-width: 3.5rem; }
+#league-table .counting-card { font-weight: 750; }
+#league-table .non-counting-card { color: #687568; font-weight: 400; }
 #league-table .round-total-column { width: 4.5rem; min-width: 4.5rem; max-width: 4.5rem; font-weight: 700; }
 #league-table thead .total-column { background: #267426; color: white; }
 #league-table tbody tr { background: white; }

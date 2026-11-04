@@ -164,9 +164,15 @@ test('round columns preserve actual player order, held and zero cards, vacancies
   const { $, contents } = await workspace(t, null, state);
   const view = renderedTable($), row = view.rows.find(row => row[1] === 'Team 10');
   assert.deepEqual(row.slice(2, 5), ['Alpha 10', 'Beta 10', 'Gamma 10']);
-  assert.deepEqual(row.slice(5), ['14', '99 H', '0', '5', '5 D', 'NA', '8', '6', '14']);
+  assert.deepEqual(row.slice(5), ['14', '99 H', '0', '5', '5 D', 'NA H', '8', '6', '14']);
   const discarded = view.body.children.find(row => row.children[1].textContent === 'Team 10').children[9];
   assert.match(discarded.attributes.get('aria-label'), /discarded weekend, excluded from Total/);
+  const cells = view.body.children.find(row => row.children[1].textContent === 'Team 10').children;
+  assert.match(cells[6].className, /non-counting-card/);
+  assert.match(cells[6].attributes.get('aria-label'), /held, not counted/);
+  assert.match(cells[7].className, /counting-card/);
+  assert.match(cells[7].attributes.get('aria-label'), /best-two counting card; weekend discarded/);
+  assert.match(cells[8].className, /counting-card/);
   const vacant = view.rows.find(row => row[1] === 'Team 34');
   assert.equal(vacant[4], 'Vacant');
   assert.deepEqual(vacant.slice(6), ['NA', 'NA', 'NA', '0 D', '0', 'NA', 'NA', '0']);
@@ -254,10 +260,12 @@ test('main PDF download follows the visible published or saved draft and never e
     }) };
   } };
   assert.equal($('export-leaderboard-pdf').disabled, false);
+  assert.equal($('pdf-format').value, 'standings');
+  assert.equal($('export-leaderboard-pdf').textContent, 'Export member standings PDF');
   assert.match($('pdf-help').textContent, /awaiting qualifying results.*Published view/);
   const saved = values.get(STORAGE_KEY);
   await $('export-leaderboard-pdf').emit('click');
-  assert.equal(downloads.at(-1).download, 'blainroe-winter-league-2026-2027-published-awaiting-results.pdf');
+  assert.equal(downloads.at(-1).download, 'blainroe-winter-league-2026-2027-published-standings-awaiting-results.pdf');
   assert.match(definitions.at(-1).info.subject, /PUBLISHED/);
   assert.doesNotMatch(JSON.stringify(definitions.at(-1)), /Saved weekend/);
   await $('resume-results').emit('click');
@@ -265,16 +273,32 @@ test('main PDF download follows the visible published or saved draft and never e
   assert.equal(renderedTable($).rows[0][5], '0');
   await preview('Played on,15/11/2026\nPlayer,Score\nPaddy Daly,40');
   await $('export-leaderboard-pdf').emit('click');
-  assert.equal(downloads.at(-1).download, 'blainroe-winter-league-2026-2027-draft-2026-11-07.pdf');
+  assert.equal(downloads.at(-1).download, 'blainroe-winter-league-2026-2027-draft-standings-2026-11-07.pdf');
   const definition = definitions.at(-1);
   assert.match(definition.info.subject, /DRAFT: saved on this device, not published/);
-  assert.match(JSON.stringify(definition), /Team 34 \* \(53\)/);
-  assert.equal(definition.content.find(entry => entry.table).table.body[1][1].text, 'Team 34 *');
+  const firstRow = definition.content.find(entry => entry.table).table.body[1];
+  assert.equal(firstRow[1].text, 'Team 34');
+  assert.equal(firstRow.at(-1).text, '53');
   assert.doesNotMatch(JSON.stringify(definition), /15 Nov/);
   assert.equal(values.get(STORAGE_KEY), saved);
+  for (const [format, title, filename] of [
+    ['latest', 'Latest weekend results', 'draft-latest-2026-11-07.pdf'],
+    ['detail', 'Full detail', 'draft-2026-11-07.pdf']
+  ]) {
+    $('pdf-format').value = format;
+    await $('pdf-format').emit('change');
+    await $('export-leaderboard-pdf').emit('click');
+    assert.ok(definitions.at(-1).info.title.includes(title));
+    assert.ok(downloads.at(-1).download.endsWith(filename));
+    assert.match(definitions.at(-1).info.subject, /DRAFT: saved on this device, not published/);
+    assert.doesNotMatch(JSON.stringify(definitions.at(-1)), /15 Nov/);
+    assert.equal(values.get(STORAGE_KEY), saved);
+  }
+  $('pdf-format').value = 'standings';
+  await $('pdf-format').emit('change');
   await $('published-view').emit('click');
   await $('export-leaderboard-pdf').emit('click');
-  assert.match(downloads.at(-1).download, /published-awaiting-results.pdf$/);
+  assert.match(downloads.at(-1).download, /published-standings-awaiting-results.pdf$/);
   assert.equal($('export-leaderboard-pdf').disabled, false);
   const createPdf = window.pdfMake.createPdf;
   window.pdfMake.createPdf = () => { throw new Error('Synthetic PDF failure'); };
@@ -283,7 +307,7 @@ test('main PDF download follows the visible published or saved draft and never e
   assert.equal($('export-leaderboard-pdf').disabled, false);
   window.pdfMake.createPdf = createPdf;
   await $('export-leaderboard-pdf').emit('click');
-  assert.match(downloads.at(-1).download, /published-awaiting-results.pdf$/);
+  assert.match(downloads.at(-1).download, /published-standings-awaiting-results.pdf$/);
   const count = downloads.length;
   window.pdfMake.createPdf = () => ({ getStream: () => Object.assign(new EventEmitter(), {
     end() { this.emit('error', new Error('Synthetic stream failure')); }

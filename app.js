@@ -2,6 +2,7 @@ import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams,
 import { readDraft, saveDraft, readBaseline, STORAGE_KEY, BASELINE_KEY } from './storage.js';
 import { synchroniseDraft, protectPublishedHistory } from './publication.js';
 import { createLeaderboardPDF } from './leaderboard-pdf.js';
+import { weekendCards } from './leaderboard-layout.js';
 
 const $ = id => document.getElementById(id);
 // Keep the shared import form on the leaderboard, including its advanced import types.
@@ -169,6 +170,7 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
     const rowHeader = i === (id === 'teams-table' ? 0 : 1);
     const cell = element(rowHeader ? 'th' : 'td', String(cellText(value)), definitions[i].className);
     if (definitions[i].group && definitions[i - 1]?.group !== definitions[i].group) cell.className = `${definitions[i].className || ''} round-start`;
+    if (value?.className) cell.className = `${cell.className || ''} ${value.className}`;
     if (value?.detail) { cell.title = value.detail; cell.setAttribute('aria-label', value.detail); }
     if (rowHeader) cell.scope = 'row';
     row.append(cell);
@@ -189,7 +191,7 @@ $('export-leaderboard-pdf').addEventListener('click', safely(async () => {
   if (pdfBusy) return;
   if (mode === 'published' && !publishedReady) throw new Error('Published results are unavailable. Refresh before exporting.');
   const state = structuredClone(current());
-  const context = { mode, saved: draftSaved };
+  const context = { mode, saved: draftSaved, format: $('pdf-format').value };
   pdfBusy = true;
   $('export-leaderboard-pdf').disabled = true;
   $('export-leaderboard-pdf').textContent = 'Preparing PDF...';
@@ -202,6 +204,8 @@ $('export-leaderboard-pdf').addEventListener('click', safely(async () => {
     render();
   }
 }));
+$('pdf-format').value = 'standings';
+$('pdf-format').addEventListener('change', () => render());
 function renderSingles(state) {
   const result = singles(state, singlesSelection[mode]);
   singlesSelection[mode] = result.round?.date || null;
@@ -240,10 +244,14 @@ function render() {
   const uploaded = result.rounds.some(round => round.cards.length);
   const hasResults = result.rounds.some(round => round.cards.some(card => activePlayers.has(canonical(card.player))));
   $('export-leaderboard-pdf').disabled = pdfBusy || !state.teams.length || (mode === 'published' && !publishedReady);
-  $('export-leaderboard-pdf').textContent = pdfBusy ? 'Preparing PDF...' : 'Export leaderboard PDF';
+  $('pdf-format').disabled = pdfBusy;
+  const pdfFormat = $('pdf-format').value;
+  const pdfLabel = pdfFormat === 'latest' ? 'latest weekend results' : pdfFormat === 'detail' ? 'full detail' : 'member standings';
+  $('export-leaderboard-pdf').textContent = pdfBusy ? 'Preparing PDF...' : `Export ${pdfLabel} PDF`;
   $('pdf-help').textContent = !state.teams.length || (mode === 'published' && !publishedReady)
     ? 'PDF export needs an available team list. Refresh published results or resume a valid draft.'
-    : `${hasResults ? 'Download the leaderboard in official rank order and all imported weekend details' : 'Download the registered team list, awaiting qualifying results (no invented ranks or totals)'}. ${mode === 'draft' ? draftSaved ? 'Saved local draft, clearly marked DRAFT.' : 'Unsaved local results, clearly marked DRAFT: not saved.' : 'Published view; any saved local draft is not included.'} Nothing is published or sent to another service.`;
+    : `Download ${pdfLabel}. ${pdfFormat === 'latest' ? 'Latest dated imported weekend, including cancelled, excluded or empty weekends, clearly labelled.' :
+      hasResults ? 'Official rank order and full season points, repeated for each readable weekend group.' : 'Registered team list, awaiting qualifying results (no invented ranks or totals).'} ${mode === 'draft' ? draftSaved ? 'Saved local draft, clearly marked DRAFT.' : 'Unsaved local results, clearly marked DRAFT: not saved.' : 'Published view; any saved local draft is not included.'} Nothing is published or sent to another service.`;
   $('results-empty').hidden = hasResults;
   $('empty-heading').textContent = uploaded && !hasResults ? 'No team matches yet' : state.rounds.length ? 'No qualifying results yet' : 'No results uploaded yet';
   $('empty-help').textContent = uploaded && !hasResults
@@ -264,7 +272,7 @@ function render() {
   $('team-review').hidden = !rosterWarnings.length;
   $('team-review-summary').textContent = `${rosterWarnings.length} team entries need review`;
   $('roster-warning').textContent = `Standings do not confirm player eligibility. ${rosterWarnings.map(t => `${t.name}: ${rosterStatus(t)}`).join(' | ')}`;
-  const roundCards = new Map(result.rounds.map(round => [round.date, new Map(round.cards.map(card => [canonical(card.player), card.score]))]));
+  const roundCards = new Map(result.rounds.map(round => [round.date, round]));
   const shortDate = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
   table('league-table', `${mode === 'draft' ? 'Local draft' : 'Published'} team leaderboard`, [
     { key: 'Rank', label: 'Rank', className: 'rank-column' },
@@ -279,10 +287,11 @@ function render() {
     })))], hasResults ? result.rows.map(r => [
     r.rank, r.team.name, ...[0, 1, 2].map(index => r.team.players[index] || 'Vacant'), r.retained,
     ...r.scores.flatMap(score => [
-      ...[0, 1, 2].map(index => {
-        const player = r.team.players[index], raw = player ? roundCards.get(score.date).get(canonical(player)) : undefined;
-        return displayCell(raw === undefined ? 'NA' : `${raw}${isHeld(r.team, player) ? ' H' : ''}`, raw ?? null);
-      }),
+      ...weekendCards(r.team, roundCards.get(score.date)).map(card => ({
+        ...displayCell(card.text, card.score ?? null),
+        className: card.counting ? 'counting-card' : 'non-counting-card',
+        detail: `${card.text}: ${card.held ? 'held, not counted' : card.score === undefined ? 'no card or vacant' : card.counting ? 'best-two counting card' : 'non-counting card'}${score.discarded ? '; weekend discarded from Total' : ''}`
+      })),
       { ...displayCell(`${score.total}${score.discarded ? ' D' : ''}`, score.total),
         detail: score.discarded ? `${score.total}, discarded weekend, excluded from Total` : undefined }
     ])

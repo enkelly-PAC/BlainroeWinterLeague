@@ -1,13 +1,16 @@
 import { canonical, isHeld, league, validateState } from './core.js';
+import { weekendCards } from './leaderboard-layout.js';
 
 const green = '#1a5e1a', pale = '#edf5ed', ink = '#1a2e1a';
 const title = "Men's Winter League 2026/2027";
+const groupSize = 3;
+// Six compact weekend totals leave room for the team and player names.
+const standingsGroupSize = 6;
+const formats = { standings: 'Member standings', latest: 'Latest weekend results', detail: 'Full detail' };
 const text = value => String(value).replace(/[\u2013\u2014]/gu, ':');
 const dateLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', {
   day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC'
 });
-const reviewed = team => team.players.length < 3 || team.notes || team.heldPlayers?.length;
-const teamLabel = team => `${text(team.name)}${reviewed(team) ? ' *' : ''}`;
 // Soft breaks prevent a long unspaced name forcing a whole table beyond the page.
 const cell = (value, extra = {}) => ({ text: text(value).replace(/(\S{16})(?=\S)/gu, '$1\u200b'), ...extra });
 const heading = value => cell(value, { bold: true, color: 'white', fillColor: green });
@@ -15,26 +18,22 @@ const layout = {
   hLineWidth: () => 0.4, vLineWidth: () => 0,
   hLineColor: () => '#d8e6d8',
   fillColor: row => row > 0 && row % 2 === 0 ? '#f5f8f5' : null,
-  paddingLeft: () => 5, paddingRight: () => 5,
-  paddingTop: () => 2, paddingBottom: () => 2
+  paddingLeft: () => 3, paddingRight: () => 3,
+  paddingTop: () => 1, paddingBottom: () => 1
 };
-function table(headers, rows, widths) {
+function table(headers, rows, widths, headerRows = 1) {
   return {
-    table: { headerRows: 1, keepWithHeaderRows: 1, dontBreakRows: true,
-      widths, body: [headers.map(heading), ...rows] },
+    table: { headerRows, keepWithHeaderRows: 1, dontBreakRows: true,
+      widths, body: [...headers, ...rows] },
     layout
   };
 }
-function section(value, pageBreak) {
-  return { text: value, fontSize: 14, bold: true, color: green,
-    margin: [0, 0, 0, 8], ...(pageBreak ? { pageBreak: 'before' } : {}) };
-}
-
 // Use the same engine and active-player rule as the visible team leaderboard.
-export function leaderboardPDFModel(state, { mode = 'published', saved = true } = {}) {
+export function leaderboardPDFModel(state, { mode = 'published', saved = true, format = 'detail' } = {}) {
   validateState(state);
   if (!state.teams.length) throw new Error('Register a team before exporting the leaderboard.');
   if (!['published', 'draft'].includes(mode)) throw new Error('Unknown leaderboard source.');
+  if (!Object.hasOwn(formats, format)) throw new Error('Unknown PDF format.');
   const result = league(state);
   const active = new Set(state.teams.flatMap(team =>
     team.players.filter(player => !isHeld(team, player)).map(canonical)));
@@ -46,82 +45,122 @@ export function leaderboardPDFModel(state, { mode = 'published', saved = true } 
   const unmatched = rounds.reduce((count, round) =>
     count + round.cards.filter(card => !active.has(canonical(card.player))).length, 0);
   const sourceName = mode === 'draft' ? 'draft' : 'published';
-  const filename = `blainroe-winter-league-2026-2027-${sourceName}-${hasResults ? through : 'awaiting-results'}.pdf`;
-  return { result, rounds, hasResults, through, status, unmatched, filename };
+  const latest = rounds.at(-1) || null;
+  const filename = `blainroe-winter-league-2026-2027-${sourceName}-${format === 'detail' ? '' : `${format}-`}${format === 'latest' ? latest?.date || 'awaiting-results' : hasResults ? through : 'awaiting-results'}.pdf`;
+  return { result, rounds, hasResults, through, status, unmatched, filename, format, latest };
+}
+
+function weekendTotal(row, round, hasResults) {
+  const score = row.scores?.find(entry => entry.date === round.date);
+  const total = round.canceled ? 'C' : !round.qualifying ? 'X' :
+    hasResults && score ? `${score.total}${score.discarded ? ' D' : ''}` : 'Awaiting\nmatch';
+  return cell(total, { bold: true, alignment: 'center',
+    color: score?.discarded ? '#805500' : green, fillColor: pale });
+}
+function standingsTables(rows, model) {
+  const { rounds, hasResults } = model;
+  const content = [];
+  for (let start = 0; start < Math.max(1, rounds.length); start += standingsGroupSize) {
+    const group = rounds.slice(start, start + standingsGroupSize);
+    const headers = [...(hasResults ? ['Rank'] : []), 'Team', 'Player 1', 'Player 2', 'Player 3',
+      ...group.map(round => `${dateLabel(round.date).replace(/ (\d{4})$/u, '\n$1')}\n${round.canceled ? 'CANCELLED' : round.qualifying ? 'Team total' : 'EXCLUDED'}`),
+      ...(hasResults ? ['Season\npoints'] : [])];
+    content.push({ ...table([headers.map((label, index) => ({
+      ...heading(label), ...(hasResults && index === 0 || index >= (hasResults ? 5 : 4) ? { alignment: 'center' } : {})
+    }))], rows.map(row => [
+      ...(hasResults ? [cell(row.rank, { bold: true, alignment: 'center' })] : []),
+      cell(row.team.name, { bold: true }),
+      ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
+      ...group.map(round => weekendTotal(row, round, hasResults)),
+      ...(hasResults ? [cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale })] : [])
+    ]), [...(hasResults ? [22] : []), 44, '*', '*', '*',
+      ...group.map(() => 56), ...(hasResults ? [44] : [])]),
+    ...(start ? { pageBreak: 'before' } : {}) });
+  }
+  return content;
+}
+function latestTable(rows, model) {
+  const round = model.latest;
+  if (!round) return [{ text: 'No imported weekend is available. Awaiting results.' }];
+  return [
+    { text: `Latest weekend results: ${dateLabel(round.date)}${round.canceled ? ' (CANCELLED)' :
+      round.qualifying ? '' : ' (EXCLUDED)'}`,
+    bold: true, color: green, margin: [0, 0, 0, 7] },
+    table([['Team', 'Player 1', 'Player 2', 'Player 3', 'P1', 'P2', 'P3', 'Team total'].map((label, index) => ({
+      ...heading(label), ...(index >= 4 ? { alignment: 'center' } : {})
+    }))],
+      rows.map(row => [
+        cell(row.team.name, { bold: true }),
+        ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
+        ...weekendCards(row.team, round).map(card => cell(card.text, {
+          alignment: 'center', bold: card.counting, color: card.counting ? ink : '#687568',
+          ...(card.counting ? { fillColor: pale } : {})
+        })),
+        weekendTotal(row, round, model.hasResults)
+      ]), [70, 110, 110, 110, 55, 55, 55, 70])
+  ];
 }
 
 export function leaderboardPDFDocument(state, context = {}, logo) {
   const model = leaderboardPDFModel(state, context);
-  const { result, rounds, hasResults, through, status, unmatched } = model;
+  const { rounds, hasResults, through, status, format } = model;
   const throughLabel = through ? `Qualifying results through weekend of ${dateLabel(through)}` : 'Awaiting qualifying results';
   const generated = (context.generatedAt || new Date()).toLocaleString('en-GB', { timeZone: 'Europe/Dublin', hour12: false });
-  const content = [
-    section(hasResults ? 'Team leaderboard' : 'Registered teams: awaiting qualifying team results'),
-    { text: `${state.teams.length} teams | ${result.rounds.length} qualifying weekends | ${rounds.length} imported weekends`, color: green, bold: true, margin: [0, 0, 0, 6] },
-    { text: 'Reported 12-hole net Stableford points, unchanged. Best 2 of 3 cards count each qualifying weekend. Missing, vacant and held cards contribute zero. ' +
-      (state.settings.complete ? `${result.discardCount} lowest qualifying weekend(s) discarded. ` : 'No discards until qualification is complete. ') +
-      'Ties compare discarded scores highest first, then share rank (committee assumption).', fontSize: 8.5, margin: [0, 0, 0, 8] }
-  ];
-  if (!hasResults) content.push({ text: 'No rankings or team totals are asserted. Imported cards may be awaiting a team match or belong to cancelled / excluded weekends.', margin: [0, 0, 0, 8] });
-  if (state.settings.complete && hasResults && (result.firstUnresolved || result.cutoffUnresolved)) {
-    content.push(cell([
-      result.firstUnresolved ? 'First place remains tied.' : '',
-      result.cutoffUnresolved ? 'Top 16 cutoff requires a committee decision.' : ''
-    ].filter(Boolean).join(' '), { color: '#805500', margin: [0, 0, 0, 8] }));
-  }
-  const rows = hasResults ? result.rows : state.teams.map(team => ({ team }));
-  const summaryRows = rows.map(row => [
-    ...(hasResults ? [cell(row.rank, { bold: true, alignment: 'center' })] : []),
-    cell(teamLabel(row.team), { bold: true }),
-    ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
-    ...(hasResults ? [cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale })] : [])
-  ]);
-  content.push(table(
-    [...(hasResults ? ['Rank'] : []), 'Team', 'Player 1', 'Player 2', 'Player 3', ...(hasResults ? ['Team points'] : [])],
-    summaryRows, hasResults ? [26, 51, '*', '*', '*', 52] : [60, '*', '*', '*']
-  ));
-  const review = state.teams.filter(reviewed).map(team =>
-    `${text(team.name)}: ${[
-      team.players.length < 3 ? 'third place vacant' : '',
-      team.heldPlayers?.length ? `score matching held for ${team.heldPlayers.map(text).join(', ')}` : '',
-      team.notes ? 'committee review pending' : ''
-    ].filter(Boolean).join('; ')}`);
-  if (review.length || unmatched) {
-    content.push(cell([
-      review.length ? `* Team-list review (not eligibility approval): ${review.join('. ')}.` : '',
-      unmatched ? `${unmatched} imported card(s) unmatched or held, not counted for teams.` : ''
-    ].filter(Boolean).join('\n'), { fontSize: 8, color: '#805500', margin: [0, 10, 0, 0] }));
-  }
-  // Six weekends per group avoids shrinking a season of up to 52 qualifying weekends.
-  for (let start = 0; start < rounds.length; start += 6) {
-    const group = rounds.slice(start, start + 6);
-    content.push(section(`Weekend breakdown: ${start + 1} to ${start + group.length} of ${rounds.length}`, true));
-    content.push({ text: 'Each cell: Player 1 / Player 2 / Player 3 | weekend team total. H = held raw card (not counted); NA = no card or vacant. D = discarded. Cancelled / excluded weekends never count. Brackets show season team points, matching the summary.', fontSize: 8.5, margin: [0, 0, 0, 8] });
-    const headers = [hasResults ? 'Rank / Team\n(Team points)' : 'Team', ...group.map(round =>
-      `${dateLabel(round.date)}\n${text(round.name)}\n${round.canceled ? 'CANCELLED' : round.qualifying ? 'Qualifying' : 'EXCLUDED'}`)];
-    const detailRows = rows.map(row => [
-      cell(`${hasResults ? `${row.rank}. ` : ''}${teamLabel(row.team)}${hasResults ? ` (${row.retained})` : ''}`, { bold: true }),
-      ...group.map(round => {
-      const cards = new Map(round.cards.map(card => [canonical(card.player), card.score]));
-      const values = [0, 1, 2].map(index => {
-        const player = row.team.players[index], score = player ? cards.get(canonical(player)) : undefined;
-        return score === undefined ? 'NA' : `${score}${isHeld(row.team, player) ? ' H' : ''}`;
-      });
-      const score = row.scores?.find(entry => entry.date === round.date);
-      // Awaiting-results lists deliberately do not invent ranked zero totals.
-      const total = round.canceled ? 'Cancelled' : !round.qualifying ? 'Excluded' :
-        score ? `${score.total}${score.discarded ? ' D' : ''}` : 'Awaiting match';
-      return { text: [
-        cell(`${values.join(' / ')} | `, { fontSize: 8 }),
-        cell(total, { bold: true, color: score?.discarded ? '#805500' : green })
-      ], alignment: 'center' };
-    })]);
-    content.push(table(headers, detailRows, [100, ...group.map(() => '*')]));
+  const content = [];
+  const rows = hasResults ? model.result.rows : state.teams.map(team => ({ team }));
+  if (format === 'standings') content.push(...standingsTables(rows, model));
+  else if (format === 'latest') content.push(...latestTable(rows, model));
+  // Repeat the full named grid for bounded weekend groups, never anonymous detail.
+  else for (let start = 0; start < Math.max(1, rounds.length); start += groupSize) {
+    const group = rounds.slice(start, start + groupSize);
+    const labels = [...(hasResults ? ['Rank'] : []), 'Team', 'Player 1', 'Player 2', 'Player 3'];
+    const identityHeaders = labels.map((label, index) => ({
+      ...heading(label), ...(hasResults && index === 0 ? { alignment: 'center' } : {})
+    }));
+    const seasonHeader = { ...heading('Season points'), alignment: 'center', noWrap: true };
+    const headers = [group.length ? labels.map(() => heading('')) : identityHeaders];
+    if (group.length) {
+      for (const round of group) {
+        headers[0].push({ ...heading(`${dateLabel(round.date)}\n${text(round.name)}\n${round.canceled ? 'CANCELLED (C)' : round.qualifying ? 'Qualifying' : 'EXCLUDED (X)'}`), colSpan: 4, alignment: 'center' }, {}, {}, {});
+      }
+    }
+    if (hasResults) headers[0].push(group.length ? heading('') : seasonHeader);
+    if (group.length) headers.push([
+      ...identityHeaders,
+      ...group.flatMap(() => ['P1', 'P2', 'P3', 'Team'].map(label => ({ ...heading(label), alignment: 'center' }))),
+      ...(hasResults ? [seasonHeader] : [])
+    ]);
+    const gridRows = rows.map(row => [
+      ...(hasResults ? [cell(row.rank, { bold: true, alignment: 'center' })] : []),
+      cell(row.team.name, { bold: true }),
+      ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
+      ...group.flatMap(round => {
+        return [
+          ...weekendCards(row.team, round).map(card => cell(card.text, {
+            alignment: 'center', bold: card.counting, color: card.counting ? ink : '#687568'
+          })),
+          weekendTotal(row, round, hasResults)
+        ];
+      }),
+      ...(hasResults ? [cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale })] : [])
+    ]);
+    const nameWidth = group.length <= 1 ? 120 : group.length === 2 ? 92 : 76;
+    const grid = table(headers, gridRows, [
+      ...(hasResults ? [22] : []), 44, ...[0, 1, 2].map(() => group.length ? nameWidth : '*'),
+      ...group.flatMap(() => ['*', '*', '*', '*']), ...(hasResults ? [64] : [])
+    ], group.length ? 2 : 1);
+    grid.layout = { ...layout,
+      vLineWidth: column => group.length && column >= labels.length &&
+        (column - labels.length) % 4 === 0 ? 0.5 : 0,
+      vLineColor: () => '#d8e6d8'
+    };
+    if (start) grid.pageBreak = 'before';
+    content.push(grid);
   }
   return {
-    info: { title: `Blainroe ${title}: ${hasResults ? 'Team leaderboard' : 'Awaiting results'}`,
+    info: { title: `Blainroe ${title}: ${formats[format]}: ${hasResults ? 'Team leaderboard' : 'Awaiting results'}`,
       author: 'Blainroe Golf Club', subject: `${status}. ${throughLabel}. Sponsored by Spirit Ford Wicklow.` },
-    pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [30, 106, 30, 39],
+    pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [30, 80, 30, 39],
     defaultStyle: { font: 'Roboto', fontSize: 9, color: ink, lineHeight: 1.12 },
     header: () => ({
       margin: [30, 16, 30, 0],
@@ -134,13 +173,12 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
             { text: 'Proudly sponsored by Spirit Ford Wicklow', fontSize: 10 }
           ] }
         ]
-      }, { text: `${status}\n${throughLabel}${rounds.length ? ` | Latest imported weekend: ${dateLabel(rounds.at(-1).date)}` : ''}`,
-        fontSize: 8, bold: true, color: green, margin: [0, 8, 0, 0] }]
+      }]
     }),
     footer: (page, pages) => ({
       columns: [
         { text: `Blainroe Golf Club | Generated ${generated} (Ireland)`, width: '*', fontSize: 7.5 },
-        { text: `${context.mode === 'draft' ? 'DRAFT' : 'PUBLISHED'} | Page ${page} of ${pages}`, width: 'auto', fontSize: 8, bold: true, color: green }
+        { text: `${context.mode === 'draft' ? 'DRAFT' : 'PUBLISHED'} | ${!state.settings.complete ? 'Provisional | ' : ''}Page ${page} of ${pages}`, width: 'auto', fontSize: 8, bold: true, color: green }
       ], margin: [30, 12, 30, 0]
     }),
     content

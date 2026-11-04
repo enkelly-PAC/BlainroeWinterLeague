@@ -5,6 +5,7 @@ import { spawnSync } from 'node:child_process';
 import { emptyState, canonical, validateState, parseJSON, parseCSV, parseTeams, parseScores, classifyScoreCSV, importRound, weekendDate, league, singles, validateFinal, parseFinal, finalTable, reportHTML, MAX_BYTES, editTeam, replaceTeams, rosterStatus, csvCell } from '../core.js';
 import { readDraft, saveDraft, STORAGE_KEY } from '../storage.js';
 import { leaderboardPDFModel, leaderboardPDFDocument } from '../leaderboard-pdf.js';
+import { weekendCards } from '../leaderboard-layout.js';
 
 test('PDF awaiting-results list keeps all 45 real teams and never asserts zero-score standings', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
@@ -21,6 +22,11 @@ test('PDF awaiting-results list keeps all 45 real teams and never asserts zero-s
     cards: [{ player: 'Synthetic Visitor', score: 40 }, { player: 'Colin Owens', score: 30 }] }];
   assert.equal(leaderboardPDFModel(state).hasResults, false);
   assert.equal(leaderboardPDFModel(state).unmatched, 2);
+  const awaiting = leaderboardPDFDocument(state).content.find(node => node.table).table;
+  assert.equal(awaiting.headerRows, 2);
+  assert.equal(awaiting.widths.length, 8);
+  assert.doesNotMatch(JSON.stringify(awaiting.body[0]), /Rank|Season/);
+  assert.ok(awaiting.body.slice(2).every(row => row.at(-1).text === 'Awaiting\nmatch'));
   state.rounds[0].cards.push({ player: 'Paddy Daly', score: 0 });
   assert.equal(leaderboardPDFModel(state).hasResults, true, 'A submitted zero card is a real result');
 });
@@ -41,17 +47,24 @@ test('PDF keeps league totals, shared ranks, held cards and every weekend over g
   assert.match(model.status, /DRAFT: not saved, not published/);
   const definition = leaderboardPDFDocument(state, { mode: 'draft', saved: false });
   const tables = definition.content.filter(node => node.table).map(node => node.table);
-  assert.equal(tables.length, 10);
-  assert.equal(tables[0].body.length, 46);
-  assert.deepEqual(tables[0].body.slice(1).map(row => [Number(row[0].text), Number(row.at(-1).text)]),
-    expected.rows.map(row => [row.rank, row.retained]));
-  assert.equal(tables.slice(1).reduce((count, item) => count + item.widths.length - 1, 0), 54);
-  assert.ok(tables.every(item => item.headerRows === 1 && item.dontBreakRows));
+  assert.equal(tables.length, 18);
+  assert.equal(tables[0].body.length, 47);
+  for (const table of tables) {
+    assert.deepEqual(table.body.slice(2).map(row => [Number(row[0].text), Number(row.at(-1).text)]),
+      expected.rows.map(row => [row.rank, row.retained]));
+    assert.deepEqual(table.body.slice(2).map(row => row.slice(2, 5).map(cell => cell.text)),
+      expected.rows.map(row => row.team.players));
+    assert.deepEqual(table.body[1].slice(0, 5).map(cell => cell.text), ['Rank', 'Team', 'Player 1', 'Player 2', 'Player 3']);
+    assert.equal(table.body[1].at(-1).text, 'Season points');
+    assert.ok(table.widths.length <= 18);
+  }
+  assert.equal(tables.reduce((count, item) => count + (item.widths.length - 6) / 4, 0), 54);
+  assert.ok(tables.every(item => item.headerRows === 2 && item.dontBreakRows));
   assert.match(JSON.stringify(tables), /0 H/);
   assert.match(JSON.stringify(tables), /54 D/);
   assert.match(JSON.stringify(tables), /CANCELLED/);
   assert.match(JSON.stringify(tables), /EXCLUDED/);
-  assert.match(JSON.stringify(definition), /Top 16 cutoff requires a committee decision/);
+  assert.ok(definition.content.every(node => node.table), 'No committee or scoring commentary above the tables');
   assert.deepEqual(state, before);
   state.settings.complete = false;
   assert.equal(leaderboardPDFModel(state).result.discardCount, 0);
@@ -64,16 +77,195 @@ test('PDF uses literal Unicode names and safe fixed metadata and filenames inste
     cards: [{ player: 'Éamonn O’Reilly', score: 29 }] }];
   const definition = leaderboardPDFDocument(state, { mode: 'draft', saved: true });
   const table = definition.content.find(node => node.table).table;
-  assert.equal(table.body[1][1].text, '<Team & "one">');
-  assert.equal(table.body[1][2].text, 'Éamonn O’Reilly');
-  assert.equal(table.body[1][4].text.replace(/\u200b/gu, ''), '<script>alert(1)</script>');
+  assert.equal(table.body[2][1].text, '<Team & "one">');
+  assert.equal(table.body[2][2].text, 'Éamonn O’Reilly');
+  assert.equal(table.body[2][4].text.replace(/\u200b/gu, ''), '<script>alert(1)</script>');
   assert.doesNotMatch(definition.info.title, /<|>|&/);
   assert.equal(leaderboardPDFModel(state, { mode: 'draft' }).filename,
     'blainroe-winter-league-2026-2027-draft-2026-11-07.pdf');
   assert.throws(() => leaderboardPDFModel(emptyState()), /Register a team/);
 });
 
+test('integrated PDF emphasises only actual best-two cards and explicitly marks held, vacant and historical scores', () => {
+  const state = emptyState();
+  state.teams = [
+    { name: 'Team A', players: ['One', 'Two', 'Held'], heldPlayers: ['Held'] },
+    { name: 'Team B', players: ['Four', 'Five', 'Six'] },
+    { name: 'Team 34', players: ['Seven', 'Eight'] }
+  ];
+  state.rounds = [{ date: '2026-11-07', name: 'First', qualifying: true, canceled: false,
+    cards: [{ player: 'One', score: 0 }, { player: 'Two', score: 9 }, { player: 'Held', score: 99 },
+      { player: 'Four', score: 20 }, { player: 'Five', score: 20 }, { player: 'Six', score: 20 }] }];
+  const before = structuredClone(state);
+  const cards = weekendCards(state.teams[0], state.rounds[0]);
+  assert.deepEqual(cards.map(card => [card.text, card.counting]), [['0', true], ['9', true], ['99 H', false]]);
+  assert.deepEqual(weekendCards(state.teams[1], state.rounds[0]).map(card => card.counting), [true, true, false]);
+  assert.deepEqual(weekendCards(state.teams[2], state.rounds[0]).map(card => [card.text, card.counting]),
+    [['NA', false], ['NA', false], ['NA', false]]);
+  state.rounds.push({ ...structuredClone(state.rounds[0]), date: '2026-11-14', canceled: true },
+    { ...structuredClone(state.rounds[0]), date: '2026-11-21', qualifying: false },
+    { date: '2026-11-28', name: 'No cards', qualifying: true, canceled: false, cards: [] });
+  const tables = leaderboardPDFDocument(state).content.filter(node => node.table).map(node => node.table);
+  assert.equal(tables.length, 2, 'A partial final group retains the full named identity and season points');
+  const first = tables[0].body.slice(2).find(row => row[1].text.startsWith('Team A'));
+  assert.deepEqual(first.slice(5, 8).map(cell => cell.bold), [true, true, false]);
+  assert.ok(first.slice(9, 12).every(cell => !cell.bold), 'Cancelled cards are not counting cards');
+  assert.equal(first[12].text, 'C');
+  assert.ok(first.slice(13, 16).every(cell => !cell.bold), 'Excluded cards are not counting cards');
+  assert.equal(first[16].text, 'X');
+  const second = tables[1].body.slice(2).find(row => row[1].text.startsWith('Team A'));
+  assert.equal(second[7].text, 'NA H', 'A held identity remains explicit even without a raw card');
+  assert.equal(second.at(-1).text, '9');
+  assert.deepEqual(state.teams, before.teams);
+  assert.deepEqual(state.rounds[0], before.rounds[0]);
+});
+
 const teams = count => Array.from({ length: count }, (_, i) => ({ name: `Synthetic Team ${i + 1}`, players: [1, 2, 3].map(n => `Player T${i + 1}P${n}`) }));
+test('PDF column headings share a baseline below wrapped weekend titles and align with numeric values', () => {
+  const state = fixture([[54], [10]], false);
+  state.rounds[0].name = 'A long weekend competition title that wraps across several lines in grouped headers';
+  const before = structuredClone(state);
+  const tables = leaderboardPDFDocument(state).content.filter(node => node.table).map(node => node.table);
+  for (const table of tables) {
+    assert.ok(table.body[0].slice(0, 5).every(cell => cell.text === ''));
+    const headings = table.body[1];
+    assert.deepEqual(headings.slice(0, 5).map(cell => cell.text), ['Rank', 'Team', 'Player 1', 'Player 2', 'Player 3']);
+    assert.ok([headings[0], ...headings.slice(5)].every(cell => cell.alignment === 'center'));
+    assert.ok(headings.slice(1, 5).every(cell => !cell.alignment));
+    assert.equal(headings.at(-1).text, 'Season points');
+    assert.equal(headings.at(-1).noWrap, true);
+    assert.ok(headings.every(cell => !cell.rowSpan));
+  }
+  const latest = leaderboardPDFDocument(state, { format: 'latest' }).content.find(node => node.table).table;
+  assert.ok(latest.body[0].slice(4).every(cell => cell.alignment === 'center'));
+  state.rounds = [];
+  const awaiting = leaderboardPDFDocument(state).content.find(node => node.table).table;
+  assert.equal(awaiting.headerRows, 1);
+  assert.deepEqual(awaiting.body[0].map(cell => cell.text), ['Team', 'Player 1', 'Player 2', 'Player 3']);
+  assert.deepEqual(state.teams, before.teams);
+});
+
+test('member PDF keeps one-weekend score columns compact and starts with the table beneath the club heading', () => {
+  const state = fixture([[54], [10]], false);
+  state.rounds = state.rounds.slice(0, 1);
+  state.teams[0].notes = 'Committee review pending';
+  const definition = leaderboardPDFDocument(state, { format: 'standings' });
+  assert.equal(definition.content.length, 1);
+  const table = definition.content[0].table;
+  assert.deepEqual(table.widths, [22, 44, '*', '*', '*', 56, 44]);
+  assert.equal(table.body[1][1].text, state.teams[0].name, 'No unexplained review asterisk in the member table');
+  assert.ok(table.body[0].slice(-2).every(cell => cell.alignment === 'center'));
+  const header = JSON.stringify(definition.header());
+  assert.match(header, /BLAINROE GOLF CLUB/);
+  assert.match(header, /Winter League/);
+  assert.match(header, /Spirit Ford Wicklow/);
+  assert.doesNotMatch(header, /Provisional|Qualifying results|Latest imported/);
+  assert.match(JSON.stringify(definition.footer(1, 2)), /PUBLISHED \| Provisional \| Page 1 of 2/);
+  const detail = leaderboardPDFDocument(state, { format: 'detail' });
+  assert.ok(detail.content.every(node => node.table));
+  assert.doesNotMatch(JSON.stringify(detail.header()), /Provisional|Qualifying results|Latest imported/);
+  const latest = leaderboardPDFDocument(state, { format: 'latest' });
+  assert.equal(latest.content.length, 2);
+  assert.equal(latest.content[0].text, 'Latest weekend results: 7 Nov 2026');
+  assert.ok(latest.content[1].table);
+  assert.equal(latest.content[1].table.body[1][0].text, state.teams[0].name);
+  assert.doesNotMatch(JSON.stringify(latest.header()), /Provisional|Qualifying results|Latest imported/);
+});
+
+test('member PDF has one total per weekend and bounded six-weekend groups with repeated identities and full season points', () => {
+  const state = emptyState();
+  state.settings = { maxRounds: 52, discardCount: 2, complete: true, finalScoring: 'best2' };
+  state.teams = teams(3);
+  state.teams[0].heldPlayers = [state.teams[0].players[2]];
+  state.teams[2].name = 'Team 34';
+  state.teams[2].players.pop();
+  state.rounds = Array.from({ length: 14 }, (_, index) => round(index, [54, 54, 40], state.teams));
+  // The missing third player has no raw card, not an invented zero submission.
+  state.rounds.forEach(round => { round.cards = round.cards.filter(card => card.player); });
+  state.rounds[12].canceled = true;
+  state.rounds[13].qualifying = false;
+  const before = structuredClone(state), expected = league(state);
+  const definition = leaderboardPDFDocument(state, { format: 'standings', mode: 'draft', saved: false });
+  const tables = definition.content.filter(node => node.table).map(node => node.table);
+  assert.deepEqual(tables.map(table => table.widths.length), [12, 12, 8]);
+  assert.equal(tables.reduce((count, table) => count + table.widths.length - 6, 0), 14);
+  assert.equal(definition.defaultStyle.fontSize, 9);
+  assert.ok(tables.every(table => table.headerRows === 1 && table.dontBreakRows));
+  for (const table of tables) {
+    assert.deepEqual(table.body[0].slice(0, 5).map(cell => cell.text),
+      ['Rank', 'Team', 'Player 1', 'Player 2', 'Player 3']);
+    assert.equal(table.body[0].at(-1).text, 'Season\npoints');
+    assert.doesNotMatch(JSON.stringify(table.body[0]), /"P1"|"P2"|"P3"/);
+    assert.deepEqual(table.body.slice(1).map(row => [Number(row[0].text), Number(row.at(-1).text)]),
+      expected.rows.map(row => [row.rank, row.retained]));
+    assert.deepEqual(table.body.slice(1).map(row => row.slice(2, 5).map(cell => cell.text)),
+      expected.rows.map(row => [0, 1, 2].map(index => row.team.players[index] || 'Vacant')));
+  }
+  const totals = tables.flatMap(table => table.body.slice(1).filter(row => row[1].text.startsWith('Synthetic Team 1')).flatMap(row => row.slice(5, -1).map(cell => cell.text)));
+  assert.deepEqual(totals, [...expected.rows.find(row => row.team.name === 'Synthetic Team 1').scores.map(score => `${score.total}${score.discarded ? ' D' : ''}`), 'C', 'X']);
+  assert.equal(definition.content.filter(node => node.pageBreak === 'before').length, 2);
+  assert.match(definition.info.subject, /DRAFT: not saved, not published/);
+  assert.deepEqual(state, before);
+  state.settings.complete = false;
+  assert.doesNotMatch(JSON.stringify(leaderboardPDFDocument(state, { format: 'standings' }).content.filter(node => node.table)), /\d+ D"/);
+});
+
+test('member and latest PDFs keep no-result, zero, held and vacant guards without invented standings', () => {
+  const state = emptyState();
+  state.teams = [{ name: 'Team 34', players: ['One', 'Held'], heldPlayers: ['Held'] }];
+  for (const format of ['standings', 'latest']) {
+    const definition = leaderboardPDFDocument(state, { format });
+    assert.doesNotMatch(JSON.stringify(definition.content.filter(node => node.table)), /"Rank"|"Season\\npoints"/);
+    if (format === 'latest') assert.match(JSON.stringify(definition.content), /No imported weekend/);
+  }
+  state.rounds = [{ date: '2026-11-07', name: 'Held only', qualifying: true, canceled: false,
+    cards: [{ player: 'Held', score: 99 }, { player: 'Visitor', score: 40 }] }];
+  for (const format of ['standings', 'latest']) {
+    const table = leaderboardPDFDocument(state, { format }).content.find(node => node.table).table;
+    assert.equal(table.body[1].at(-1).text, 'Awaiting\nmatch');
+    assert.equal(table.body[1][3].text, 'Vacant');
+    assert.doesNotMatch(JSON.stringify(table.body[0]), /Rank|Season/);
+  }
+  state.rounds[0].cards.push({ player: 'One', score: 0 });
+  const table = leaderboardPDFDocument(state, { format: 'latest' }).content.find(node => node.table).table;
+  assert.deepEqual(table.body[1].slice(4).map(cell => cell.text), ['0', '99 H', 'NA', '0']);
+  assert.deepEqual(table.body[1].slice(4, 7).map(cell => cell.bold), [true, false, false]);
+  assert.throws(() => leaderboardPDFModel(state, { format: 'unknown' }), /Unknown PDF format/);
+  assert.throws(() => leaderboardPDFModel(state, { mode: 'unknown' }), /Unknown leaderboard source/);
+});
+
+test('latest PDF uses the latest imported date even cancelled, excluded or empty and highlights actual counting cards only', () => {
+  const state = fixture([[54], [10]], true);
+  const before = structuredClone(state);
+  const definition = leaderboardPDFDocument(state, { format: 'latest' });
+  const table = definition.content.find(node => node.table).table;
+  assert.deepEqual(table.body[0].map(cell => cell.text), ['Team', 'Player 1', 'Player 2', 'Player 3', 'P1', 'P2', 'P3', 'Team total']);
+  assert.deepEqual(table.body[1].slice(4).map(cell => cell.text), ['5', '5', '0', '10 D']);
+  assert.deepEqual(table.body[1].slice(4, 7).map(cell => cell.bold), [true, true, false]);
+  assert.ok(table.body[1].slice(4, 6).every(cell => cell.fillColor));
+  assert.equal(definition.content.filter(node => node.table).length, 1);
+  assert.deepEqual(state, before);
+  for (const [change, total, status] of [
+    [{ canceled: true }, 'C', /Latest weekend results: 14 Nov 2026 \(CANCELLED\)/],
+    [{ qualifying: false }, 'X', /Latest weekend results: 14 Nov 2026 \(EXCLUDED\)/],
+    [{ cards: [] }, '0 D', /Latest weekend results: 14 Nov 2026/]
+  ]) {
+    const historical = structuredClone(state);
+    Object.assign(historical.rounds[1], change);
+    historical.rounds.reverse();
+    const model = leaderboardPDFModel(historical, { format: 'latest', mode: 'draft', saved: false });
+    const document = leaderboardPDFDocument(historical, { format: 'latest', mode: 'draft', saved: false });
+    const row = document.content.find(node => node.table).table.body[1];
+    assert.equal(model.latest.date, dateAt(1));
+    assert.match(model.filename, /draft-latest-2026-11-14.pdf$/);
+    assert.equal(row.at(-1).text, total);
+    assert.ok(row.slice(4, 7).every(cell => !cell.bold));
+    assert.match(JSON.stringify(document.content), status);
+    assert.match(document.info.subject, /DRAFT: not saved, not published/);
+  }
+  assert.equal(new Set(['standings', 'latest', 'detail'].map(format => leaderboardPDFModel(state, { format }).filename)).size, 3);
+});
+
 function dateAt(index) {
   const date = new Date('2026-11-07T12:00:00Z');
   date.setUTCDate(date.getUTCDate() + 7 * index);
