@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { emptyState, league, singles, parseCSV } from '../core.js';
+import { emptyState, escapeHTML, league, singles, parseCSV } from '../core.js';
 import { memberUpdate } from '../member-update.js';
 import { leaderboardPDFDocument, leaderboardPDFModel } from '../leaderboard-pdf.js';
 
@@ -22,8 +22,8 @@ test('Weekend 1 newsletter is prose only, with complete tables as separate clean
   assert.equal(parseCSV(update.singlesCSV).length, 166);
   assert.match(update.status, /Unsaved local draft, not published/);
   assert.equal(update.pendingDate, '2026-11-07');
-  assert.match(update.html, /Team 15 and Team 27 share the lead on 49/);
-  assert.match(update.html, /Team 11, Team 13 and Team 7 are 1 point behind on 48/);
+  assert.match(update.html, /Team 15 \([^)]*\) and Team 27 \([^)]*\) share the lead on 49/);
+  assert.match(update.html, /Team 11 \([^)]*\), Team 13 \([^)]*\) and Team 7 \([^)]*\) are 1 point behind on 48/);
   assert.match(update.html, /Michael Neiland sets the pace in Singles with 29/);
   assert.match(update.html, /Michael Geraghty Jnr, Colm Lynch and David Woods follow on 27/);
   assert.match(update.html, /Dominic O&#39;Malley \(26\) and Gerard O&#39;Malley \(23\)/);
@@ -49,12 +49,24 @@ test('combined update preserves both weekends and calculates genuine fixed-roste
   const update = memberUpdate(state, { baseline });
   assert.ok(update.html.indexOf('Weekend 1:') < update.html.indexOf('Weekend 2:'));
   assert.ok(update.html.indexOf('Weekend 2:') < update.html.indexOf('Movement from Weekend 1 to Weekend 2'));
-  assert.match(update.html, /Team 15 and Team 27 share the lead on 49/);
-  assert.match(update.html, /Team 7 leads on 99/);
-  assert.match(update.html, /Team 7, Team 20 and Team 38 posted the weekend&#39;s highest team total of 51/);
+  assert.match(update.html, /Team 15 \([^)]*\) and Team 27 \([^)]*\) share the lead on 49/);
+  assert.match(update.html, /Team 7 \([^)]*\) leads on 99/);
+  assert.match(update.html, /Team 7 \([^)]*\), Team 20 \([^)]*\) and Team 38 \([^)]*\) posted the weekend&#39;s highest team total of 51/);
   assert.match(update.html, /J\. C\. Doyle and Pat Sheehy set the pace in Singles with 28/);
-  assert.match(update.html, /Team 7 moved from joint third to first/);
-  assert.match(update.html, /Team 35, up 10 places from joint 18th to 8th/);
+  assert.match(update.html, /Team 7 \([^)]*\) moved from joint third to first/);
+  assert.match(update.html, /Team 35 \([^)]*\), up 10 places from joint 18th to 8th/);
+  for (const mention of update.html.matchAll(/Team \d+/g)) {
+    const team = state.teams.find(team => team.name === mention[0]);
+    const label = escapeHTML(`${team.name} (${team.players.join(', ')})`);
+    assert.equal(update.html.slice(mention.index, mention.index + label.length), label);
+  }
+  for (const format of ['standings', 'latest', 'detail']) {
+    const document = leaderboardPDFDocument(state, { format, audience: 'members' });
+    const labels = document.content.filter(block => block.table).flatMap(block =>
+      block.table.body.flat().filter(cell => typeof cell.text === 'string' && /^Team \d+ /.test(cell.text))
+        .map(cell => cell.text.replace(/\u200b/g, '')));
+    assert.deepEqual(labels, update.result.rows.map(row => `${row.team.name} (${row.team.players.join(', ')})`));
+  }
   assert.equal(update.movement.find(row => row.team.name === 'Team 1').change, 10);
   assert.equal(update.movement.find(row => row.team.name === 'Team 15').change, -10);
   assert.equal(parseCSV(update.singlesCSV).length, 160);

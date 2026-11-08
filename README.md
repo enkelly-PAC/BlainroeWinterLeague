@@ -98,6 +98,8 @@ No Weekend 1 communication was sent. The combined newsletter now covers Weekend 
 
 Tables remain separate attachments. Review unresolved membership, names/consent and source completeness internally before sharing. Nothing sends, commits, pushes or deploys.
 
+Every member newsletter and PDF team reference identifies all three corrected-roster players in parentheses. Member Team PDFs use one readable team-and-players column rather than repeating the same names in separate columns. Latest-weekend P1/P2/P3 scores follow that player order; counting-card emphasis is unchanged.
+
 ## Assumptions
 - Committee must confirm tie hierarchy, final scoring interpretation and final date.
 

@@ -1,5 +1,5 @@
 import { canonical, isHeld, league, validateState } from './core.js';
-import { weekendCards } from './leaderboard-layout.js';
+import { teamLabel, weekendCards } from './leaderboard-layout.js';
 
 const green = '#1a5e1a', pale = '#edf5ed', ink = '#1a2e1a';
 const title = "Men's Winter League 2026/2027";
@@ -63,21 +63,22 @@ function weekendTotal(row, round, hasResults) {
 }
 function standingsTables(rows, model) {
   const { rounds, hasResults } = model;
+  const members = model.audience === 'members';
   const content = [];
   for (let start = 0; start < Math.max(1, rounds.length); start += standingsGroupSize) {
     const group = rounds.slice(start, start + standingsGroupSize);
-    const headers = [...(hasResults ? ['Rank'] : []), 'Team', 'Player 1', 'Player 2', 'Player 3',
+    const headers = [...(hasResults ? ['Rank'] : []), ...(members ? ['Team (players)'] : ['Team', 'Player 1', 'Player 2', 'Player 3']),
       ...group.map(round => `${dateLabel(round.date).replace(/ (\d{4})$/u, '\n$1')}\n${round.canceled ? 'CANCELLED' : round.qualifying ? 'Team total' : 'EXCLUDED'}`),
       ...(hasResults ? ['Season\npoints'] : [])];
     content.push({ ...table([headers.map((label, index) => ({
-      ...heading(label), ...(hasResults && index === 0 || index >= (hasResults ? 5 : 4) ? { alignment: 'center' } : {})
+      ...heading(label), ...(hasResults && index === 0 || index >= (members ? hasResults ? 2 : 1 : hasResults ? 5 : 4) ? { alignment: 'center' } : {})
     }))], rows.map(row => [
       ...(hasResults ? [cell(row.rank, { bold: true, alignment: 'center' })] : []),
-      cell(row.team.name, { bold: true }),
-      ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
+      ...(members ? [cell(teamLabel(row.team))] : [cell(row.team.name, { bold: true }),
+        ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant'))]),
       ...group.map(round => weekendTotal(row, round, hasResults)),
       ...(hasResults ? [cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale })] : [])
-    ]), [...(hasResults ? [22] : []), 44, '*', '*', '*',
+    ]), [...(hasResults ? [22] : []), ...(members ? ['*'] : [44, '*', '*', '*']),
       ...group.map(() => 56), ...(hasResults ? [44] : [])]),
     ...(start ? { pageBreak: 'before' } : {}) });
   }
@@ -85,23 +86,24 @@ function standingsTables(rows, model) {
 }
 function latestTable(rows, model) {
   const round = model.latest;
+  const members = model.audience === 'members';
   if (!round) return [{ text: 'No imported weekend is available. Awaiting results.' }];
   return [
     { text: `Latest weekend results: ${dateLabel(round.date)}${round.canceled ? ' (CANCELLED)' :
       round.qualifying ? '' : ' (EXCLUDED)'}`,
     bold: true, color: green, margin: [0, 0, 0, 7] },
-    table([['Team', 'Player 1', 'Player 2', 'Player 3', 'P1', 'P2', 'P3', 'Team total'].map((label, index) => ({
-      ...heading(label), ...(index >= 4 ? { alignment: 'center' } : {})
+    table([[...(members ? ['Team (players)'] : ['Team', 'Player 1', 'Player 2', 'Player 3']), 'P1', 'P2', 'P3', 'Team total'].map((label, index) => ({
+      ...heading(label), ...(index >= (members ? 1 : 4) ? { alignment: 'center' } : {})
     }))],
       rows.map(row => [
-        cell(row.team.name, { bold: true }),
-        ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
+        ...(members ? [cell(teamLabel(row.team))] : [cell(row.team.name, { bold: true }),
+          ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant'))]),
         ...weekendCards(row.team, round).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
           alignment: 'center', bold: card.counting, color: card.counting ? ink : '#687568',
           ...(card.counting ? { fillColor: pale } : {})
         })),
         weekendTotal(row, round, model.hasResults)
-      ]), [70, 110, 110, 110, 55, 55, 55, 70])
+      ]), members ? ['*', 55, 55, 55, 70] : [70, 110, 110, 110, 55, 55, 55, 70])
   ];
 }
 
@@ -117,7 +119,8 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
   // Repeat the full named grid for bounded weekend groups, never anonymous detail.
   else for (let start = 0; start < Math.max(1, rounds.length); start += groupSize) {
     const group = rounds.slice(start, start + groupSize);
-    const labels = [...(hasResults ? ['Rank'] : []), 'Team', 'Player 1', 'Player 2', 'Player 3'];
+    const members = model.audience === 'members';
+    const labels = [...(hasResults ? ['Rank'] : []), ...(members ? ['Team (players)'] : ['Team', 'Player 1', 'Player 2', 'Player 3'])];
     const identityHeaders = labels.map((label, index) => ({
       ...heading(label), ...(hasResults && index === 0 ? { alignment: 'center' } : {})
     }));
@@ -136,8 +139,8 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
     ]);
     const gridRows = rows.map(row => [
       ...(hasResults ? [cell(row.rank, { bold: true, alignment: 'center' })] : []),
-      cell(row.team.name, { bold: true }),
-      ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
+      ...(members ? [cell(teamLabel(row.team))] : [cell(row.team.name, { bold: true }),
+        ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant'))]),
       ...group.flatMap(round => {
         return [
           ...weekendCards(row.team, round).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
@@ -150,7 +153,7 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
     ]);
     const nameWidth = group.length <= 1 ? 120 : group.length === 2 ? 92 : 76;
     const grid = table(headers, gridRows, [
-      ...(hasResults ? [22] : []), 44, ...[0, 1, 2].map(() => group.length ? nameWidth : '*'),
+      ...(hasResults ? [22] : []), ...(members ? [220] : [44, ...[0, 1, 2].map(() => group.length ? nameWidth : '*')]),
       ...group.flatMap(() => ['*', '*', '*', '*']), ...(hasResults ? [64] : [])
     ], group.length ? 2 : 1);
     grid.layout = { ...layout,

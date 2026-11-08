@@ -1,5 +1,5 @@
 import { canonical, csvCell, escapeHTML, isHeld, league, singles, validateState, weekendDate } from './core.js';
-import { weekendCards } from './leaderboard-layout.js';
+import { teamLabel, weekendCards } from './leaderboard-layout.js';
 
 const dateLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', {
   day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC'
@@ -12,7 +12,10 @@ const playerName = value => {
   return given.length ? `${given.join(' ').trim()} ${surname.trim()}` : String(value);
 };
 const names = rows => rows.map(row => playerName(row.player)).join(', ').replace(/, ([^,]+)$/, ' and $1');
-const teamNames = rows => rows.map(row => row.team.name).join(', ').replace(/, ([^,]+)$/, ' and $1');
+const teamNames = rows => {
+  const labels = rows.map(row => teamLabel(row.team));
+  return labels.length > 1 ? `${labels.slice(0, -1).join(', ')} and ${labels.at(-1)}` : labels[0] || '';
+};
 const ordinal = rank => ({ 1: 'first', 2: 'second', 3: 'third' }[rank] ||
   `${rank}${rank % 100 >= 11 && rank % 100 <= 13 ? 'th' : { 1: 'st', 2: 'nd', 3: 'rd' }[rank % 10] || 'th'}`);
 const position = (row, rows) => `${rows.filter(other => other.rank === row.rank).length > 1 ? 'joint ' : ''}${ordinal(row.rank)}`;
@@ -45,7 +48,7 @@ function weekendSummary(state, round, index, active) {
       .map((card, playerIndex) => ({ ...card, player: row.team.players[playerIndex] }))
       .filter(card => card.counting).sort((a, b) => b.score - a.score);
     const score = row.scores.find(entry => entry.date === latest.date).total;
-    return counting.length ? `${row.team.name}: ${counting.map(card => `${playerName(card.player)} (${card.score})`).join(' and ')} combined for ${score} points this weekend.` : '';
+    return counting.length ? `${teamLabel(row.team)}: ${counting.map(card => `${playerName(card.player)} (${card.score})`).join(' and ')} combined for ${score} points this weekend.` : '';
   }).filter(Boolean);
   return { date: round.date, result, individual,
     html: `<h3>Weekend ${index + 1}: ${html(weekend)}</h3><p>${html(summary)} ${html(chasingSummary)}</p>${weeklySummary}${performances.map(performance => `<p>${html(performance)}</p>`).join('')}<p>${html(singlesSummary)}</p>` };
@@ -98,9 +101,9 @@ export function memberUpdate(state, { mode = 'published', saved = true, pendingD
   const noClimbers = movement.every(row => row.change === 0) ? 'The Team standings kept the same positions.' :
     `The leading ${result.rows.filter(row => row.rank === 1).length > 1 ? 'teams' : 'team'} held first place while positions changed elsewhere in the standings.`;
   const movements = previous ? `<h3>Movement from Weekend ${summaries.length - 1} to Weekend ${summaries.length}</h3>
-${currentLeaders.map(row => `<p>${html(`${row.team.name} moved from ${position(previous.rows.find(other => other.team.name === row.team.name), previous.rows)} to ${position(row, result.rows)}, reaching ${row.retained} points.`)}</p>`).join('')}
-${biggest.length ? `<p>${html(`The biggest climbs were ${biggest.map(row => `${row.team.name}, up ${row.change} ${row.change === 1 ? 'place' : 'places'} from ${position(previous.rows.find(other => other.team.name === row.team.name), previous.rows)} to ${position(row, result.rows)}`).join('; ')}.`)}</p>` : `<p>${html(noClimbers)}</p>`}
-${movement.filter(row => row.previous === 1 && row.rank > 1).map(row => `<p>${html(`${row.team.name}, ${previous.rows.filter(other => other.rank === 1).length > 1 ? 'joint leader' : 'leader'} after Weekend ${summaries.length - 1}, is now ${position(row, result.rows)} on ${row.retained} points.`)}</p>`).join('')}` : '';
+${currentLeaders.map(row => `<p>${html(`${teamLabel(row.team)} moved from ${position(previous.rows.find(other => other.team.name === row.team.name), previous.rows)} to ${position(row, result.rows)}, reaching ${row.retained} points.`)}</p>`).join('')}
+${biggest.length ? `<p>${html(`The biggest climbs were ${biggest.map(row => `${teamLabel(row.team)}, up ${row.change} ${row.change === 1 ? 'place' : 'places'} from ${position(previous.rows.find(other => other.team.name === row.team.name), previous.rows)} to ${position(row, result.rows)}`).join('; ')}.`)}</p>` : `<p>${html(noClimbers)}</p>`}
+${movement.filter(row => row.previous === 1 && row.rank > 1).map(row => `<p>${html(`${teamLabel(row.team)}, ${previous.rows.filter(other => other.rank === 1).length > 1 ? 'joint leader' : 'leader'} after Weekend ${summaries.length - 1}, is now ${position(row, result.rows)} on ${row.retained} points.`)}</p>`).join('')}` : '';
   const teamHeaders = ['Rank', 'Team', 'Player 1', 'Player 2', 'Player 3', 'Season points',
     ...result.rounds.map(round => `${round.date} points`)];
   const teamRows = result.rows.map(row => [row.rank, row.team.name,
