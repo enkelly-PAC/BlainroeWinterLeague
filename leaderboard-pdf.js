@@ -1,4 +1,4 @@
-import { canonical, isHeld, league, validateState } from './core.js';
+import { canonical, isHeld, league, playerKey, validateState } from './core.js';
 import { teamLabel, weekendCards } from './leaderboard-layout.js';
 
 const green = '#1a5e1a', pale = '#edf5ed', ink = '#1a2e1a';
@@ -38,20 +38,21 @@ export function leaderboardPDFModel(state, { mode = 'published', saved = true, f
   const result = league(state);
   const active = new Set(state.teams.flatMap(team =>
     team.players.filter(player => !isHeld(team, player)).map(canonical)));
-  const hasResults = result.rounds.some(round => round.cards.some(card => active.has(canonical(card.player))));
+  const hasResults = result.rounds.some(round => round.cards.some(card => active.has(playerKey(card.player, state.identityBindings))));
   if (audience === 'members' && !hasResults) throw new Error('Member PDF needs qualifying results matched to a team.');
   const through = result.rounds.filter(round => round.cards.length).at(-1)?.date || null;
   const rounds = [...state.rounds].sort((a, b) => a.date.localeCompare(b.date));
   const source = mode === 'published' ? 'PUBLISHED' : saved ? 'DRAFT: saved on this device, not published' : 'DRAFT: not saved, not published';
   const status = `${source} | ${state.settings.complete ? 'Qualification complete' : 'Provisional: qualification in progress'}`;
   const unmatched = rounds.reduce((count, round) =>
-    count + round.cards.filter(card => !active.has(canonical(card.player))).length, 0);
+    count + round.cards.filter(card => !active.has(playerKey(card.player, state.identityBindings))).length, 0);
   const sourceName = mode === 'draft' ? 'draft' : 'published';
   const latest = rounds.at(-1) || null;
   if (audience === 'members' && format === 'latest' && (!latest?.cards.length || latest.canceled || !latest.qualifying))
     throw new Error('Latest weekend has no active results for a member PDF.');
   const filename = `blainroe-winter-league-2026-2027-${sourceName}-${format === 'detail' ? '' : `${format}-`}${format === 'latest' ? latest?.date || 'awaiting-results' : hasResults ? through : 'awaiting-results'}.pdf`;
-  return { result, rounds, hasResults, through, status, unmatched, filename, format, latest, audience };
+  return { result, rounds, hasResults, through, status, unmatched, filename, format, latest, audience,
+    identityBindings: state.identityBindings || [] };
 }
 
 function weekendTotal(row, round, hasResults) {
@@ -98,7 +99,7 @@ function latestTable(rows, model) {
       rows.map(row => [
         ...(members ? [cell(teamLabel(row.team))] : [cell(row.team.name, { bold: true }),
           ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant'))]),
-        ...weekendCards(row.team, round).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
+        ...weekendCards(row.team, round, model.identityBindings).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
           alignment: 'center', bold: card.counting, color: card.counting ? green : '#687568',
           ...(card.counting ? { fillColor: pale } : {})
         })),
@@ -143,7 +144,7 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
         ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant'))]),
       ...group.flatMap(round => {
         return [
-          ...weekendCards(row.team, round).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
+          ...weekendCards(row.team, round, model.identityBindings).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
             alignment: 'center', bold: card.counting, color: card.counting ? green : '#687568'
           })),
           weekendTotal(row, round, hasResults)

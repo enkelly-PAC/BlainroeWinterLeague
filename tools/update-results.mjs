@@ -1,6 +1,6 @@
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseJSON, parseScores, classifyScoreCSV, importRound, weekendDate, canonical, assignments, league } from '../core.js';
+import { parseJSON, parseScores, classifyScoreCSV, importRound, weekendDate, canonical, playerKey, assignments, league } from '../core.js';
 import { protectPublishedHistory } from '../publication.js';
 import { readLimited, atomicPublication } from './publication-io.mjs';
 
@@ -22,11 +22,13 @@ export function buildUpdate(published, files, options = {}) {
       if (!groups.has(date)) groups.set(date, { ...round, cards: [] });
       const group = groups.get(date);
       if (group.name !== name) throw new Error('Report names differ for one weekend. Supply one reviewed --name.');
-      const cards = new Map(group.cards.map(card => [canonical(card.player), card]));
+      const cards = new Map(group.cards.map(card => [playerKey(card.player, published.identityBindings), card]));
       for (const card of round.cards) {
-        const old = cards.get(canonical(card.player));
+        const key = playerKey(card.player, published.identityBindings), old = cards.get(key);
+        if (old && canonical(old.player) !== canonical(card.player))
+          throw new Error(`Duplicate confirmed identity for ${card.player}. Choose one complete corrected report.`);
         if (old && (old.score !== card.score || old.handicap !== card.handicap)) throw new Error(`Conflicting uploaded card for ${card.player}. Choose one complete corrected report.`);
-        if (!old) cards.set(canonical(card.player), card);
+        if (!old) cards.set(key, card);
       }
       group.cards = [...cards.values()];
       reports.push({ path: file.path, date, cards: parsed.cards.length, omitted: parsed.omitted || { noReturn: 0, disqualified: 0 } });
@@ -40,7 +42,7 @@ export function buildUpdate(published, files, options = {}) {
   let state = structuredClone(published);
   for (const group of groups.values()) state = importRound(state, group, replacements.includes(group.date) ? 'replace' : 'merge');
   protectPublishedHistory(state, published, replacements);
-  const assigned = assignments(state.teams);
+  const assigned = assignments(state.teams, state.identityBindings);
   const cards = [...groups.values()].flatMap(round => round.cards);
   const held = cards.filter(card => assigned.get(canonical(card.player))?.startsWith('Unassigned')).length;
   const unmatched = cards.filter(card => !assigned.has(canonical(card.player))).length;

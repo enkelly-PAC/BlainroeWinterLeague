@@ -1,4 +1,4 @@
-import { MAX_BYTES, emptyState, canonical, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML, assignments, isHeld, rosterStatus, replaceTeams, editTeam } from './core.js';
+import { MAX_BYTES, emptyState, canonical, playerKey, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML, assignments, isHeld, rosterStatus, replaceTeams, editTeam } from './core.js';
 import { readDraft, saveDraft, readBaseline, STORAGE_KEY, BASELINE_KEY } from './storage.js';
 import { synchroniseDraft, protectPublishedHistory } from './publication.js';
 import { createLeaderboardPDF } from './leaderboard-pdf.js';
@@ -43,13 +43,15 @@ function safely(action) {
   };
 }
 function resultsState(state) {
-  return !state.teams.length && publishedReady && published.teams.length
-    ? replaceTeams(state, published.teams) : state;
+  if (!state.teams.length && publishedReady && published.teams.length)
+    return validateState({ ...replaceTeams(state, published.teams),
+      ...(published.identityBindings ? { identityBindings: structuredClone(published.identityBindings) } : {}) });
+  return state;
 }
 function current() { return mode === 'draft' && draft ? resultsState(draft) : published; }
-function cardMatch(teams, card) {
+function cardMatch(teams, card, identityBindings = []) {
   const entries = teams.flatMap(team => team.players
-    .filter(player => canonical(player) === canonical(card.player))
+    .filter(player => canonical(player) === playerKey(card.player, identityBindings))
     .map(player => ({ team, player })));
   const held = entries.some(({ team, player }) => isHeld(team, player));
   return {
@@ -243,7 +245,7 @@ function render() {
   $('start-draft').textContent = draft ? 'View / resume my saved draft' : 'Start local draft (optional)';
   const activePlayers = new Set(state.teams.flatMap(team => team.players.filter(player => !isHeld(team, player)).map(canonical)));
   const uploaded = result.rounds.some(round => round.cards.length);
-  const hasResults = result.rounds.some(round => round.cards.some(card => activePlayers.has(canonical(card.player))));
+  const hasResults = result.rounds.some(round => round.cards.some(card => activePlayers.has(playerKey(card.player, state.identityBindings))));
   $('export-leaderboard-pdf').disabled = pdfBusy || !state.teams.length || (mode === 'published' && !publishedReady);
   for (const id of ['member-update', 'member-team-csv', 'member-singles-csv'])
     $(id).disabled = !state.teams.length || (mode === 'published' && !publishedReady);
@@ -290,7 +292,7 @@ function render() {
     })))], hasResults ? result.rows.map(r => [
     r.rank, r.team.name, ...[0, 1, 2].map(index => r.team.players[index] || 'Vacant'), r.retained,
     ...r.scores.flatMap(score => [
-      ...weekendCards(r.team, roundCards.get(score.date)).map(card => ({
+      ...weekendCards(r.team, roundCards.get(score.date), state.identityBindings).map(card => ({
         ...displayCell(card.text, card.score ?? null),
         className: card.counting ? 'counting-card' : 'non-counting-card',
         detail: `${card.text}: ${card.held ? 'held, not counted' : card.score === undefined ? 'no card or vacant' : card.counting ? 'best-two counting card' : 'non-counting card'}${score.discarded ? '; weekend discarded from Total' : ''}`
@@ -300,7 +302,7 @@ function render() {
     ])
   ]) : []);
   table('awaiting-table', 'Team list, awaiting qualifying results', ['Team', 'Players'], state.teams.map(t => [t.name, t.players.join(', ')]));
-  const unmatched = state.rounds.flatMap(round => round.cards.map(card => ({ round, card, match: cardMatch(state.teams, card) })))
+  const unmatched = state.rounds.flatMap(round => round.cards.map(card => ({ round, card, match: cardMatch(state.teams, card, state.identityBindings) })))
     .filter(entry => entry.match.status !== 'Matched');
   $('matching-review').hidden = !unmatched.length;
   $('matching-summary').textContent = `${unmatched.length} uploaded cards need a team match or confirmation`;
@@ -310,10 +312,10 @@ function render() {
   renderSingles(state);
   table('teams-table', 'Team list (team numbers preserved)', ['Team', 'Player 1', 'Player 2', 'Player 3', 'Team notes'], state.teams.map(t => [t.name, t.players[0], t.players[1], t.players[2] || 'Vacant', rosterStatus(t)]));
   table('rounds-table', 'All imported weekends', ['Weekend', 'Round', 'Status', 'Cards'], [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).map(r => [r.date, r.name, r.canceled ? 'Canceled for everyone' : r.qualifying ? 'Qualifying' : 'Excluded / nonqualifying', r.cards.length]));
-  const assigned = assignments(state.teams);
+  const assigned = assignments(state.teams, state.identityBindings);
   table('cards-table', 'All individual weekend cards', ['Weekend', 'Player', 'Team', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.map(c => [r.date, c.player, assigned.get(canonical(c.player)) || 'Unassigned', c.score, displayCell(c.handicap ?? 'Not supplied', c.handicap ?? null)])));
   const matched = new Set(state.teams.flatMap(t => t.players.filter(p => !isHeld(t, p)).map(canonical)));
-  table('unassigned-table', 'Unassigned raw cards (including held names)', ['Weekend', 'Player', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.filter(c => !matched.has(canonical(c.player))).map(c => [r.date, c.player, c.score, displayCell(c.handicap ?? 'Not supplied', c.handicap ?? null)])));
+  table('unassigned-table', 'Unassigned raw cards (including held names)', ['Weekend', 'Player', 'Net Stableford', 'Playing handicap (metadata)'], state.rounds.flatMap(r => r.cards.filter(c => !matched.has(playerKey(c.player, state.identityBindings))).map(c => [r.date, c.player, c.score, displayCell(c.handicap ?? 'Not supplied', c.handicap ?? null)])));
   const finals = finalTable(state);
   $('final-summary').textContent = !state.settings.complete ? 'Final locked: qualification is not complete.' : result.cutoffUnresolved ? 'Final locked: unresolved top 16 cutoff.' : `Final open for ${result.eligible.length} eligible teams. Team total: ${state.settings.finalScoring === 'best2' ? 'best 2 cards (committee assumption)' : 'all 3 cards (committee-selected interpretation)'}. Countback: all 3 cards. Date: ${state.final?.date || 'awaiting confirmation'}.`;
   table('final-table', 'Final standings, no league carryover', ['Rank', 'Team', 'Cards / 3', 'Final total', 'Back 9', 'Back 6', 'Back 3', 'Back 1'], finals.map(r => [displayCell(r.rank ?? 'Unranked (missing cards)', r.rank), r.team.name, r.cards, displayCell(r.cards === 3 ? r.total : 'Pending', r.cards === 3 ? r.total : null), ...r.countback]));
@@ -617,8 +619,11 @@ async function readImportFiles(revision) {
     });
     const dates = [...new Set(weekendKeys.filter(Boolean))];
     if (dates.length > 1) throw new Error(`Result files contain different weekends (${resultIndices.map(index => files[index].name).join(', ')}). Import each weekend separately.`);
+    const base = resultsState(storageBlocked ? draft || published : importBase());
     for (const [index, entry] of parsed.entries()) for (const card of entry.cards) {
-      const key = canonical(card.player), previous = cards.get(key);
+      const key = playerKey(card.player, base.identityBindings), previous = cards.get(key);
+      if (previous && canonical(previous.player) !== canonical(card.player))
+        throw new Error(`${files[resultIndices[index]].name}: duplicate confirmed identity for ${card.player}. Review the complete report; no duplicate is counted.`);
       if (previous && (previous.score !== card.score || previous.handicap !== card.handicap)) throw new Error(`${files[resultIndices[index]].name}: conflicting uploaded cards for ${card.player}. Choose the correct points and handicap metadata and prepare a corrected CSV; no duplicate is counted.`);
       if (!previous) cards.set(key, card);
     }
@@ -630,7 +635,7 @@ async function readImportFiles(revision) {
       (weekendKeys.every(Boolean) ? `Weekend ${dates[0]}` : '');
     $('qualifying').checked = existing?.qualifying ?? true;
     $('net-confirm').checked = false; $('import-mode').value = 'merge';
-    const base = resultsState(storageBlocked ? draft || published : importBase()), matches = data.map(card => cardMatch(base.teams, card));
+    const matches = data.map(card => cardMatch(base.teams, card, base.identityBindings));
     const matched = matches.filter(match => match.status === 'Matched').length;
     const held = matches.filter(match => match.status.startsWith('Held')).length;
     matchingSummary = ` ${matched} matched, ${matches.length - matched - held} unmatched, ${held} held.`;

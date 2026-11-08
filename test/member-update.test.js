@@ -52,10 +52,10 @@ test('combined update preserves both weekends and calculates genuine fixed-roste
   assert.ok(update.html.indexOf('Weekend 2:') < update.html.indexOf('Movement from Weekend 1 to Weekend 2'));
   assert.match(update.html, /Team 15 \([^)]*\) and Team 27 \([^)]*\) share the lead on 49/);
   assert.match(update.html, /Team 7 \([^)]*\) leads on 99/);
-  assert.match(update.html, /Team 7 \([^)]*\), Team 20 \([^)]*\) and Team 38 \([^)]*\) posted the weekend&#39;s highest team total of 51/);
+  assert.match(update.html, /Team 28 \([^)]*\) posted the weekend&#39;s highest team total of 54/);
   assert.match(update.html, /J\. C\. Doyle and Pat Sheehy set the pace in Singles with 28/);
   assert.match(update.html, /Team 7 \([^)]*\) moved from joint third to first/);
-  assert.match(update.html, /Team 35 \([^)]*\), up 10 places from joint 18th to 8th/);
+  assert.match(update.html, /Team 5 \([^)]*\), up 12 places from joint 38th to joint 26th/);
   for (const mention of update.html.matchAll(/Team \d+/g)) {
     const team = state.teams.find(team => team.name === mention[0]);
     const label = escapeHTML(`${team.name} (${team.players.join(', ')})`);
@@ -68,14 +68,14 @@ test('combined update preserves both weekends and calculates genuine fixed-roste
         .map(cell => cell.text.replace(/\u200b/g, '')));
     assert.deepEqual(labels, update.result.rows.map(row => `${row.team.name} (${row.team.players.join(', ')})`));
   }
-  assert.equal(update.movement.find(row => row.team.name === 'Team 1').change, 10);
-  assert.equal(update.movement.find(row => row.team.name === 'Team 15').change, -10);
+  assert.equal(update.movement.find(row => row.team.name === 'Team 1').change, 8);
+  assert.equal(update.movement.find(row => row.team.name === 'Team 15').change, -7);
   assert.equal(parseCSV(update.singlesCSV).length, 160);
   assert.equal(parseCSV(update.teamCSV).length, 47);
   assert.doesNotMatch(update.html, /<table|draft|pending|roster|import|held|committee|[\u2013\u2014]/i);
   assert.deepEqual(baseline, before);
   const changed = structuredClone(state);
-  changed.teams[0].players[0] = 'Synthetic roster change';
+  changed.teams[0].players[1] = 'Synthetic roster change';
   assert.throws(() => memberUpdate(changed, { baseline }), /differ from the comparison baseline/);
   const corrupt = structuredClone(baseline);
   corrupt.teams[0].retained++;
@@ -143,8 +143,8 @@ test('member preparation CLI writes a review bundle, preserves the publication a
   assert.equal(baseline.sourceSHA256, createHash('sha256').update(before).digest('hex'));
   assert.deepEqual(baseline.state.rounds, JSON.parse(before).rounds);
   assert.deepEqual(baseline.teams, league(baseline.state).rows);
-  assert.equal(baseline.teams.find(row => row.team.name === 'Team 34').scores[0].total, 38);
-  assert.equal(baseline.teams.find(row => row.team.name === 'Team 21').scores[0].total, 24);
+  assert.equal(baseline.teams.find(row => row.team.name === 'Team 34').scores[0].total, 42);
+  assert.equal(baseline.teams.find(row => row.team.name === 'Team 21').scores[0].total, 41);
   const repeated = spawnSync(process.execPath, args, { encoding: 'utf8' });
   assert.equal(repeated.status, 1);
   assert.match(repeated.stderr, /EEXIST/);
@@ -194,7 +194,7 @@ test('PDF headers separate the logo and counting cards are bold dark green', asy
       model.result.rows.forEach((row, index) => {
         const cells = grid.table.body[index + grid.table.headerRows];
         rounds.forEach((round, roundIndex) => {
-          weekendCards(row.team, round).forEach((card, playerIndex) => {
+          weekendCards(row.team, round, state.identityBindings).forEach((card, playerIndex) => {
             const cell = cells[offset + roundIndex * 4 + playerIndex];
             assert.equal(cell.bold, card.counting);
             assert.equal(cell.color, card.counting ? '#1a5e1a' : '#687568');

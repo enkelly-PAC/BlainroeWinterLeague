@@ -22,6 +22,27 @@ export function canonical(value) {
   }
   return name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 }
+export function playerKey(value, identityBindings = []) {
+  const key = canonical(value);
+  const binding = identityBindings.find(entry => canonical(entry.source) === key);
+  return binding ? canonical(binding.player) : key;
+}
+function validateBindings(teams, bindings) {
+  if (!Array.isArray(bindings) || bindings.length > 1500)
+    fail('Confirmed identity bindings: expected an array of at most 1500 entries.');
+  const registered = new Set(teams.flatMap(team => team.players.map(canonical)));
+  for (const binding of bindings) {
+    shape(binding, ['source', 'player'], 'Confirmed identity binding');
+    text(binding.source, 'Binding source name');
+    text(binding.player, 'Binding roster player');
+    if (!registered.has(canonical(binding.player)))
+      fail(`Binding roster player "${binding.player}" is not registered.`);
+    if (registered.has(canonical(binding.source)))
+      fail(`Binding source "${binding.source}" already names a registered player. Do not redirect roster identities.`);
+  }
+  unique(bindings.map(binding => binding.source), 'Confirmed binding source');
+  unique(bindings.map(binding => binding.player), 'Confirmed binding roster player');
+}
 const header = value => value.toLowerCase().replace(/[^a-z0-9]/g, '');
 const unique = (values, label) => {
   const seen = new Set();
@@ -74,13 +95,19 @@ export function validateTeams(teams) {
       fail(`Player (globally unique): duplicate "${entries[0].player}". Correct the names or explicitly hold score matching in every affected team.`);
   }
 }
-export const isHeld = (team, player) => (team.heldPlayers || []).some(p => canonical(p) === canonical(player));
-export function assignments(teams) {
+export const isHeld = (team, player, identityBindings = []) =>
+  (team.heldPlayers || []).some(p => canonical(p) === playerKey(player, identityBindings));
+export function assignments(teams, identityBindings = []) {
   const assigned = new Map();
   for (const team of teams) for (const player of team.players) {
     const key = canonical(player);
     if (isHeld(team, player)) assigned.set(key, 'Unassigned (team list name held for confirmation)');
     else assigned.set(key, team.name);
+  }
+  for (const binding of identityBindings) {
+    const target = canonical(binding.player);
+    if (!assigned.has(target)) fail(`Binding roster player "${binding.player}" is not registered.`);
+    assigned.set(canonical(binding.source), assigned.get(target));
   }
   return assigned;
 }
@@ -108,7 +135,7 @@ export function editTeam(state, originalName, team) {
 }
 export function validateState(state) {
   if (!state || state.version !== 1) fail('Unsupported state version. Expected version 1.');
-  shape(state, ['version', 'settings', 'teams', 'rounds', 'final'], 'State');
+  shape(state, ['version', 'settings', 'teams', 'rounds', 'final', 'identityBindings'], 'State');
   const settings = state.settings;
   shape(settings, ['maxRounds', 'discardCount', 'complete', 'finalScoring'], 'Settings');
   if (!settings || typeof settings.complete !== 'boolean' || !['best2', 'all3'].includes(settings.finalScoring))
@@ -118,6 +145,7 @@ export function validateState(state) {
   integer(settings.discardCount, 'Discard count', 51);
   if (settings.discardCount >= settings.maxRounds) fail('Discard count must be less than maximum rounds.');
   validateTeams(state.teams);
+  validateBindings(state.teams, state.identityBindings === undefined ? [] : state.identityBindings);
   if (!Array.isArray(state.rounds) || state.rounds.length > 200) fail('Rounds: expected at most 200 weekends.');
   const dates = new Set();
   let active = 0;
@@ -131,6 +159,7 @@ export function validateState(state) {
     if (round.qualifying && !round.canceled) active++;
     if (!Array.isArray(round.cards) || round.cards.length > 5000) fail('Round cards: expected at most 5000 cards.');
     unique(round.cards.map(c => c?.player), `Player in ${round.date}`);
+    unique(round.cards.map(c => playerKey(c?.player, state.identityBindings)), `Confirmed player in ${round.date}`);
     for (const card of round.cards) {
       shape(card, ['player', 'score', 'handicap'], 'Score card');
       integer(card.score, `Score for ${card.player}`);
@@ -314,17 +343,19 @@ export function importRound(state, input, mode = 'merge') {
   if (!['merge', 'replace'].includes(mode)) fail('Choose merge or replace-weekend mode.');
   const next = structuredClone(state);
   const round = { ...input, date: weekendDate(input.date), cards: structuredClone(input.cards) };
+  unique(round.cards.map(card => playerKey(card.player, state.identityBindings)), 'Confirmed player in uploaded scores');
   const index = next.rounds.findIndex(r => r.date === round.date);
   if (index >= 0 && mode === 'merge') {
     const existing = next.rounds[index];
     if (existing.name !== round.name || existing.qualifying !== round.qualifying || existing.canceled !== round.canceled)
       fail('Weekend metadata differs. Edit the existing weekend or explicitly replace the weekend.');
-    const cards = new Map(existing.cards.map(c => [canonical(c.player), c]));
+    const cards = new Map(existing.cards.map(c => [playerKey(c.player, state.identityBindings), c]));
     for (const card of round.cards) {
-      const previous = cards.get(canonical(card.player));
+      const key = playerKey(card.player, state.identityBindings);
+      const previous = cards.get(key);
       if (previous && (previous.score !== card.score || previous.handicap !== card.handicap))
         fail(`Conflicting card for ${card.player}: existing ${previous.score} (handicap ${previous.handicap ?? 'not supplied'}), uploaded ${card.score} (handicap ${card.handicap ?? 'not supplied'}). Use confirmed replace-weekend with the complete corrected CSV.`);
-      if (!previous) cards.set(canonical(card.player), card);
+      if (!previous) cards.set(key, card);
     }
     round.cards = [...cards.values()];
   }
@@ -343,7 +374,7 @@ export function singles(state, selectedDate = null) {
   const round = rounds.find(r => r.date === selectedDate) ||
     rounds.find(r => r.qualifying && !r.canceled) || rounds[0] || null;
   const status = !round ? null : round.canceled ? 'Canceled' : round.qualifying ? 'Qualifying' : 'Excluded / nonqualifying';
-  const assigned = assignments(state.teams);
+  const assigned = assignments(state.teams, state.identityBindings);
   const rows = (round?.cards || []).map(card => ({ player: card.player, score: card.score, team: assigned.get(canonical(card.player)) || 'Unassigned' }));
   rows.sort((a, b) => b.score - a.score || a.player.localeCompare(b.player));
   rows.forEach((row, index) => { row.rank = index && rows[index - 1].score === row.score ? rows[index - 1].rank : index + 1; });
@@ -354,7 +385,7 @@ export function league(state) {
   const discardCount = state.settings.complete ? Math.min(state.settings.discardCount, Math.max(0, rounds.length - 1)) : 0;
   const rows = state.teams.map(team => {
     const scores = rounds.map(round => {
-      const cards = new Map(round.cards.map(c => [canonical(c.player), c.score]));
+      const cards = new Map(round.cards.map(c => [playerKey(c.player, state.identityBindings), c.score]));
       const values = team.players.map(player => isHeld(team, player) ? 0 : cards.get(canonical(player)) ?? 0).sort((a, b) => b - a);
       return { date: round.date, total: (values[0] || 0) + (values[1] || 0), missed: 3 - team.players.filter(p => !isHeld(team, p) && cards.has(canonical(p))).length };
     });
@@ -382,13 +413,14 @@ export function validateFinal(state, final) {
   shape(final, ['date', 'cards'], 'Final');
   if (final.date !== null) isoDate(final.date);
   unique(final.cards.map(c => c?.player), 'Final player');
+  unique(final.cards.map(c => playerKey(c?.player, state.identityBindings)), 'Confirmed final player');
   for (const card of final.cards) {
     shape(card, ['team', 'player', 'total', ...countbackFields], 'Final card');
     text(card.team, 'Final team');
     const team = state.teams.find(t => canonical(t.name) === canonical(card.team));
     if (!team || !table.eligible.includes(team.name)) fail(`Final team "${card.team}" is not an eligible registered team.`);
-    if (!team.players.some(p => canonical(p) === canonical(card.player))) fail(`Final player "${card.player}" is not registered in "${team.name}".`);
-    if (isHeld(team, card.player)) fail(`Final player "${card.player}" has score matching held. Resolve the roster name first.`);
+    if (!team.players.some(p => canonical(p) === playerKey(card.player, state.identityBindings))) fail(`Final player "${card.player}" is not registered in "${team.name}".`);
+    if (isHeld(team, card.player, state.identityBindings)) fail(`Final player "${card.player}" has score matching held. Resolve the roster name first.`);
     integer(card.total, `Final total for ${card.player}`);
     let previous = card.total;
     for (const field of countbackFields) {

@@ -92,7 +92,7 @@ test('standings precede collapsed review details, with honest live counts and sh
     assert.equal($(id).open, false);
   }
   assert.equal($('review-notice').hidden, false);
-  assert.match($('review-count').textContent, /^122 cards not counted for teams; \d+ team entries need review\.$/);
+  assert.match($('review-count').textContent, /^94 cards not counted for teams; \d+ team entries need review\.$/);
   const view = renderedTable($);
   assert.equal(view.rows.length, 46);
   const firstRound = view.head.children[0].children[6];
@@ -100,10 +100,10 @@ test('standings precede collapsed review details, with honest live counts and sh
   assert.match(firstRound.title, /2026-10-31.*Mens Winter League singles/);
   for (const team of ['Team 15', 'Team 27']) {
     const row = view.rows.find(row => row[1] === team);
-    assert.equal(row[5], team === 'Team 15' ? '88' : '94');
+    assert.equal(row[5], team === 'Team 15' ? '93' : '98');
     assert.equal(row[9], '49');
   }
-  assert.equal(view.rows.find(row => row[1] === 'Team 15')[8], 'NA');
+  assert.equal(view.rows.find(row => row[1] === 'Team 15')[8], '18');
   assert.match(contents($('matching-table')), /Owens, Colin/);
 });
 test('table headers sort numeric points and natural team names both ways without changing ranks or stored state', async t => {
@@ -392,7 +392,9 @@ test('old zero-team scores map to published players on explicit update, retain s
 });
 
 test('score updates never replace customized teams and combine only the best two mapped cards', async t => {
-  const published = await rosterFixture(), state = structuredClone(published);
+  const published = await rosterFixture();
+  delete published.identityBindings;
+  const state = structuredClone(published);
   state.teams.find(team => team.name === 'Team 34').players = ['Synthetic Alpha', 'Synthetic Beta', 'Synthetic Gamma'];
   const { $, values, preview } = await workspace(t, JSON.stringify(state), published);
   await preview('Played on,08/11/2026\nPlayer,Score\nSynthetic Alpha,29\nSynthetic Beta,24\nSynthetic Gamma,20\nPaddy Daly,40');
@@ -404,6 +406,26 @@ test('score updates never replace customized teams and combine only the best two
   assert.deepEqual(saved.teams, state.teams);
   assert.equal(league(saved).rows[0].retained, 53);
   assert.equal(saved.rounds[0].cards.length, 4);
+});
+test('confirmed source names match roster display names in browser preview and saved scores; held cards remain held', async t => {
+  const published = await rosterFixture();
+  const { $, values, preview } = await workspace(t, null, published);
+  await preview('Played on,01/11/2026\nPlayer,Score\nMichael Farrell,14\nJoshua McCall,18\nColin Owens,15');
+  assert.match($('preview-summary').textContent, /2 matched, 0 unmatched, 1 held/);
+  assert.equal(values.has(STORAGE_KEY), false);
+  $('net-confirm').checked = true;
+  await $('apply-form').emit('submit');
+  const saved = JSON.parse(values.get(STORAGE_KEY));
+  assert.deepEqual(saved.identityBindings, published.identityBindings);
+  assert.deepEqual(saved.rounds[0].cards.map(card => card.player), ['Michael Farrell', 'Joshua McCall', 'Colin Owens']);
+  const rows = renderedTable($).rows;
+  assert.equal(rows.find(row => row[1] === 'Team 5')[5], '14');
+  assert.equal(rows.find(row => row[1] === 'Team 28')[5], '18');
+  for (const team of ['Team 10', 'Team 37']) assert.equal(rows.find(row => row[1] === team)[5], '0');
+  const before = values.get(STORAGE_KEY);
+  await preview('Played on,08/11/2026\nPlayer,Score\nMichael Farrell,14\nMike Farrell,14');
+  assert.equal($('apply-import').disabled, true);
+  assert.equal(values.get(STORAGE_KEY), before);
 });
 
 test('resume attaches the published team list to old saved scores without needing another upload', async t => {

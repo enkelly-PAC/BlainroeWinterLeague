@@ -1,10 +1,10 @@
-import { canonical, isHeld } from './core.js';
+import { canonical, isHeld, playerKey } from './core.js';
 
 export const teamLabel = team => `${team.name} (${[0, 1, 2].map(index => team.players[index] || 'Vacant').join(', ')})`;
 
 // Presentation only: totals, discards and ranking always come from league().
-export function weekendCards(team, round) {
-  const raw = new Map(round.cards.map(card => [canonical(card.player), card.score]));
+export function weekendCards(team, round, identityBindings = []) {
+  const raw = new Map(round.cards.map(card => [playerKey(card.player, identityBindings), card.score]));
   const cards = [0, 1, 2].map(index => {
     const player = team.players[index];
     const score = player ? raw.get(canonical(player)) : undefined;

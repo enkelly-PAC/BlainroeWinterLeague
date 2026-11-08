@@ -48,6 +48,7 @@ export function synchroniseDraft(draft, published, baseline = null) {
       conflict('this legacy draft has unrelated players despite reusing current team numbers');
   }
   const next = {
+    ...draft,
     version: 1,
     settings: baseline ? fields(draft.settings, published.settings, baseline.settings, ['maxRounds', 'discardCount', 'complete', 'finalScoring'], 'settings') : structuredClone(draft.settings),
     teams: !draft.teams.length ? structuredClone(published.teams) : !published.teams.length ? structuredClone(draft.teams) :
@@ -63,6 +64,9 @@ export function synchroniseDraft(draft, published, baseline = null) {
       }), 'weekend', true),
     final: value(draft.final, published.final, baseline?.final ?? null, 'final cards')
   };
+  const bindings = value(draft.identityBindings || [], published.identityBindings || [],
+    baseline?.identityBindings || [], 'confirmed identity bindings');
+  if (bindings.length) next.identityBindings = bindings;
   return validateState(next);
 }
 
@@ -71,6 +75,11 @@ export function protectPublishedHistory(candidate, published, replacements = [])
   if (published.teams.length && !candidate.teams.some(team => published.teams.some(old => canonical(old.name) === canonical(team.name))))
     throw new Error('Unrelated or missing team list. Start from the current published league roster, not another season or demo.');
   const allowed = new Set(replacements);
+  for (const binding of published.identityBindings || []) {
+    if (!candidate.identityBindings?.some(entry => canonical(entry.source) === canonical(binding.source) &&
+        canonical(entry.player) === canonical(binding.player)))
+      throw new Error(`Published confirmed identity binding for "${binding.source}" differs or is missing. Review identity corrections separately; do not silently remove historic score matches.`);
+  }
   for (const date of allowed) {
     if (!published.rounds.some(round => round.date === date) || !candidate.rounds.some(round => round.date === date))
       throw new Error(`Replacement ${date} must name an existing weekend present in both files.`);

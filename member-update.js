@@ -1,4 +1,4 @@
-import { canonical, csvCell, escapeHTML, isHeld, league, singles, validateState, weekendDate } from './core.js';
+import { canonical, csvCell, escapeHTML, isHeld, league, playerKey, singles, validateState, weekendDate } from './core.js';
 import { teamLabel, weekendCards } from './leaderboard-layout.js';
 
 const dateLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', {
@@ -28,7 +28,7 @@ function weekendSummary(state, round, index, active) {
   sunday.setUTCDate(sunday.getUTCDate() + 1);
   const weekend = `${dateLabel(round.date)} and ${dateLabel(sunday.toISOString().slice(0, 10))}`;
   if (!individual.rows.length) throw new Error(`Weekend ${round.date} has no individual results for the newsletter.`);
-  if (!round.cards.some(card => active.has(canonical(card.player))))
+  if (!round.cards.some(card => active.has(playerKey(card.player, state.identityBindings))))
     throw new Error(`Weekend ${round.date} has no qualifying results matched to a team.`);
   const leaders = result.rows.filter(row => row.rank === 1);
   const chasingScore = result.rows.find(row => row.retained < leaders[0].retained)?.retained;
@@ -44,7 +44,7 @@ function weekendSummary(state, round, index, active) {
   const nextSingles = individual.rows.filter(row => row.score === nextScore);
   const singlesSummary = `${names(singleLeaders)} ${singleLeaders.length > 1 ? 'set' : 'sets'} the pace in Singles with ${singleLeaders[0].score} points.${nextSingles.length ? ` ${names(nextSingles)} ${nextSingles.length > 1 ? 'follow' : 'follows'} on ${nextScore}.` : ''}`;
   const performances = leaders.map(row => {
-    const counting = weekendCards(row.team, latest)
+    const counting = weekendCards(row.team, latest, state.identityBindings)
       .map((card, playerIndex) => ({ ...card, player: row.team.players[playerIndex] }))
       .filter(card => card.counting).sort((a, b) => b.score - a.score);
     const score = row.scores.find(entry => entry.date === latest.date).total;
@@ -67,7 +67,7 @@ export function memberUpdate(state, { mode = 'published', saved = true, pendingD
   const latest = [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).at(-1) || null;
   const individual = singles(state, latest?.date);
   const active = new Set(state.teams.flatMap(team => team.players.filter(player => !isHeld(team, player)).map(canonical)));
-  const hasTeamResults = result.rounds.some(round => round.cards.some(card => active.has(canonical(card.player))));
+  const hasTeamResults = result.rounds.some(round => round.cards.some(card => active.has(playerKey(card.player, state.identityBindings))));
   if (!hasTeamResults) throw new Error('Member exports require qualifying results matched to a team.');
   if (!latest || latest.canceled || !latest.qualifying || !individual.rows.length)
     throw new Error('The latest weekend has no active qualifying results. Review it before preparing member exports.');
@@ -81,6 +81,7 @@ export function memberUpdate(state, { mode = 'published', saved = true, pendingD
     validateState(baseline.state);
     if (baseline.through !== summaries.at(-2)?.date) throw new Error('Comparison baseline must cover the preceding weekend.');
     if (JSON.stringify(baseline.state.teams) !== JSON.stringify(state.teams) ||
+        JSON.stringify(baseline.state.identityBindings || []) !== JSON.stringify(state.identityBindings || []) ||
         JSON.stringify(baseline.state.settings) !== JSON.stringify(state.settings) ||
         JSON.stringify(baseline.state.rounds) !== JSON.stringify(state.rounds.filter(round => round.date <= baseline.through)))
       throw new Error('Roster, settings or historic cards differ from the comparison baseline. Review before claiming movement.');
@@ -115,7 +116,7 @@ ${movement.filter(row => row.previous === 1 && row.rank > 1).map(row => `<p>${ht
   const body = `<h1>Blainroe Golf Club</h1><h2>Men's Winter League 2026/2027</h2><p>Sponsored by Spirit Ford Wicklow</p>
 <p>Dear members,</p><p>${summaries.length === 1 ? 'The Winter League is under way, with a tightly packed opening leaderboard.' : 'Here are the Winter League results and the latest standings.'}</p>
 ${summaries.map(summary => summary.html + insights.filter(insight => insight.date === summary.date).map(insight => `<p>${html(insight.text)}</p>`).join('')).join('')}${movements}
-<p>The latest Singles results and Team standings are attached.</p><p>Thank you to Spirit Ford Wicklow for supporting the league.</p>`;
+<p>The Singles leaderboard and Team standings are attached.</p><p>Thank you to Spirit Ford Wicklow for supporting the league.</p>`;
   return {
     filename: `blainroe-member-update-draft-${latest?.date || 'awaiting-results'}.html`,
     html: `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Blainroe Winter League: Weekend ${result.rounds.length}</title><style>body{font:16px Arial,sans-serif;color:#173517;max-width:760px;margin:2rem auto;padding:0 1rem;line-height:1.6}h1,h2,h3{color:#1a5e1a}</style></head><body>${body}</body></html>`,

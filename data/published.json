@@ -1,5 +1,23 @@
 {
   "version": 1,
+  "identityBindings": [
+    { "source": "Michael Farrell", "player": "Mike Farrell" },
+    { "source": "Joshua McCall", "player": "Josh McCall" },
+    { "source": "Joseph Neiland Jnr", "player": "Joe Neiland Jnr" },
+    { "source": "Kieran Ryan", "player": "Keiran Ryan" },
+    { "source": "Thomas Kelly", "player": "Tommy Kelly" },
+    { "source": "Michael Anthony O'Neill", "player": "Michael A. O'Neill" },
+    { "source": "Mark McElhinney", "player": "Mark McElhinny" },
+    { "source": "Patrick Daly", "player": "Paddy Daly" },
+    { "source": "Calum Rawl", "player": "Callum Rawl" },
+    { "source": "Nicholas Byrne", "player": "Nick Byrne" },
+    { "source": "Paul F Deignan", "player": "Paul Deignan" },
+    { "source": "Amory Schwartz", "player": "Amory Swartz" },
+    { "source": "Robert Kiersey", "player": "Rob Kiersey" },
+    { "source": "Sean Alger", "player": "Sean Algar" },
+    { "source": "Jonathon Tymlin", "player": "Jonathan Tymlin" },
+    { "source": "Kevin Forsyth", "player": "Ken Forsyth" }
+  ],
   "settings": {
     "maxRounds": 10,
     "discardCount": 2,
