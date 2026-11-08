@@ -1,15 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { canonical, playerKey, assignments, emptyState, importRound, isHeld, league, singles, validateState } from '../core.js';
+import { canonical, playerKey, assignments, emptyState, importRound, isHeld, league, singles, validateState, reportHTML } from '../core.js';
+import { leaderboardPDFDocument } from '../leaderboard-pdf.js';
 import { weekendCards } from '../leaderboard-layout.js';
 import { memberUpdate } from '../member-update.js';
 import { protectPublishedHistory, synchroniseDraft } from '../publication.js';
 import { buildUpdate } from '../tools/update-results.mjs';
 
 const state = validateState(JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8')));
-const original = structuredClone(state);
-delete original.identityBindings;
 const expected = [
   ['Michael Farrell', 'Mike Farrell', 5, [14, 22], [32, 47]],
   ['Joshua McCall', 'Josh McCall', 28, [18, 26], [43, 54]],
@@ -28,21 +27,28 @@ const expected = [
   ['Sean Alger', 'Sean Algar', 2, [null, 21], [35, 44]],
   ['Jonathon Tymlin', 'Jonathan Tymlin', 42, [null, 17], [0, 43]]
 ];
+const oldBound = structuredClone(state);
+oldBound.identityBindings = state.identityBindings.map(({ source, player }) => ({ source: player, player: source }));
+oldBound.teams.forEach(team => {
+  team.players = team.players.map(name => expected.find(([source]) => source === name)?.[1] || name);
+});
+const original = structuredClone(oldBound);
+delete original.identityBindings;
 test('all 16 confirmed one-to-one bindings attach 28 original cards without changing source or Singles scores', () => {
   assert.equal(state.identityBindings.length, expected.length);
   const assigned = assignments(state.teams, state.identityBindings), rows = league(state).rows;
   let cards = 0;
   for (const [source, player, number, scores, totals] of expected) {
-    assert.equal(playerKey(source, state.identityBindings), canonical(player));
-    assert.equal(playerKey(player, state.identityBindings), canonical(player));
+    assert.equal(playerKey(source, state.identityBindings), canonical(source));
+    assert.equal(playerKey(player, state.identityBindings), canonical(source));
     assert.equal(assigned.get(canonical(source)), `Team ${number}`);
     const row = rows.find(row => row.team.name === `Team ${number}`);
-    assert.ok(row.team.players.includes(player));
+    assert.ok(row.team.players.includes(source));
     assert.deepEqual(row.scores.map(score => score.total), totals);
     for (const [index, round] of state.rounds.entries()) {
       const card = round.cards.find(card => canonical(card.player) === canonical(source));
       assert.equal(card?.score ?? null, scores[index]);
-      const cell = weekendCards(row.team, round, state.identityBindings)[row.team.players.indexOf(player)];
+      const cell = weekendCards(row.team, round, state.identityBindings)[row.team.players.indexOf(source)];
       assert.equal(cell.score ?? null, scores[index]);
       if (card) cards++;
     }
@@ -57,6 +63,8 @@ test('all 16 confirmed one-to-one bindings attach 28 original cards without chan
   assert.deepEqual(rows.slice(0, 5).map(row => [row.team.name, row.retained, row.rank]),
     [['Team 7', 99, 1], ['Team 13', 98, 2], ['Team 27', 98, 2], ['Team 28', 97, 4], ['Team 20', 96, 5]]);
   assert.equal(rows.find(row => row.team.name === 'Team 5').rank, 26);
+  assert.deepEqual(rows.map(row => [row.team.name, row.rank, row.retained, row.scores]),
+    league(oldBound).rows.map(row => [row.team.name, row.rank, row.retained, row.scores]));
 });
 test('unconfirmed names and distinct lookalikes stay separate; held cards and the W1 DQ stay excluded', () => {
   for (const [a, b] of [['David Browne', 'David Brown'], ["Michael O'Neill Snr.", "Michael A. O'Neill"],
@@ -74,6 +82,19 @@ test('unconfirmed names and distinct lookalikes stay separate; held cards and th
   const alias = [{ source: 'Colin Owens Alias', player: 'Colin Owens' }];
   assert.ok(isHeld(state.teams.find(team => team.name === 'Team 10'), 'Colin Owens Alias', alias));
   assert.match(assignments(state.teams, alias).get(canonical('Colin Owens Alias')), /^Unassigned/);
+});
+test('roster page and export displays use all 16 source names, with old draw-sheet spellings only as aliases', () => {
+  const html = reportHTML(state, 'Local review');
+  const pdf = JSON.stringify(leaderboardPDFDocument(state, { format: 'detail', audience: 'members' }));
+  const csv = memberUpdate(state).teamCSV;
+  for (const [source, alias] of expected) {
+    const escaped = source.replaceAll('&', '&amp;').replaceAll("'", '&#39;');
+    assert.ok(html.includes(escaped), `Page display: ${source}`);
+    assert.ok(pdf.includes(source), `PDF display: ${source}`);
+    assert.ok(csv.includes(source), `CSV display: ${source}`);
+    assert.ok(!state.teams.some(team => team.players.includes(alias)));
+    assert.ok(state.identityBindings.some(binding => binding.source === alias && binding.player === source));
+  }
 });
 test('strict registry validation rejects unknown targets, redirected roster identities, duplicate sources and targets', () => {
   const invalid = bindings => validateState({ ...structuredClone(original), identityBindings: bindings });
@@ -126,12 +147,34 @@ test('legacy state compatibility and three-way sync retain confirmed bindings an
   conflicting.identityBindings = [{ source: 'Other Farrell', player: 'Mike Farrell' }];
   assert.throws(() => synchroniseDraft(conflicting, state, original), /conflict/i);
 });
+test('old bound drafts adopt source display names only for equivalent approved pairs in unchanged slots', () => {
+  assert.deepEqual(synchroniseDraft(oldBound, state, oldBound), state);
+  assert.deepEqual(synchroniseDraft(oldBound, state), state);
+  const independent = structuredClone(oldBound);
+  independent.teams[0].notes = 'Independent local note';
+  const merged = synchroniseDraft(independent, state, oldBound);
+  assert.equal(merged.teams[0].notes, 'Independent local note');
+  assert.deepEqual(merged.teams[0].players, state.teams[0].players);
+  assert.deepEqual(merged.rounds, state.rounds);
+  assert.doesNotThrow(() => protectPublishedHistory(state, oldBound));
+  assert.doesNotThrow(() => protectPublishedHistory(oldBound, state));
+  const edited = structuredClone(oldBound);
+  [edited.teams[4].players[1], edited.teams[4].players[2]] =
+    [edited.teams[4].players[2], edited.teams[4].players[1]];
+  assert.throws(() => synchroniseDraft(edited, state, oldBound), /conflict/i);
+  assert.throws(() => protectPublishedHistory(edited, state), /binding/i);
+  const retargeted = structuredClone(state);
+  retargeted.identityBindings[0].source = 'Other Farrell';
+  assert.throws(() => protectPublishedHistory(retargeted, oldBound), /binding/i);
+  assert.throws(() => synchroniseDraft(retargeted, state, oldBound), /conflict/i);
+});
 test('movement requires the same confirmed bindings in a separately corrected comparison baseline', () => {
   const before = { schemaVersion: 1, through: state.rounds[0].date,
     state: { ...structuredClone(original), rounds: [structuredClone(original.rounds[0])] } };
   before.teams = memberUpdate(before.state).result.rows;
   assert.throws(() => memberUpdate(state, { baseline: before }), /baseline|roster|historic/i);
   const corrected = structuredClone(before);
+  corrected.state.teams = structuredClone(state.teams);
   corrected.state.identityBindings = structuredClone(state.identityBindings);
   corrected.teams = memberUpdate(corrected.state).result.rows;
   const update = memberUpdate(state, { baseline: corrected });

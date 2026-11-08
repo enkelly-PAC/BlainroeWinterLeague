@@ -180,6 +180,10 @@ test('real first weekend has preserved net points, known matches and team best-t
 });
 test('replacement roster applies existing late-registration rules without changing historic cards', async () => {
   const current = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  // Preserve the old draw-sheet fixture to isolate late registration from naming corrections.
+  current.teams.forEach(team => {
+    team.players = team.players.map(name => current.identityBindings.find(binding => binding.player === name)?.source || name);
+  });
   delete current.identityBindings;
   current.rounds = current.rounds.filter(round => round.date === '2026-10-31');
   const previous = structuredClone(current);

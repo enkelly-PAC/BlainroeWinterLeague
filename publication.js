@@ -1,6 +1,29 @@
 import { canonical, validateState } from './core.js';
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const sameIdentity = (a, b) =>
+  (canonical(a.source) === canonical(b.source) && canonical(a.player) === canonical(b.player)) ||
+  (canonical(a.source) === canonical(b.player) && canonical(a.player) === canonical(b.source));
+function sameSlot(candidate, published, next, old) {
+  const slots = (state, name) => state.teams.flatMap(team => team.players.flatMap((player, index) =>
+    canonical(player) === canonical(name) ? [`${canonical(team.name)}:${index}`] : []));
+  return same(slots(candidate, next.player), slots(published, old.player));
+}
+function alignDisplayNames(state, published) {
+  const next = structuredClone(state);
+  for (const binding of next.identityBindings || []) {
+    const online = published.identityBindings?.find(entry => sameIdentity(entry, binding));
+    if (!online || canonical(binding.player) === canonical(online.player)) continue;
+    if (!sameSlot(next, published, binding, online)) conflict('confirmed identity roster slot changed');
+    for (const team of next.teams) {
+      team.players = team.players.map(name => canonical(name) === canonical(binding.player) ? online.player : name);
+      if (team.heldPlayers)
+        team.heldPlayers = team.heldPlayers.map(name => canonical(name) === canonical(binding.player) ? online.player : name);
+    }
+    Object.assign(binding, online);
+  }
+  return validateState(next);
+}
 const conflict = label => { throw new Error(`Sync conflict: ${label}. Your draft was preserved. Download a backup, compare with published results, then correct the draft or use Replace draft with published data. For score corrections, the owner can explicitly replace the complete weekend with update:results.`); };
 
 function value(local, online, base, label) {
@@ -37,6 +60,12 @@ function entries(local, online, base, key, merge, label, protect = false) {
 export function synchroniseDraft(draft, published, baseline = null) {
   validateState(draft); validateState(published);
   if (baseline) validateState(baseline);
+  // Only reverse an already approved pair in its unchanged team slot.
+  draft = alignDisplayNames(draft, published);
+  if (baseline) baseline = alignDisplayNames(baseline, published);
+  for (const binding of baseline?.identityBindings || [])
+    if (!draft.identityBindings?.some(entry => sameIdentity(entry, binding)))
+      conflict('confirmed identity binding removed or retargeted locally');
   if (published.teams.length && draft.rounds.some(round => round.date < '2026-10-01' || round.date > '2027-04-30'))
     conflict('this draft contains weekends outside Winter League 2026/2027');
   if (published.teams.length && draft.teams.length) {
@@ -76,8 +105,8 @@ export function protectPublishedHistory(candidate, published, replacements = [])
     throw new Error('Unrelated or missing team list. Start from the current published league roster, not another season or demo.');
   const allowed = new Set(replacements);
   for (const binding of published.identityBindings || []) {
-    if (!candidate.identityBindings?.some(entry => canonical(entry.source) === canonical(binding.source) &&
-        canonical(entry.player) === canonical(binding.player)))
+    if (!candidate.identityBindings?.some(entry => sameIdentity(entry, binding) &&
+        (canonical(entry.player) === canonical(binding.player) || sameSlot(candidate, published, entry, binding))))
       throw new Error(`Published confirmed identity binding for "${binding.source}" differs or is missing. Review identity corrections separately; do not silently remove historic score matches.`);
   }
   for (const date of allowed) {

@@ -356,7 +356,7 @@ test('old zero-team scores map to published players on explicit update, retain s
   assert.equal($('round-name').value, 'Synthetic weekend');
   assert.match($('preview-summary').textContent, /2 matched, 1 unmatched, 1 held/);
   assert.match($('preview-summary').textContent, /published team list will be added/);
-  assert.match(contents($('preview-table')), /Paddy Daly/);
+  assert.match(contents($('preview-table')), /Patrick Daly/);
   assert.match(contents($('preview-table')), /Team 10, Team 37/);
   assert.equal(values.get(STORAGE_KEY), source);
   $('net-confirm').checked = true; await $('net-confirm').emit('change');
@@ -371,7 +371,7 @@ test('old zero-team scores map to published players on explicit update, retain s
   assert.equal(league(saved).rows.find(row => row.team.name === 'Team 37').retained, 0);
   assert.equal($('results-empty').hidden, true);
   assert.equal($('league-table').hidden, false);
-  assert.match(contents($('league-table')), /Paddy Daly\nTimothy Cummins\nDavid Sparling/);
+  assert.match(contents($('league-table')), /Patrick Daly\nTimothy Cummins\nDavid Sparling/);
   assert.match(contents($('league-table')), /53/);
   assert.doesNotMatch(contents($('league-table')), /\n(?:Raw|Retained|Discarded total|Status)\n/);
   assert.equal($('matching-review').hidden, false);

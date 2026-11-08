@@ -1,22 +1,22 @@
 {
   "version": 1,
   "identityBindings": [
-    { "source": "Michael Farrell", "player": "Mike Farrell" },
-    { "source": "Joshua McCall", "player": "Josh McCall" },
-    { "source": "Joseph Neiland Jnr", "player": "Joe Neiland Jnr" },
-    { "source": "Kieran Ryan", "player": "Keiran Ryan" },
-    { "source": "Thomas Kelly", "player": "Tommy Kelly" },
-    { "source": "Michael Anthony O'Neill", "player": "Michael A. O'Neill" },
-    { "source": "Mark McElhinney", "player": "Mark McElhinny" },
-    { "source": "Patrick Daly", "player": "Paddy Daly" },
-    { "source": "Calum Rawl", "player": "Callum Rawl" },
-    { "source": "Nicholas Byrne", "player": "Nick Byrne" },
-    { "source": "Paul F Deignan", "player": "Paul Deignan" },
-    { "source": "Amory Schwartz", "player": "Amory Swartz" },
-    { "source": "Robert Kiersey", "player": "Rob Kiersey" },
-    { "source": "Sean Alger", "player": "Sean Algar" },
-    { "source": "Jonathon Tymlin", "player": "Jonathan Tymlin" },
-    { "source": "Kevin Forsyth", "player": "Ken Forsyth" }
+    { "source": "Mike Farrell", "player": "Michael Farrell" },
+    { "source": "Josh McCall", "player": "Joshua McCall" },
+    { "source": "Joe Neiland Jnr", "player": "Joseph Neiland Jnr" },
+    { "source": "Keiran Ryan", "player": "Kieran Ryan" },
+    { "source": "Tommy Kelly", "player": "Thomas Kelly" },
+    { "source": "Michael A. O'Neill", "player": "Michael Anthony O'Neill" },
+    { "source": "Mark McElhinny", "player": "Mark McElhinney" },
+    { "source": "Paddy Daly", "player": "Patrick Daly" },
+    { "source": "Callum Rawl", "player": "Calum Rawl" },
+    { "source": "Nick Byrne", "player": "Nicholas Byrne" },
+    { "source": "Paul Deignan", "player": "Paul F Deignan" },
+    { "source": "Amory Swartz", "player": "Amory Schwartz" },
+    { "source": "Rob Kiersey", "player": "Robert Kiersey" },
+    { "source": "Sean Algar", "player": "Sean Alger" },
+    { "source": "Jonathan Tymlin", "player": "Jonathon Tymlin" },
+    { "source": "Ken Forsyth", "player": "Kevin Forsyth" }
   ],
   "settings": {
     "maxRounds": 10,
@@ -28,7 +28,7 @@
     {
       "name": "Team 1",
       "players": [
-        "Rob Kiersey",
+        "Robert Kiersey",
         "Luke Sheridan",
         "David Roche"
       ]
@@ -38,7 +38,7 @@
       "players": [
         "Austin Jennings",
         "Noel Fahy",
-        "Sean Algar"
+        "Sean Alger"
       ]
     },
     {
@@ -62,7 +62,7 @@
       "players": [
         "Billy Nelson",
         "Con Timon",
-        "Mike Farrell"
+        "Michael Farrell"
       ]
     },
     {
@@ -113,7 +113,7 @@
       "players": [
         "Colm Lynch",
         "Gareth Delahunt",
-        "Mark McElhinny"
+        "Mark McElhinney"
       ]
     },
     {
@@ -145,14 +145,14 @@
       "players": [
         "Dominic O'Malley",
         "Gerard O'Malley",
-        "Ken Forsyth"
+        "Kevin Forsyth"
       ]
     },
     {
       "name": "Team 16",
       "players": [
         "Don Doyle",
-        "Tommy Kelly",
+        "Thomas Kelly",
         "Samuel Downey"
       ]
     },
@@ -168,7 +168,7 @@
       "name": "Team 18",
       "players": [
         "Edward Kelly",
-        "Nick Byrne",
+        "Nicholas Byrne",
         "Brian O'Connor"
       ]
     },
@@ -191,7 +191,7 @@
     {
       "name": "Team 21",
       "players": [
-        "Amory Swartz",
+        "Amory Schwartz",
         "Trevor Townsend",
         "Declan Moriarty"
       ]
@@ -216,7 +216,7 @@
       "name": "Team 24",
       "players": [
         "James Phelan",
-        "Callum Rawl",
+        "Calum Rawl",
         "John Rawl"
       ]
     },
@@ -240,14 +240,14 @@
       "name": "Team 27",
       "players": [
         "Joe Neiland",
-        "Joe Neiland Jnr",
+        "Joseph Neiland Jnr",
         "Michael Neiland"
       ]
     },
     {
       "name": "Team 28",
       "players": [
-        "Josh McCall",
+        "Joshua McCall",
         "Patrick Doyle",
         "Pat Sheehy"
       ]
@@ -255,7 +255,7 @@
     {
       "name": "Team 29",
       "players": [
-        "Keiran Ryan",
+        "Kieran Ryan",
         "Conor Lawlor",
         "Darragh Kavanagh"
       ]
@@ -295,7 +295,7 @@
     {
       "name": "Team 34",
       "players": [
-        "Paddy Daly",
+        "Patrick Daly",
         "Timothy Cummins",
         "David Sparling"
       ]
@@ -312,7 +312,7 @@
       "name": "Team 36",
       "players": [
         "Peter Burgess",
-        "Paul Deignan",
+        "Paul F Deignan",
         "David Brown"
       ]
     },
@@ -356,7 +356,7 @@
       "name": "Team 41",
       "players": [
         "Shane Newsome",
-        "Michael A. O'Neill",
+        "Michael Anthony O'Neill",
         "James Noctor"
       ]
     },
@@ -364,7 +364,7 @@
       "name": "Team 42",
       "players": [
         "Stephen Tymlin",
-        "Jonathan Tymlin",
+        "Jonathon Tymlin",
         "Aidan Whelan"
       ]
     },
