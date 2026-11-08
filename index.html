@@ -35,6 +35,7 @@
     <section id="league-panel" role="tabpanel" aria-labelledby="tab-league">
       <div class="table-header"><h2 id="leaderboard-heading" tabindex="-1">Team leaderboard</h2><div class="leaderboard-actions"><button id="upload-results" type="button" aria-controls="upload-panel">Upload HandicapMaster results</button><label for="pdf-format">PDF format<select id="pdf-format" aria-describedby="pdf-help"><option value="standings" selected>Member standings (default)</option><option value="latest">Latest weekend results</option><option value="detail">Full detail</option></select></label><button id="export-leaderboard-pdf" type="button" aria-describedby="pdf-help" disabled>Export member standings PDF</button></div></div>
       <p id="pdf-help">Loading the team list for PDF export...</p>
+      <p><button id="member-update" type="button" disabled>Download member update draft</button> Includes the latest imported Singles, Team standings and newsletter draft. Review before sending; this does not publish or send.</p>
       <div id="results-empty" class="empty-state" hidden><h3 id="empty-heading">No results uploaded yet</h3><p id="empty-help">Upload a HandicapMaster net results CSV to match players to the team list and calculate the leaderboard.</p><button id="empty-upload" type="button">Upload HandicapMaster results</button></div>
       <p id="league-summary"></p><p id="tie-warning" class="warning" hidden></p>
       <p id="review-notice" class="note" hidden><span id="review-count"></span> <a href="#results-review">Review details below</a></p>

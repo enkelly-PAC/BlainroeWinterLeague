@@ -3,6 +3,7 @@ import { readDraft, saveDraft, readBaseline, STORAGE_KEY, BASELINE_KEY } from '.
 import { synchroniseDraft, protectPublishedHistory } from './publication.js';
 import { createLeaderboardPDF } from './leaderboard-pdf.js';
 import { weekendCards } from './leaderboard-layout.js';
+import { memberUpdate } from './member-update.js';
 
 const $ = id => document.getElementById(id);
 // Keep the shared import form on the leaderboard, including its advanced import types.
@@ -244,6 +245,7 @@ function render() {
   const uploaded = result.rounds.some(round => round.cards.length);
   const hasResults = result.rounds.some(round => round.cards.some(card => activePlayers.has(canonical(card.player))));
   $('export-leaderboard-pdf').disabled = pdfBusy || !state.teams.length || (mode === 'published' && !publishedReady);
+  $('member-update').disabled = !state.teams.length || (mode === 'published' && !publishedReady);
   $('pdf-format').disabled = pdfBusy;
   const pdfFormat = $('pdf-format').value;
   const pdfLabel = pdfFormat === 'latest' ? 'latest weekend results' : pdfFormat === 'detail' ? 'full detail' : 'member standings';
@@ -717,6 +719,12 @@ $('publication').addEventListener('click', safely(async () => {
 $('report').addEventListener('click', safely(() => {
   if (mode === 'published' && !publishedReady) throw new Error('Cannot export a published report until validated published data has loaded.');
   download('blainroe-winter-league-report.html', reportHTML(current(), mode === 'draft' ? 'Browser-only draft, NOT official results' : 'Owner-published data'), 'text/html;charset=utf-8');
+}));
+$('member-update').addEventListener('click', safely(() => {
+  if (mode === 'published' && !publishedReady) throw new Error('Cannot prepare a member update until validated published data has loaded.');
+  const update = memberUpdate(current(), { mode, saved: draftSaved });
+  download(update.filename, update.html, 'text/html;charset=utf-8');
+  message('Downloaded a DRAFT member newsletter with latest imported Singles and Team tables. Review before sending. Nothing was published or sent.');
 }));
 $('team-template').addEventListener('click', () => csvDownload('team-template.csv', ['Team Name', 'Player1', 'Player2', 'Player3'], []));
 $('score-template').addEventListener('click', () => csvDownload('net-stableford-template.csv', ['Player', 'Score', 'Handicap'],

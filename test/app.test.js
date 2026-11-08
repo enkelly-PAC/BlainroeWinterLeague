@@ -92,9 +92,9 @@ test('standings precede collapsed review details, with honest live counts and sh
     assert.equal($(id).open, false);
   }
   assert.equal($('review-notice').hidden, false);
-  assert.match($('review-count').textContent, /^67 cards not counted for teams; \d+ team entries need review\.$/);
+  assert.match($('review-count').textContent, /^64 cards not counted for teams; \d+ team entries need review\.$/);
   const view = renderedTable($);
-  assert.equal(view.rows.length, 45);
+  assert.equal(view.rows.length, 46);
   const firstRound = view.head.children[0].children[6];
   assert.equal(firstRound.textContent, 'Round 1\n31 Oct');
   assert.match(firstRound.title, /2026-10-31.*Mens Winter League singles/);
@@ -331,7 +331,7 @@ test('default team leaderboard has an honest empty state and primary upload with
   assert.equal($('empty-heading').textContent, 'No results uploaded yet');
   assert.equal($('league-table').hidden, true);
   assert.equal($('tie-warning').hidden, true);
-  assert.match($('team-review-summary').textContent, /3 team entries need review/);
+  assert.match($('team-review-summary').textContent, /2 team entries need review/);
   assert.match(contents($('awaiting-table')), /Team 34/);
   assert.doesNotMatch(contents($('league-table')), /Team 34/);
   assert.equal($('upload-panel').children.includes($('results-upload')), true);
@@ -371,7 +371,7 @@ test('old zero-team scores map to published players on explicit update, retain s
   assert.equal(league(saved).rows.find(row => row.team.name === 'Team 37').retained, 0);
   assert.equal($('results-empty').hidden, true);
   assert.equal($('league-table').hidden, false);
-  assert.match(contents($('league-table')), /Paddy Daly\nTimothy Cummins\nVacant/);
+  assert.match(contents($('league-table')), /Paddy Daly\nTimothy Cummins\nDavid Sparling/);
   assert.match(contents($('league-table')), /53/);
   assert.doesNotMatch(contents($('league-table')), /\n(?:Raw|Retained|Discarded total|Status)\n/);
   assert.equal($('matching-review').hidden, false);
@@ -480,7 +480,8 @@ test('explicit team-list replacement requires confirmation and keeps existing sc
   $('roster-select').value = 'Team 34';
   await $('roster-select').emit('change');
   assert.equal($('roster-name').readOnly, true);
-  assert.equal($('roster-player3').value, '');
+  assert.equal($('roster-player3').value, 'David Sparling');
+  $('roster-player3').value = '';
   await $('roster-form').emit('submit');
   assert.equal(JSON.parse(values.get(STORAGE_KEY)).teams.find(t => t.name === 'Team 34').players.length, 2);
   await $('published-view').emit('click');
@@ -707,11 +708,22 @@ test('public landing loads real accumulated results, never resumes an older loca
   const { $, contents, values } = await workspace(t, JSON.stringify(old), published);
   assert.equal($('view-label').textContent, 'PUBLISHED: club results');
   assert.equal($('league-table').hidden, false);
-  assert.match($('league-summary').textContent, /45 teams. 1 qualifying weekend/);
+  assert.match($('league-summary').textContent, /46 teams. 1 qualifying weekend/);
   assert.match(contents($('league-table')), /Team 15/);
   assert.match(contents($('league-table')), /49/);
   assert.doesNotMatch(contents($('league-table')), /Local only/);
   assert.equal(values.get(STORAGE_KEY), JSON.stringify(old));
+});
+test('member draft export snapshots the published view without resuming or saving a local draft', async t => {
+  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const old = await rosterFixture();
+  const source = JSON.stringify(old);
+  const { $, values, downloads } = await workspace(t, source, published);
+  assert.equal($('member-update').disabled, false);
+  await $('member-update').emit('click');
+  assert.equal(downloads.at(-1).download, 'blainroe-member-update-draft-2026-10-31.html');
+  assert.equal(values.get(STORAGE_KEY), source);
+  assert.match($('status').textContent, /Nothing was published or sent/);
 });
 test('browser applies weekly results on top of current online history and preserves current-league draft edits', async t => {
   const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));

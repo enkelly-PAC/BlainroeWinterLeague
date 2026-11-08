@@ -7,7 +7,7 @@ import { readDraft, saveDraft, STORAGE_KEY } from '../storage.js';
 import { leaderboardPDFModel, leaderboardPDFDocument } from '../leaderboard-pdf.js';
 import { weekendCards } from '../leaderboard-layout.js';
 
-test('PDF awaiting-results list keeps all 45 real teams and never asserts zero-score standings', async () => {
+test('PDF awaiting-results list keeps all real teams and never asserts zero-score standings', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   state.rounds = [];
   const model = leaderboardPDFModel(state);
@@ -15,7 +15,7 @@ test('PDF awaiting-results list keeps all 45 real teams and never asserts zero-s
   assert.equal(model.through, null);
   const definition = leaderboardPDFDocument(state);
   const summary = definition.content.find(node => node.table).table;
-  assert.equal(summary.body.length, 46);
+  assert.equal(summary.body.length, state.teams.length + 1);
   assert.deepEqual(summary.body[0].map(node => node.text), ['Team', 'Player 1', 'Player 2', 'Player 3']);
   assert.match(JSON.stringify(summary), /Brian O.Reilly/);
   state.rounds = [{ date: '2026-11-07', name: 'Unmatched only', qualifying: true, canceled: false,
@@ -289,19 +289,21 @@ function finalCard(team, index, total = 40, back9 = 20) {
   return { team: team.name, player: team.players[index], total, back9, back6: Math.min(12, back9), back3: Math.min(6, back9), back1: Math.min(2, back9) };
 }
 
-test('workbook roster preserves numbered teams, vacancy and unresolved entries alongside real results', async () => {
+test('replacement PDF roster preserves numbered teams and unresolved entries alongside Weekend 1 results', async () => {
   const state = parseJSON(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
-  assert.equal(state.teams.length, 45);
-  assert.equal(state.teams.flatMap(t => t.players).length, 134);
-  assert.equal(new Set(state.teams.flatMap(t => t.players.map(canonical))).size, 133);
-  assert.deepEqual(state.teams.map(t => Number(t.name.slice(5))).sort((a, b) => a - b), Array.from({ length: 45 }, (_, i) => i + 2));
-  assert.deepEqual(state.teams.find(t => t.name === 'Team 34').players, ['Paddy Daly', 'Timothy Cummins']);
+  assert.equal(state.teams.length, 46);
+  assert.equal(state.teams.flatMap(t => t.players).length, 138);
+  assert.equal(new Set(state.teams.flatMap(t => t.players.map(canonical))).size, 137);
+  assert.deepEqual(state.teams.map(t => Number(t.name.slice(5))), Array.from({ length: 46 }, (_, i) => i + 1));
+  assert.deepEqual(state.teams.find(t => t.name === 'Team 1').players, ['Rob Kiersey', 'Luke Sheridan', 'David Roche']);
+  assert.deepEqual(state.teams.find(t => t.name === 'Team 21').players, ['Amory Swartz', 'Trevor Townsend', 'Declan Moriarty']);
+  assert.deepEqual(state.teams.find(t => t.name === 'Team 34').players, ['Paddy Daly', 'Timothy Cummins', 'David Sparling']);
   assert.match(rosterStatus(state.teams.find(t => t.name === 'Team 37')), /Eugene McCrystal \(away member at Bundoran\): eligibility pending confirmation by Niall/);
   assert.equal(state.rounds.length, 1);
   assert.equal(state.rounds[0].date, '2026-10-31');
   assert.equal(state.final, null);
   assert.equal(state.settings.complete, false);
-  assert.match(reportHTML(state, 'Local review'), /Player 3 vacant/);
+  assert.doesNotMatch(reportHTML(state, 'Local review'), /Player 3 vacant/);
   assert.match(reportHTML(state, 'Local review'), /Score matching held: Colin Owens/);
 });
 test('canonical names match surname-first, punctuation, accents and case', () => {

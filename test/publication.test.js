@@ -169,11 +169,32 @@ test('real first weekend has preserved net points, known matches and team best-t
   assert.equal(round.cards.length, 165);
   assert.deepEqual(round.cards.find(card => canonical(card.player) === canonical('Michael Neiland')), { player: 'Neiland, Michael', score: 29, handicap: 7 });
   const assigned = assignments(state.teams);
-  assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 66);
+  assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 63);
   assert.equal(round.cards.filter(card => assigned.get(canonical(card.player))?.startsWith('Unassigned')).length, 1);
-  assert.equal(round.cards.filter(card => assigned.has(canonical(card.player)) && !assigned.get(canonical(card.player)).startsWith('Unassigned')).length, 98);
+  assert.equal(round.cards.filter(card => assigned.has(canonical(card.player)) && !assigned.get(canonical(card.player)).startsWith('Unassigned')).length, 101);
   const leaders = league(state).rows.filter(row => row.rank === 1);
   assert.deepEqual(leaders.map(row => [row.team.name, row.retained]), [['Team 15', 49], ['Team 27', 49]]);
   assert.equal(state.settings.complete, false);
   assert.equal(state.final, null);
+});
+test('replacement roster applies existing late-registration rules without changing historic cards', async () => {
+  const current = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const previous = structuredClone(current);
+  previous.teams = previous.teams.filter(team => team.name !== 'Team 1');
+  previous.teams.find(team => team.name === 'Team 21').players[2] = 'David Starling';
+  previous.teams.find(team => team.name === 'Team 34').players.pop();
+  protectPublishedHistory(current, previous);
+  const points = state => Object.fromEntries(league(state).rows.map(row => [row.team.name, row.retained]));
+  const before = points(previous), after = points(current);
+  assert.equal(after['Team 1'], 22);
+  assert.equal(before['Team 21'], 0);
+  assert.equal(after['Team 21'], 24);
+  assert.equal(before['Team 34'], 23);
+  assert.equal(after['Team 34'], 38);
+  for (const team of previous.teams) {
+    if (!['Team 21', 'Team 34'].includes(team.name)) assert.equal(after[team.name], before[team.name]);
+    assert.deepEqual(current.teams.find(entry => entry.name === team.name).heldPlayers, team.heldPlayers);
+    assert.deepEqual(current.teams.find(entry => entry.name === team.name).notes, team.notes);
+  }
+  assert.deepEqual(current.rounds, previous.rounds);
 });

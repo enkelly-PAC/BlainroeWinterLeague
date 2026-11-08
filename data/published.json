@@ -8,11 +8,11 @@
   },
   "teams": [
     {
-      "name": "Team 21",
+      "name": "Team 1",
       "players": [
-        "Amory Swartz",
-        "Trevor Townsend",
-        "David Starling"
+        "Rob Kiersey",
+        "Luke Sheridan",
+        "David Roche"
       ]
     },
     {
@@ -171,6 +171,14 @@
       ]
     },
     {
+      "name": "Team 21",
+      "players": [
+        "Amory Swartz",
+        "Trevor Townsend",
+        "Declan Moriarty"
+      ]
+    },
+    {
       "name": "Team 22",
       "players": [
         "Frank Curran",
@@ -270,7 +278,8 @@
       "name": "Team 34",
       "players": [
         "Paddy Daly",
-        "Timothy Cummins"
+        "Timothy Cummins",
+        "David Sparling"
       ]
     },
     {
