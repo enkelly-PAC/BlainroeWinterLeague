@@ -99,7 +99,7 @@ function latestTable(rows, model) {
         ...(members ? [cell(teamLabel(row.team))] : [cell(row.team.name, { bold: true }),
           ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant'))]),
         ...weekendCards(row.team, round).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
-          alignment: 'center', bold: card.counting, color: card.counting ? ink : '#687568',
+          alignment: 'center', bold: card.counting, color: card.counting ? green : '#687568',
           ...(card.counting ? { fillColor: pale } : {})
         })),
         weekendTotal(row, round, model.hasResults)
@@ -144,7 +144,7 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
       ...group.flatMap(round => {
         return [
           ...weekendCards(row.team, round).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
-            alignment: 'center', bold: card.counting, color: card.counting ? ink : '#687568'
+            alignment: 'center', bold: card.counting, color: card.counting ? green : '#687568'
           })),
           weekendTotal(row, round, hasResults)
         ];
@@ -172,8 +172,9 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
     header: () => ({
       margin: [30, 16, 30, 0],
       stack: [{
+        columnGap: 28,
         columns: [
-          ...(logo ? [{ image: logo, width: 82, margin: [0, 0, 14, 0] }] : []),
+          ...(logo ? [{ image: logo, width: 82 }] : []),
           { width: '*', stack: [
             { text: 'BLAINROE GOLF CLUB', fontSize: 10, bold: true, color: green },
             { text: title, fontSize: 20, bold: true, color: green, margin: [0, 2, 0, 2] },

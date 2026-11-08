@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto';
 import { emptyState, escapeHTML, league, singles, parseCSV } from '../core.js';
 import { memberUpdate } from '../member-update.js';
 import { leaderboardPDFDocument, leaderboardPDFModel } from '../leaderboard-pdf.js';
+import { weekendCards } from '../leaderboard-layout.js';
 
 test('Weekend 1 newsletter is prose only, with complete tables as separate clean exports', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
@@ -174,4 +175,33 @@ test('member preparation CLI validates pending weekend before writing files', as
   assert.equal(result.status, 1);
   assert.match(result.stderr, /already has an imported round/);
   assert.deepEqual(await readdir(output), []);
+});
+test('PDF headers separate the logo and counting cards are bold dark green', async () => {
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const before = structuredClone(state);
+  for (const audience of ['members', 'review']) {
+    for (const format of ['latest', 'detail']) {
+      const context = { format, audience };
+      const model = leaderboardPDFModel(state, context);
+      const document = leaderboardPDFDocument(state, context, 'club-logo');
+      const header = document.header().stack[0];
+      assert.equal(header.columnGap, 28);
+      assert.equal(header.columns[0].width, 82);
+      assert.equal(header.columns[0].image, 'club-logo');
+      const grid = document.content.find(block => block.table);
+      const rounds = format === 'latest' ? [model.latest] : model.rounds;
+      const offset = audience === 'members' ? format === 'latest' ? 1 : 2 : format === 'latest' ? 4 : 5;
+      model.result.rows.forEach((row, index) => {
+        const cells = grid.table.body[index + grid.table.headerRows];
+        rounds.forEach((round, roundIndex) => {
+          weekendCards(row.team, round).forEach((card, playerIndex) => {
+            const cell = cells[offset + roundIndex * 4 + playerIndex];
+            assert.equal(cell.bold, card.counting);
+            assert.equal(cell.color, card.counting ? '#1a5e1a' : '#687568');
+          });
+        });
+      });
+    }
+  }
+  assert.deepEqual(state, before);
 });
