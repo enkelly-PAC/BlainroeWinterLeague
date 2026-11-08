@@ -29,15 +29,17 @@ function table(headers, rows, widths, headerRows = 1) {
   };
 }
 // Use the same engine and active-player rule as the visible team leaderboard.
-export function leaderboardPDFModel(state, { mode = 'published', saved = true, format = 'detail' } = {}) {
+export function leaderboardPDFModel(state, { mode = 'published', saved = true, format = 'detail', audience = 'review' } = {}) {
   validateState(state);
   if (!state.teams.length) throw new Error('Register a team before exporting the leaderboard.');
   if (!['published', 'draft'].includes(mode)) throw new Error('Unknown leaderboard source.');
   if (!Object.hasOwn(formats, format)) throw new Error('Unknown PDF format.');
+  if (!['review', 'members'].includes(audience)) throw new Error('Unknown PDF audience.');
   const result = league(state);
   const active = new Set(state.teams.flatMap(team =>
     team.players.filter(player => !isHeld(team, player)).map(canonical)));
   const hasResults = result.rounds.some(round => round.cards.some(card => active.has(canonical(card.player))));
+  if (audience === 'members' && !hasResults) throw new Error('Member PDF needs qualifying results matched to a team.');
   const through = result.rounds.filter(round => round.cards.length).at(-1)?.date || null;
   const rounds = [...state.rounds].sort((a, b) => a.date.localeCompare(b.date));
   const source = mode === 'published' ? 'PUBLISHED' : saved ? 'DRAFT: saved on this device, not published' : 'DRAFT: not saved, not published';
@@ -46,8 +48,10 @@ export function leaderboardPDFModel(state, { mode = 'published', saved = true, f
     count + round.cards.filter(card => !active.has(canonical(card.player))).length, 0);
   const sourceName = mode === 'draft' ? 'draft' : 'published';
   const latest = rounds.at(-1) || null;
+  if (audience === 'members' && format === 'latest' && (!latest?.cards.length || latest.canceled || !latest.qualifying))
+    throw new Error('Latest weekend has no active results for a member PDF.');
   const filename = `blainroe-winter-league-2026-2027-${sourceName}-${format === 'detail' ? '' : `${format}-`}${format === 'latest' ? latest?.date || 'awaiting-results' : hasResults ? through : 'awaiting-results'}.pdf`;
-  return { result, rounds, hasResults, through, status, unmatched, filename, format, latest };
+  return { result, rounds, hasResults, through, status, unmatched, filename, format, latest, audience };
 }
 
 function weekendTotal(row, round, hasResults) {
@@ -92,7 +96,7 @@ function latestTable(rows, model) {
       rows.map(row => [
         cell(row.team.name, { bold: true }),
         ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
-        ...weekendCards(row.team, round).map(card => cell(card.text, {
+        ...weekendCards(row.team, round).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
           alignment: 'center', bold: card.counting, color: card.counting ? ink : '#687568',
           ...(card.counting ? { fillColor: pale } : {})
         })),
@@ -136,7 +140,7 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
       ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
       ...group.flatMap(round => {
         return [
-          ...weekendCards(row.team, round).map(card => cell(card.text, {
+          ...weekendCards(row.team, round).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
             alignment: 'center', bold: card.counting, color: card.counting ? ink : '#687568'
           })),
           weekendTotal(row, round, hasResults)
@@ -159,7 +163,7 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
   }
   return {
     info: { title: `Blainroe ${title}: ${formats[format]}: ${hasResults ? 'Team leaderboard' : 'Awaiting results'}`,
-      author: 'Blainroe Golf Club', subject: `${status}. ${throughLabel}. Sponsored by Spirit Ford Wicklow.` },
+      author: 'Blainroe Golf Club', subject: `${model.audience === 'members' ? throughLabel : `${status}. ${throughLabel}`}. Sponsored by Spirit Ford Wicklow.` },
     pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [30, 80, 30, 39],
     defaultStyle: { font: 'Roboto', fontSize: 9, color: ink, lineHeight: 1.12 },
     header: () => ({
@@ -177,8 +181,8 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
     }),
     footer: (page, pages) => ({
       columns: [
-        { text: `Blainroe Golf Club | Generated ${generated} (Ireland)`, width: '*', fontSize: 7.5 },
-        { text: `${context.mode === 'draft' ? 'DRAFT' : 'PUBLISHED'} | ${!state.settings.complete ? 'Provisional | ' : ''}Page ${page} of ${pages}`, width: 'auto', fontSize: 8, bold: true, color: green }
+        { text: model.audience === 'members' ? 'Blainroe Golf Club | Spirit Ford Wicklow' : `Blainroe Golf Club | Generated ${generated} (Ireland)`, width: '*', fontSize: 7.5 },
+        { text: `${model.audience === 'members' ? '' : `${context.mode === 'draft' ? 'DRAFT' : 'PUBLISHED'} | ${!state.settings.complete ? 'Provisional | ' : ''}`}Page ${page} of ${pages}`, width: 'auto', fontSize: 8, bold: true, color: green }
       ], margin: [30, 12, 30, 0]
     }),
     content

@@ -245,7 +245,8 @@ function render() {
   const uploaded = result.rounds.some(round => round.cards.length);
   const hasResults = result.rounds.some(round => round.cards.some(card => activePlayers.has(canonical(card.player))));
   $('export-leaderboard-pdf').disabled = pdfBusy || !state.teams.length || (mode === 'published' && !publishedReady);
-  $('member-update').disabled = !state.teams.length || (mode === 'published' && !publishedReady);
+  for (const id of ['member-update', 'member-team-csv', 'member-singles-csv'])
+    $(id).disabled = !state.teams.length || (mode === 'published' && !publishedReady);
   $('pdf-format').disabled = pdfBusy;
   const pdfFormat = $('pdf-format').value;
   const pdfLabel = pdfFormat === 'latest' ? 'latest weekend results' : pdfFormat === 'detail' ? 'full detail' : 'member standings';
@@ -724,7 +725,16 @@ $('member-update').addEventListener('click', safely(() => {
   if (mode === 'published' && !publishedReady) throw new Error('Cannot prepare a member update until validated published data has loaded.');
   const update = memberUpdate(current(), { mode, saved: draftSaved });
   download(update.filename, update.html, 'text/html;charset=utf-8');
-  message('Downloaded a DRAFT member newsletter with latest imported Singles and Team tables. Review before sending. Nothing was published or sent.');
+  message('Downloaded newsletter prose only. Download Singles and Team tables separately. Review before sending. Nothing was published or sent.');
+}));
+for (const [id, type, key] of [
+  ['member-team-csv', 'team-standings', 'teamCSV'],
+  ['member-singles-csv', 'singles', 'singlesCSV']
+]) $(id).addEventListener('click', safely(() => {
+  if (mode === 'published' && !publishedReady) throw new Error('Cannot prepare member tables until validated published data has loaded.');
+  const update = memberUpdate(current(), { mode, saved: draftSaved });
+  download(`blainroe-${type}-${update.through}.csv`, update[key], 'text/csv;charset=utf-8');
+  message('Downloaded a separate member table. Review before sharing. Nothing was published or sent.');
 }));
 $('team-template').addEventListener('click', () => csvDownload('team-template.csv', ['Team Name', 'Player1', 'Player2', 'Player3'], []));
 $('score-template').addEventListener('click', () => csvDownload('net-stableford-template.csv', ['Player', 'Score', 'Handicap'],

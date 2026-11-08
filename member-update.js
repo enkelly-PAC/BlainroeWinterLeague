@@ -1,4 +1,4 @@
-import { canonical, csvCell, escapeHTML, isHeld, league, rosterStatus, singles, validateState, weekendDate } from './core.js';
+import { canonical, csvCell, escapeHTML, isHeld, league, singles, validateState, weekendDate } from './core.js';
 import { weekendCards } from './leaderboard-layout.js';
 
 const dateLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', {
@@ -7,7 +7,11 @@ const dateLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-G
 const clean = value => String(value).replace(/[\u2013\u2014]/gu, ':');
 const html = value => escapeHTML(clean(value));
 const csv = rows => rows.map(row => row.map(value => csvCell(clean(value))).join(',')).join('\r\n') + '\r\n';
-const table = (caption, headers, rows) => `<table><caption>${html(caption)}</caption><thead><tr>${headers.map(value => `<th scope="col">${html(value)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(value => `<td>${html(value)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+const playerName = value => {
+  const [surname, ...given] = String(value).split(',');
+  return given.length ? `${given.join(' ').trim()} ${surname.trim()}` : String(value);
+};
+const names = rows => rows.map(row => playerName(row.player)).join(', ').replace(/, ([^,]+)$/, ' and $1');
 
 export function memberUpdate(state, { mode = 'published', saved = true, pendingDate = null } = {}) {
   validateState(state);
@@ -23,45 +27,48 @@ export function memberUpdate(state, { mode = 'published', saved = true, pendingD
   const individual = singles(state, latest?.date);
   const active = new Set(state.teams.flatMap(team => team.players.filter(player => !isHeld(team, player)).map(canonical)));
   const hasTeamResults = result.rounds.some(round => round.cards.some(card => active.has(canonical(card.player))));
+  if (!hasTeamResults) throw new Error('Member exports require qualifying results matched to a team.');
+  if (!latest || latest.canceled || !latest.qualifying || !individual.rows.length)
+    throw new Error('The latest weekend has no active qualifying results. Review it before preparing member exports.');
   const through = result.rounds.filter(round => round.cards.length).at(-1)?.date || null;
   const source = mode === 'published' ? 'Published data snapshot' : saved ? 'Saved local draft, not published' : 'Unsaved local draft, not published';
   const status = `DRAFT MEMBER UPDATE: committee review required. ${source}. Not sent.`;
-  const summary = !hasTeamResults ? 'Team standings await qualifying cards matched to the team list.' :
-    `${result.rows.filter(row => row.rank === 1).map(row => row.team.name).join(' and ')} ${result.firstUnresolved ? 'share the lead' : 'leads'} on ${result.rows[0].retained} team points. ${state.settings.complete ? 'Qualification complete.' : 'Provisional standings; qualification is still in progress.'}`;
-  const singlesSummary = !latest || !individual.rows.length ? 'No individual cards are available for the latest imported weekend.' :
-    latest.canceled || !latest.qualifying ? `${individual.status}: historical review only, not active standings.` :
-    `${individual.rows.filter(row => row.rank === 1).map(row => row.player).join(' and ')} ${individual.rows.filter(row => row.rank === 1).length > 1 ? 'share first place' : 'leads'} with ${individual.rows[0].score} points. Equal points share rank; official countback is not available.`;
-  const teamHeaders = ['Season rank', 'Team', 'Player 1', 'Player 2', 'Player 3', 'Season points',
-    ...result.rounds.map(round => `${round.date} team points`), 'Roster review'];
-  const teamRows = result.rows.map(row => [hasTeamResults ? row.rank : 'Awaiting results', row.team.name,
+  const leaders = result.rows.filter(row => row.rank === 1);
+  const chasingScore = result.rows.find(row => row.retained < leaders[0].retained)?.retained;
+  const chasing = result.rows.filter(row => row.retained === chasingScore);
+  const summary = `${leaders.map(row => row.team.name).join(' and ')} ${leaders.length > 1 ? 'share the lead' : 'leads'} on ${leaders[0].retained} points.`;
+  const chasingSummary = chasing.length ? `${chasing.map(row => row.team.name).join(', ').replace(/, ([^,]+)$/, ' and $1')} ${chasing.length > 1 ? 'are' : 'is'} ${leaders[0].retained - chasingScore} ${leaders[0].retained - chasingScore === 1 ? 'point' : 'points'} behind on ${chasingScore}.` : '';
+  const singleLeaders = individual.rows.filter(row => row.rank === 1);
+  const nextScore = individual.rows.find(row => row.score < singleLeaders[0].score)?.score;
+  const nextSingles = individual.rows.filter(row => row.score === nextScore);
+  const singlesSummary = `${names(singleLeaders)} ${singleLeaders.length > 1 ? 'set' : 'sets'} the pace in Singles with ${singleLeaders[0].score} points.${nextSingles.length ? ` ${names(nextSingles)} ${nextSingles.length > 1 ? 'follow' : 'follows'} on ${nextScore}.` : ''}`;
+  const performances = leaders.map(row => {
+    const counting = weekendCards(row.team, latest)
+      .map((card, index) => ({ ...card, player: row.team.players[index] }))
+      .filter(card => card.counting).sort((a, b) => b.score - a.score);
+    const score = row.scores.find(entry => entry.date === latest.date).total;
+    return counting.length ? `${row.team.name}: ${counting.map(card => `${playerName(card.player)} (${card.score})`).join(' and ')} combined for ${score} points this weekend.` : '';
+  }).filter(Boolean);
+  const teamHeaders = ['Rank', 'Team', 'Player 1', 'Player 2', 'Player 3', 'Season points',
+    ...result.rounds.map(round => `${round.date} points`)];
+  const teamRows = result.rows.map(row => [row.rank, row.team.name,
     ...[0, 1, 2].map(index => row.team.players[index] || 'Vacant'),
-    hasTeamResults ? row.retained : 'Awaiting results',
-    ...row.scores.map(score => hasTeamResults ? `${score.total}${score.discarded ? ' D' : ''}` : 'Awaiting results'), rosterStatus(row.team)]);
-  const singleHeaders = ['Weekend', 'Status', 'Rank', 'Player', 'Net points', 'Team assignment'];
-  const singleRows = individual.rows.map(row => [latest.date, individual.status, row.rank, row.player, row.score, row.team]);
-  const latestHeaders = ['Team', 'Player 1', 'Player 2', 'Player 3', 'P1', 'P2', 'P3', 'Team points'];
-  const latestRows = latest ? result.rows.map(row => [row.team.name, ...[0, 1, 2].map(index => row.team.players[index] || 'Vacant'),
-    ...weekendCards(row.team, latest).map(card => `${card.text}${card.counting ? ' (counting)' : ''}`),
-    latest.canceled ? 'C' : !latest.qualifying ? 'X' : hasTeamResults ?
-      `${row.scores.find(score => score.date === latest.date).total}${row.scores.find(score => score.date === latest.date).discarded ? ' D' : ''}` : 'Awaiting match']) : [];
-  const unmatched = individual.rows.filter(row => row.team === 'Unassigned').length;
-  const held = individual.rows.filter(row => row.team.startsWith('Unassigned (')).length;
-  const pending = pendingDate ? `Weekend of ${dateLabel(pendingDate)}: results pending. No cards or totals have been added for this weekend.` : 'Only imported weekends are included. No later results are implied.';
-  const qualifier = through ? `Team qualifying results through weekend of ${dateLabel(through)}.` : 'No qualifying team results imported.';
-  const latestLabel = latest ? `Latest imported weekend: ${dateLabel(latest.date)} (${individual.status}).` : 'No imported weekend.';
-  const warnings = state.teams.filter(team => team.notes || team.heldPlayers?.length || team.players.length < 3);
-  const body = `<h1>Blainroe Golf Club</h1><h2>Men's Winter League 2026/2027</h2><p>Sponsored by Spirit Ford Wicklow</p><p class="draft">${html(status)}</p><p>${html(qualifier)} ${html(latestLabel)}</p><p>${html(pending)}</p>
-<section><h2>Member newsletter draft</h2><p>Dear members,</p><p>Here is the latest Winter League update using the imported results and current team list.</p><p>${html(summary)}</p><p>${html(singlesSummary)}</p><p>${html(pending)}</p><p>Team weekend totals use the best two reported 12-hole net Stableford cards. Missing or held cards are not submitted zeroes. Season totals use the existing qualification and discard rules.</p><p>Thank you to Spirit Ford Wicklow for supporting the league.</p></section>
-<p>${individual.rows.length} latest-weekend individual cards: ${individual.rows.length - unmatched - held} team-matched, ${unmatched} unmatched and ${held} held. Unmatched and held cards remain in Singles; held cards count for neither team.</p>
-<h2>Team standings</h2>${table('Cumulative qualifying team scores', teamHeaders, teamRows)}
-<h2>Latest imported weekend: team cards</h2><p>${html(latestLabel)} NA: no card or vacant. H: held. C: cancelled. X: excluded. D: discarded from season points. Counting cards are identified explicitly; team order is season rank, not a separate weekend rank.</p>${table('Latest imported team cards', latestHeaders, latestRows)}
-<h2>Singles</h2><p>${html(latestLabel)} One imported weekend only, not a cumulative singles championship. Equal points share competition rank; alphabetical display is not official countback.</p>${table('All latest-weekend individual cards', singleHeaders, singleRows)}
-<h2>Committee review before sending</h2><ul>${warnings.map(team => `<li>${html(team.name)}: ${html(rosterStatus(team))}</li>`).join('')}</ul><p>Review names, consent, result completeness and unresolved membership before sending. This download does not publish results or send communications.</p>`;
+    row.retained, ...row.scores.map(score => `${score.total}${score.discarded ? ' D' : ''}`)]);
+  const singleHeaders = ['Rank', 'Player', `${latest.date} net points`, 'Team'];
+  const singleRows = individual.rows.map(row => [row.rank, playerName(row.player), row.score,
+    row.team.startsWith('Unassigned') ? '' : row.team]);
+  const sunday = new Date(`${latest.date}T12:00:00Z`);
+  sunday.setUTCDate(sunday.getUTCDate() + 1);
+  const weekend = `${dateLabel(latest.date)} and ${dateLabel(sunday.toISOString().slice(0, 10))}`;
+  const body = `<h1>Blainroe Golf Club</h1><h2>Men's Winter League 2026/2027</h2><p>Sponsored by Spirit Ford Wicklow</p><h3>Weekend ${result.rounds.length}: ${html(weekend)}</h3>
+<p>Dear members,</p><p>${result.rounds.length === 1 ? 'The Winter League is under way, with a tightly packed opening leaderboard.' : 'Here are the latest Winter League results.'}</p>
+<p>${html(summary)} ${html(chasingSummary)}</p>${performances.map(performance => `<p>${html(performance)}</p>`).join('')}
+<p>${html(singlesSummary)}</p><p>The Singles results and Team standings are attached.</p><p>Thank you to Spirit Ford Wicklow for supporting the league.</p>`;
   return {
     filename: `blainroe-member-update-draft-${latest?.date || 'awaiting-results'}.html`,
-    html: `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Blainroe Winter League: draft member update</title><style>body{font:16px Arial,sans-serif;color:#173517;margin:2rem}h1,h2,caption{color:#1a5e1a}.draft{border:2px solid #805500;padding:1rem}table{border-collapse:collapse;width:100%;font-size:12px;margin:1rem 0 2rem}caption{text-align:left;font-weight:bold;margin-bottom:.5rem}th,td{border:1px solid #ccc;padding:6px;text-align:left}th{background:#edf5ed}tr:nth-child(even){background:#f5f8f5}@media print{@page{size:A4 landscape;margin:12mm}body{margin:0}thead{display:table-header-group}tr{break-inside:avoid}h2{break-after:avoid}}</style></head><body>${body}</body></html>`,
-    teamCSV: csv([['DRAFT: not sent', qualifier, pending], teamHeaders, ...teamRows]),
-    singlesCSV: csv([['DRAFT: not sent', latestLabel, pending], singleHeaders, ...singleRows]),
-    result, individual, through, pendingDate
+    html: `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Blainroe Winter League: Weekend ${result.rounds.length}</title><style>body{font:16px Arial,sans-serif;color:#173517;max-width:760px;margin:2rem auto;padding:0 1rem;line-height:1.6}h1,h2,h3{color:#1a5e1a}</style></head><body>${body}</body></html>`,
+    teamCSV: csv([teamHeaders, ...teamRows]),
+    singlesCSV: csv([singleHeaders, ...singleRows]),
+    result, individual, through, pendingDate, status
   };
 }

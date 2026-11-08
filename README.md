@@ -82,7 +82,7 @@ The Singles tab ranks all submitted individual cards for one imported weekend, i
 
 ## Member update preparation
 
-**Download member update draft** on the leaderboard creates one printable HTML file with a short newsletter draft, all cumulative Team standings, latest imported team cards and all latest imported Singles cards. It snapshots the visible published view or resumed local draft, never a pending import or hidden saved draft. The communication is always labelled **DRAFT**, even when its source is published. Cancelled, excluded or empty latest imports are explicit, never hidden behind an older Singles weekend. No results means no invented winners or team ranks. The existing league/final HTML report and all three Team PDF exports remain unchanged.
+**Download newsletter copy** creates results-focused prose with no embedded tables or process commentary. **Download Team table CSV** and **Download Singles table CSV** create separate member attachments. They snapshot the visible published view or resumed local draft, never a pending import or hidden saved draft. Internal review messages and source safeguards remain in the app, not the member copy. Missing, cancelled, excluded or empty latest results prevent preparation rather than silently falling back to older Singles. The existing league/final HTML report and default Team PDF formats remain unchanged. The PDF document API also accepts `audience: 'members'` for clean member exports without source/disclaimer footers; default `audience: 'review'` retains existing source labels and held-card review information.
 
 For the current Weekend 1 review bundle:
 
@@ -90,7 +90,9 @@ For the current Weekend 1 review bundle:
 npm run prepare:members -- --out "C:\explicit\review-folder" --pending-weekend 2026-11-07
 ```
 
-This reads the validated local publication without changing it, then writes the draft newsletter/tables HTML and separate Team/Singles CSVs into an explicit review folder. CSVs include draft and date labels. Existing files are never overwritten; a failure can leave files already written, so inspect the folder before retrying. The optional pending weekend must be a Saturday not already imported and not earlier than imported results. It adds a communication label only, never a round or zero cards. Omit it if later-result availability has not been confirmed. Team PDFs remain available through the existing PDF chooser. Review roster recalculation, unresolved membership, names/consent and source completeness before sharing. Nothing sends, commits, pushes or deploys.
+This reads the validated local publication without changing it, then writes newsletter-only HTML, separate Team/Singles CSVs and an internal comparison-baseline JSON into an explicit review folder. CSVs have column headers and results only. The baseline preserves the corrected roster, original cards, calculated standings and source SHA-256. Keep the Weekend 1 baseline unchanged when Weekend 2 arrives, so comparisons cannot confuse roster corrections with competition. It is not a member attachment. Existing files are never overwritten; a failure can leave files already written, so inspect the folder before retrying. The optional pending weekend must be a Saturday not already imported and not earlier than imported results. It is internal metadata only, never newsletter copy, a round or zero cards.
+
+No Weekend 1 communication has been sent. Current Weekend 1 prose is preparation for one combined update after Weekend 2: Weekend 1 results, then Weekend 2 results, then genuine standings movement. There is no Weekend 2 content or invented movement in the current copy. Tables remain separate attachments. Review unresolved membership, names/consent and source completeness internally before sharing. Nothing sends, commits, pushes or deploys.
 
 ## Assumptions
 - Committee must confirm tie hierarchy, final scoring interpretation and final date.

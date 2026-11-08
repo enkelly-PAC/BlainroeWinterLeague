@@ -722,6 +722,15 @@ test('member draft export snapshots the published view without resuming or savin
   assert.equal($('member-update').disabled, false);
   await $('member-update').emit('click');
   assert.equal(downloads.at(-1).download, 'blainroe-member-update-draft-2026-10-31.html');
+  assert.match($('status').textContent, /newsletter prose only/);
+  for (const [id, filename] of [
+    ['member-team-csv', 'blainroe-team-standings-2026-10-31.csv'],
+    ['member-singles-csv', 'blainroe-singles-2026-10-31.csv']
+  ]) {
+    assert.equal($(id).disabled, false);
+    await $(id).emit('click');
+    assert.equal(downloads.at(-1).download, filename);
+  }
   assert.equal(values.get(STORAGE_KEY), source);
   assert.match($('status').textContent, /Nothing was published or sent/);
 });

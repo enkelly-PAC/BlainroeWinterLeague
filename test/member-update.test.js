@@ -5,36 +5,39 @@ import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 import { emptyState, league, singles, parseCSV } from '../core.js';
 import { memberUpdate } from '../member-update.js';
+import { leaderboardPDFDocument, leaderboardPDFModel } from '../leaderboard-pdf.js';
 
-test('Weekend 1 member draft includes every team and individual card, leaving Weekend 2 pending', async () => {
+test('Weekend 1 newsletter is prose only, with complete tables as separate clean exports', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   const before = structuredClone(state);
   const update = memberUpdate(state, { mode: 'draft', saved: false, pendingDate: '2026-11-07' });
   assert.equal(update.through, '2026-10-31');
   assert.deepEqual(update.result, league(state));
   assert.deepEqual(update.individual.rows, singles(state).rows);
-  assert.equal(parseCSV(update.teamCSV).length, 48);
-  assert.equal(parseCSV(update.singlesCSV).length, 167);
-  assert.match(update.html, /DRAFT MEMBER UPDATE/);
-  assert.match(update.html, /Unsaved local draft, not published/);
-  assert.match(update.html, /7 November 2026: results pending/);
+  assert.equal(parseCSV(update.teamCSV).length, 47);
+  assert.equal(parseCSV(update.singlesCSV).length, 166);
+  assert.match(update.status, /Unsaved local draft, not published/);
+  assert.equal(update.pendingDate, '2026-11-07');
   assert.match(update.html, /Team 15 and Team 27 share the lead on 49/);
-  assert.match(update.html, /Neiland, Michael leads with 29/);
-  assert.match(update.html, /101 team-matched, 63 unmatched and 1 held/);
-  assert.match(update.html, /eligibility pending confirmation by Niall/);
+  assert.match(update.html, /Team 11, Team 13 and Team 7 are 1 point behind on 48/);
+  assert.match(update.html, /Michael Neiland sets the pace in Singles with 29/);
+  assert.match(update.html, /Michael Geraghty Jnr, Colm Lynch and David Woods follow on 27/);
+  assert.match(update.html, /Dominic O&#39;Malley \(26\) and Gerard O&#39;Malley \(23\)/);
+  assert.match(update.html, /Michael Neiland \(29\) and Joe Neiland \(20\)/);
+  assert.doesNotMatch(update.html, /<table|Weekend 2|7 November|moved|climbed|roster|DRAFT|provisional|pending|import|committee|held|unmatched|countback|not sent|not published/i);
+  for (const content of [update.teamCSV, update.singlesCSV])
+    assert.doesNotMatch(content, /DRAFT|pending|review|assignment|Unassigned|held/i);
+  assert.equal(parseCSV(update.singlesCSV).find(row => row[1] === 'Colin Owens')[3], '');
   assert.doesNotMatch(update.html, /[\u2013\u2014]/u);
   assert.deepEqual(state, before);
 });
-test('member draft with no results has no invented ranks, winners or season totals', () => {
+test('member exports with no results fail explicitly, without inventing ranks or winners', () => {
   const state = emptyState();
   state.teams = [{ name: 'Team 1', players: ['Synthetic One', 'Synthetic Two', 'Synthetic Three'] }];
-  const update = memberUpdate(state);
-  assert.equal(update.through, null);
-  assert.match(update.html, /await qualifying cards/);
-  assert.match(update.teamCSV, /Awaiting results/);
-  assert.doesNotMatch(update.html, /leads on|share the lead|leads with/);
+  assert.throws(() => memberUpdate(state), /require qualifying results/);
 });
 test('newer cancelled, excluded and empty imports are explicit, not silently replaced by older Singles', () => {
   for (const flags of [{ canceled: true, qualifying: true }, { canceled: false, qualifying: false }, { canceled: false, qualifying: true }]) {
@@ -44,11 +47,11 @@ test('newer cancelled, excluded and empty imports are explicit, not silently rep
       { date: '2026-10-31', name: 'First', qualifying: true, canceled: false, cards: [{ player: 'Synthetic One', score: 20 }] },
       { date: '2026-11-07', name: 'Latest', ...flags, cards: [] }
     ];
-    const update = memberUpdate(state);
-    assert.equal(update.individual.round.date, '2026-11-07');
-    assert.equal(update.individual.rows.length, 0);
-    assert.equal(update.through, '2026-10-31');
-    assert.match(update.html, /No individual cards are available/);
+    assert.throws(() => memberUpdate(state), /latest weekend has no active qualifying results/);
+    if (flags.canceled || !flags.qualifying) {
+      state.rounds[1].cards = [{ player: 'Synthetic One', score: 25 }];
+      assert.throws(() => memberUpdate(state), /latest weekend has no active qualifying results/);
+    }
   }
 });
 test('member draft validates pending status and escapes user-controlled names', () => {
@@ -56,7 +59,7 @@ test('member draft validates pending status and escapes user-controlled names', 
   state.teams = [{ name: '<script>Team</script>', players: ['<b>One</b>', 'Two', 'Three'] }];
   state.rounds = [{ date: '2026-10-31', name: 'First', qualifying: true, canceled: false, cards: [{ player: '<b>One</b>', score: 0 }] }];
   const update = memberUpdate(state, { mode: 'draft', saved: true });
-  assert.match(update.html, /Saved local draft, not published/);
+  assert.match(update.status, /Saved local draft, not published/);
   assert.match(update.html, /&lt;script&gt;/);
   assert.doesNotMatch(update.html, /<script>|<b>One/);
   assert.throws(() => memberUpdate(state, { mode: 'unknown' }), /Unknown/);
@@ -73,16 +76,40 @@ test('member preparation CLI writes a review bundle, preserves the publication a
   const args = [script, '--out', output, '--pending-weekend', '2026-11-07'];
   const first = spawnSync(process.execPath, args, { encoding: 'utf8' });
   assert.equal(first.status, 0, first.stderr);
-  assert.equal((await readdir(output)).length, 3);
+  assert.equal((await readdir(output)).length, 4);
   const htmlPath = join(output, 'blainroe-member-update-draft-2026-10-31.html');
   const draft = await readFile(htmlPath, 'utf8');
-  assert.match(draft, /results pending/);
-  assert.match(draft, /Saved local draft, not published/);
+  assert.doesNotMatch(draft, /<table|pending|draft|not published/i);
+  const baselinePath = join(output, 'blainroe-comparison-baseline-2026-10-31.json');
+  const baselineContent = await readFile(baselinePath, 'utf8');
+  const baseline = JSON.parse(baselineContent);
+  assert.equal(baseline.through, '2026-10-31');
+  assert.equal(baseline.sourceSHA256, createHash('sha256').update(before).digest('hex'));
+  assert.deepEqual(baseline.state.rounds, JSON.parse(before).rounds);
+  assert.deepEqual(baseline.teams, league(baseline.state).rows);
+  assert.equal(baseline.teams.find(row => row.team.name === 'Team 34').retained, 38);
+  assert.equal(baseline.teams.find(row => row.team.name === 'Team 21').retained, 24);
   const repeated = spawnSync(process.execPath, args, { encoding: 'utf8' });
   assert.equal(repeated.status, 1);
   assert.match(repeated.stderr, /EEXIST/);
   assert.equal(await readFile(htmlPath, 'utf8'), draft);
+  assert.equal(await readFile(baselinePath, 'utf8'), baselineContent);
   assert.equal(await readFile(source, 'utf8'), before);
+});
+test('member PDFs remove presentation disclaimers without changing ranks, scores or review defaults', async () => {
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  for (const format of ['standings', 'latest', 'detail']) {
+    const model = leaderboardPDFModel(state, { mode: 'draft', format, audience: 'members' });
+    assert.deepEqual(model.result, league(state));
+    const document = leaderboardPDFDocument(state, { mode: 'draft', format, audience: 'members' });
+    const visible = JSON.stringify([document.content, document.header(), document.footer(1, 2), document.info]);
+    assert.doesNotMatch(visible, /DRAFT|PUBLISHED|Provisional|Generated|held|15 H|NA H/i);
+    assert.match(JSON.stringify(leaderboardPDFDocument(state, { mode: 'draft', format }).footer(1, 2)), /DRAFT/);
+  }
+  assert.throws(() => leaderboardPDFModel(state, { audience: 'unknown' }), /Unknown PDF audience/);
+  const noResults = structuredClone(state);
+  noResults.rounds = [];
+  assert.throws(() => leaderboardPDFModel(noResults, { audience: 'members' }), /needs qualifying results/);
 });
 test('member preparation CLI validates pending weekend before writing files', async t => {
   const output = await mkdtemp(join(tmpdir(), 'blainroe-invalid-review-'));
