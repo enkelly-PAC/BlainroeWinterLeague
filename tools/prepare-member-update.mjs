@@ -6,18 +6,22 @@ import { memberUpdate } from '../member-update.js';
 
 const args = process.argv.slice(2);
 try {
-  let output, pendingDate = null;
+  let output, baselinePath, insightsPath, pendingDate = null;
   for (let index = 0; index < args.length; index += 2) {
     const value = args[index + 1];
     if (!value || value.startsWith('--')) throw new Error('Each option needs a value.');
     if (args[index] === '--out' && output === undefined) output = resolve(value);
+    else if (args[index] === '--baseline' && baselinePath === undefined) baselinePath = resolve(value);
+    else if (args[index] === '--insights' && insightsPath === undefined) insightsPath = resolve(value);
     else if (args[index] === '--pending-weekend' && pendingDate === null) pendingDate = value;
     else throw new Error(`Unknown or repeated option: ${args[index]}`);
   }
-  if (!output) throw new Error('Usage: npm run prepare:members -- --out "C:\\explicit\\review-folder" [--pending-weekend YYYY-MM-DD]');
+  if (!output) throw new Error('Usage: npm run prepare:members -- --out "C:\\explicit\\review-folder" [--pending-weekend YYYY-MM-DD] [--baseline FILE] [--insights FILE]');
   const source = await readFile(new URL('../data/published.json', import.meta.url), 'utf8');
   const state = parseJSON(source);
-  const update = memberUpdate(state, { mode: 'draft', saved: true, pendingDate });
+  const baseline = baselinePath ? JSON.parse(await readFile(baselinePath, 'utf8')) : null;
+  const insights = insightsPath ? JSON.parse(await readFile(insightsPath, 'utf8')) : [];
+  const update = memberUpdate(state, { mode: 'draft', saved: true, pendingDate, baseline, insights });
   const files = [
     [update.filename, update.html],
     [`blainroe-team-standings-draft-${update.through || 'awaiting-results'}.csv`, update.teamCSV],

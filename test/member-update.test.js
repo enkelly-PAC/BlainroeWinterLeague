@@ -12,6 +12,7 @@ import { leaderboardPDFDocument, leaderboardPDFModel } from '../leaderboard-pdf.
 
 test('Weekend 1 newsletter is prose only, with complete tables as separate clean exports', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  state.rounds = state.rounds.filter(round => round.date === '2026-10-31');
   const before = structuredClone(state);
   const update = memberUpdate(state, { mode: 'draft', saved: false, pendingDate: '2026-11-07' });
   assert.equal(update.through, '2026-10-31');
@@ -38,6 +39,48 @@ test('member exports with no results fail explicitly, without inventing ranks or
   const state = emptyState();
   state.teams = [{ name: 'Team 1', players: ['Synthetic One', 'Synthetic Two', 'Synthetic Three'] }];
   assert.throws(() => memberUpdate(state), /require qualifying results/);
+});
+test('combined update preserves both weekends and calculates genuine fixed-roster movement', async () => {
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const first = structuredClone(state);
+  first.rounds = first.rounds.filter(round => round.date === '2026-10-31');
+  const baseline = { schemaVersion: 1, through: '2026-10-31', state: first, teams: league(first).rows };
+  const before = structuredClone(baseline);
+  const update = memberUpdate(state, { baseline });
+  assert.ok(update.html.indexOf('Weekend 1:') < update.html.indexOf('Weekend 2:'));
+  assert.ok(update.html.indexOf('Weekend 2:') < update.html.indexOf('Movement from Weekend 1 to Weekend 2'));
+  assert.match(update.html, /Team 15 and Team 27 share the lead on 49/);
+  assert.match(update.html, /Team 7 leads on 99/);
+  assert.match(update.html, /Team 7, Team 20 and Team 38 posted the weekend&#39;s highest team total of 51/);
+  assert.match(update.html, /J\. C\. Doyle and Pat Sheehy set the pace in Singles with 28/);
+  assert.match(update.html, /Team 7 moved from joint third to first/);
+  assert.match(update.html, /Team 35, up 10 places from joint 18th to 8th/);
+  assert.equal(update.movement.find(row => row.team.name === 'Team 1').change, 10);
+  assert.equal(update.movement.find(row => row.team.name === 'Team 15').change, -10);
+  assert.equal(parseCSV(update.singlesCSV).length, 160);
+  assert.equal(parseCSV(update.teamCSV).length, 47);
+  assert.doesNotMatch(update.html, /<table|draft|pending|roster|import|held|committee|[\u2013\u2014]/i);
+  assert.deepEqual(baseline, before);
+  const changed = structuredClone(state);
+  changed.teams[0].players[0] = 'Synthetic roster change';
+  assert.throws(() => memberUpdate(changed, { baseline }), /differ from the comparison baseline/);
+  const corrupt = structuredClone(baseline);
+  corrupt.teams[0].retained++;
+  assert.throws(() => memberUpdate(state, { baseline: corrupt }), /standings disagree/);
+  assert.throws(() => memberUpdate(state, { baseline: { ...baseline, through: '2026-10-24' } }), /preceding weekend/);
+  assert.throws(() => memberUpdate(state, { insights: [{ date: '2026-11-07', text: 'Synthetic insight' }] }), /source provenance/);
+  const escaped = memberUpdate(state, { insights: [{ date: '2026-11-07', text: '<script>Synthetic</script>', source: 'Internal source' }] });
+  assert.match(escaped.html, /&lt;script&gt;Synthetic&lt;\/script&gt;/);
+  assert.doesNotMatch(escaped.html, /Internal source/);
+  const unmatched = structuredClone(state);
+  unmatched.rounds[0].cards = [{ player: 'Synthetic unmatched player', score: 20, handicap: 1 }];
+  assert.throws(() => memberUpdate(unmatched), /2026-10-31 has no qualifying results matched to a team/);
+  const tied = structuredClone(state);
+  tied.rounds[0].cards.forEach(card => { card.score = 0; });
+  const splittingTies = memberUpdate(tied);
+  assert.ok(splittingTies.movement.every(row => row.change <= 0));
+  assert.doesNotMatch(splittingTies.html, /kept the same positions/);
+  assert.match(splittingTies.html, /positions changed elsewhere/);
 });
 test('newer cancelled, excluded and empty imports are explicit, not silently replaced by older Singles', () => {
   for (const flags of [{ canceled: true, qualifying: true }, { canceled: false, qualifying: false }, { canceled: false, qualifying: true }]) {
@@ -73,22 +116,22 @@ test('member preparation CLI writes a review bundle, preserves the publication a
   const script = fileURLToPath(new URL('../tools/prepare-member-update.mjs', import.meta.url));
   const source = new URL('../data/published.json', import.meta.url);
   const before = await readFile(source, 'utf8');
-  const args = [script, '--out', output, '--pending-weekend', '2026-11-07'];
+  const args = [script, '--out', output, '--pending-weekend', '2026-11-14'];
   const first = spawnSync(process.execPath, args, { encoding: 'utf8' });
   assert.equal(first.status, 0, first.stderr);
   assert.equal((await readdir(output)).length, 4);
-  const htmlPath = join(output, 'blainroe-member-update-draft-2026-10-31.html');
+  const htmlPath = join(output, 'blainroe-member-update-draft-2026-11-07.html');
   const draft = await readFile(htmlPath, 'utf8');
   assert.doesNotMatch(draft, /<table|pending|draft|not published/i);
-  const baselinePath = join(output, 'blainroe-comparison-baseline-2026-10-31.json');
+  const baselinePath = join(output, 'blainroe-comparison-baseline-2026-11-07.json');
   const baselineContent = await readFile(baselinePath, 'utf8');
   const baseline = JSON.parse(baselineContent);
-  assert.equal(baseline.through, '2026-10-31');
+  assert.equal(baseline.through, '2026-11-07');
   assert.equal(baseline.sourceSHA256, createHash('sha256').update(before).digest('hex'));
   assert.deepEqual(baseline.state.rounds, JSON.parse(before).rounds);
   assert.deepEqual(baseline.teams, league(baseline.state).rows);
-  assert.equal(baseline.teams.find(row => row.team.name === 'Team 34').retained, 38);
-  assert.equal(baseline.teams.find(row => row.team.name === 'Team 21').retained, 24);
+  assert.equal(baseline.teams.find(row => row.team.name === 'Team 34').scores[0].total, 38);
+  assert.equal(baseline.teams.find(row => row.team.name === 'Team 21').scores[0].total, 24);
   const repeated = spawnSync(process.execPath, args, { encoding: 'utf8' });
   assert.equal(repeated.status, 1);
   assert.match(repeated.stderr, /EEXIST/);

@@ -92,7 +92,7 @@ test('standings precede collapsed review details, with honest live counts and sh
     assert.equal($(id).open, false);
   }
   assert.equal($('review-notice').hidden, false);
-  assert.match($('review-count').textContent, /^64 cards not counted for teams; \d+ team entries need review\.$/);
+  assert.match($('review-count').textContent, /^122 cards not counted for teams; \d+ team entries need review\.$/);
   const view = renderedTable($);
   assert.equal(view.rows.length, 46);
   const firstRound = view.head.children[0].children[6];
@@ -100,7 +100,7 @@ test('standings precede collapsed review details, with honest live counts and sh
   assert.match(firstRound.title, /2026-10-31.*Mens Winter League singles/);
   for (const team of ['Team 15', 'Team 27']) {
     const row = view.rows.find(row => row[1] === team);
-    assert.equal(row[5], '49');
+    assert.equal(row[5], team === 'Team 15' ? '88' : '94');
     assert.equal(row[9], '49');
   }
   assert.equal(view.rows.find(row => row[1] === 'Team 15')[8], 'NA');
@@ -708,7 +708,7 @@ test('public landing loads real accumulated results, never resumes an older loca
   const { $, contents, values } = await workspace(t, JSON.stringify(old), published);
   assert.equal($('view-label').textContent, 'PUBLISHED: club results');
   assert.equal($('league-table').hidden, false);
-  assert.match($('league-summary').textContent, /46 teams. 1 qualifying weekend/);
+  assert.match($('league-summary').textContent, /46 teams. 2 qualifying weekends/);
   assert.match(contents($('league-table')), /Team 15/);
   assert.match(contents($('league-table')), /49/);
   assert.doesNotMatch(contents($('league-table')), /Local only/);
@@ -721,11 +721,11 @@ test('member draft export snapshots the published view without resuming or savin
   const { $, values, downloads } = await workspace(t, source, published);
   assert.equal($('member-update').disabled, false);
   await $('member-update').emit('click');
-  assert.equal(downloads.at(-1).download, 'blainroe-member-update-draft-2026-10-31.html');
+  assert.equal(downloads.at(-1).download, 'blainroe-member-update-draft-2026-11-07.html');
   assert.match($('status').textContent, /newsletter prose only/);
   for (const [id, filename] of [
-    ['member-team-csv', 'blainroe-team-standings-2026-10-31.csv'],
-    ['member-singles-csv', 'blainroe-singles-2026-10-31.csv']
+    ['member-team-csv', 'blainroe-team-standings-2026-11-07.csv'],
+    ['member-singles-csv', 'blainroe-singles-2026-11-07.csv']
   ]) {
     assert.equal($(id).disabled, false);
     await $(id).emit('click');
@@ -739,19 +739,19 @@ test('browser applies weekly results on top of current online history and preser
   const old = await rosterFixture();
   old.settings.maxRounds = 12;
   old.teams.find(team => team.name === 'Team 34').notes = 'Local committee note';
-  old.rounds = [{ date: '2026-11-07', name: 'Local only', qualifying: true, canceled: false, cards: [{ player: 'Paddy Daly', score: 30 }] }];
+  old.rounds = [{ date: '2026-11-14', name: 'Local only', qualifying: true, canceled: false, cards: [{ player: 'Paddy Daly', score: 30 }] }];
   const source = JSON.stringify(old);
   const { $, values, preview, setPublished } = await workspace(t, source, published);
-  await preview('Played on,15/11/2026\nPlayer,Score\nPaddy Daly,31');
+  await preview('Played on,22/11/2026\nPlayer,Score\nPaddy Daly,31');
   assert.equal(values.get(STORAGE_KEY), source);
   const newer = structuredClone(published);
-  newer.rounds.push({ date: '2026-11-21', name: 'Published during preview', qualifying: true, canceled: false, cards: [{ player: 'Timothy Cummins', score: 32 }] });
+  newer.rounds.push({ date: '2026-11-28', name: 'Published during preview', qualifying: true, canceled: false, cards: [{ player: 'Timothy Cummins', score: 32 }] });
   setPublished(newer);
   $('net-confirm').checked = true;
   await $('apply-form').emit('submit');
   const saved = JSON.parse(values.get(STORAGE_KEY));
   assert.deepEqual(saved.rounds.find(round => round.date === '2026-10-31'), published.rounds[0]);
-  assert.deepEqual(saved.rounds.map(round => round.date).sort(), ['2026-10-31', '2026-11-07', '2026-11-14', '2026-11-21']);
+  assert.deepEqual(saved.rounds.map(round => round.date).sort(), ['2026-10-31', '2026-11-07', '2026-11-14', '2026-11-21', '2026-11-28']);
   assert.equal(saved.settings.maxRounds, 12);
   assert.equal(saved.teams.find(team => team.name === 'Team 34').notes, 'Local committee note');
   assert.deepEqual(JSON.parse(values.get(BASELINE_KEY)).published, newer);
@@ -762,13 +762,13 @@ test('publication download fetches the latest seed and includes online weekends 
   const local = structuredClone(published); local.teams[0].notes = 'Local review';
   const { $, downloads, setPublished, values } = await workspace(t, JSON.stringify(local), published, published);
   const newer = structuredClone(published);
-  newer.rounds.push({ date: '2026-11-07', name: 'Later online result', qualifying: true, canceled: false, cards: [{ player: 'Paddy Daly', score: 30 }] });
+  newer.rounds.push({ date: '2026-11-14', name: 'Later online result', qualifying: true, canceled: false, cards: [{ player: 'Paddy Daly', score: 30 }] });
   setPublished(newer);
   await $('publication').emit('click');
   assert.equal(downloads.at(-1).download, 'published.json');
   const exported = await (await nativeFetch(downloads.at(-1).href)).json();
-  assert.equal(exported.rounds.length, 2);
-  assert.deepEqual(exported.rounds[1], newer.rounds[1]);
+  assert.equal(exported.rounds.length, 3);
+  assert.deepEqual(exported.rounds[2], newer.rounds[2]);
   assert.equal(exported.teams[0].notes, 'Local review');
   assert.equal(values.get(STORAGE_KEY), JSON.stringify(local));
   assert.match($('status').textContent, /No server data was changed/);

@@ -162,6 +162,7 @@ test('baseline storage survives reload and partial/old baseline records are neve
 });
 test('real first weekend has preserved net points, known matches and team best-two totals', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  state.rounds = state.rounds.filter(round => round.date === '2026-10-31');
   assert.equal(state.rounds.length, 1);
   const round = state.rounds[0];
   assert.equal(round.date, '2026-10-31');
@@ -179,6 +180,7 @@ test('real first weekend has preserved net points, known matches and team best-t
 });
 test('replacement roster applies existing late-registration rules without changing historic cards', async () => {
   const current = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  current.rounds = current.rounds.filter(round => round.date === '2026-10-31');
   const previous = structuredClone(current);
   previous.teams = previous.teams.filter(team => team.name !== 'Team 1');
   previous.teams.find(team => team.name === 'Team 21').players[2] = 'David Starling';
@@ -197,4 +199,18 @@ test('replacement roster applies existing late-registration rules without changi
     assert.deepEqual(current.teams.find(entry => entry.name === team.name).notes, team.notes);
   }
   assert.deepEqual(current.rounds, previous.rounds);
+});
+test('real Weekend 2 keeps reported net cards and cumulative totals without resolving held identities', async () => {
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  assert.deepEqual(state.rounds.map(round => [round.date, round.cards.length]), [['2026-10-31', 165], ['2026-11-07', 159]]);
+  const round = state.rounds[1], assigned = assignments(state.teams);
+  assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 57);
+  assert.equal(round.cards.filter(card => assigned.get(canonical(card.player))?.startsWith('Unassigned')).length, 1);
+  const table = league(state);
+  assert.deepEqual(table.rows.slice(0, 3).map(row => [row.team.name, row.retained]), [['Team 7', 99], ['Team 13', 98], ['Team 20', 96]]);
+  assert.equal(table.rows.find(row => row.team.name === 'Team 7').scores[1].total, 51);
+  for (const team of state.teams.filter(team => ['Team 10', 'Team 37'].includes(team.name)))
+    assert.ok(team.heldPlayers.includes('Colin Owens'));
+  assert.equal(state.settings.complete, false);
+  assert.equal(state.final, null);
 });

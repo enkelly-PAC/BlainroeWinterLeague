@@ -299,7 +299,7 @@ test('replacement PDF roster preserves numbered teams and unresolved entries alo
   assert.deepEqual(state.teams.find(t => t.name === 'Team 21').players, ['Amory Swartz', 'Trevor Townsend', 'Declan Moriarty']);
   assert.deepEqual(state.teams.find(t => t.name === 'Team 34').players, ['Paddy Daly', 'Timothy Cummins', 'David Sparling']);
   assert.match(rosterStatus(state.teams.find(t => t.name === 'Team 37')), /Eugene McCrystal \(away member at Bundoran\): eligibility pending confirmation by Niall/);
-  assert.equal(state.rounds.length, 1);
+  assert.equal(state.rounds.length, 2);
   assert.equal(state.rounds[0].date, '2026-10-31');
   assert.equal(state.final, null);
   assert.equal(state.settings.complete, false);
