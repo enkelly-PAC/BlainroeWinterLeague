@@ -81,6 +81,27 @@ function sortingFixture() {
       { player: 'Beta 10', score: 0 }] }];
   return state;
 }
+test('Singles defaults to cumulative cards and historical review disables official exports without changing Teams', async t => {
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  state.rounds.push({ date: '2026-11-14', name: 'Cancelled review', canceled: true, qualifying: true,
+    cards: [{ player: 'Synthetic Player', score: 99 }] });
+  const { $, contents } = await workspace(t, null, state);
+  const teams = renderedTable($).rows;
+  assert.equal($('singles-weekend').value, '');
+  assert.match($('singles-summary').textContent, /196 players across 2 active/);
+  assert.equal($('export-singles-pdf').disabled, false);
+  assert.equal(renderedTable($, 'singles-table').rows.length, 196);
+  $('singles-weekend').value = '2026-11-14';
+  await $('singles-weekend').emit('change');
+  assert.match($('singles-summary').textContent, /Historical review only/);
+  assert.equal($('export-singles-pdf').disabled, true);
+  assert.equal($('export-singles-csv').disabled, true);
+  assert.match(contents($('singles-table')), /Synthetic Player/);
+  assert.deepEqual(renderedTable($).rows, teams);
+  $('singles-weekend').value = '';
+  await $('singles-weekend').emit('change');
+  assert.equal(renderedTable($, 'singles-table').rows.length, 196);
+});
 test('standings precede collapsed review details, with honest live counts and short accessible round headings', async t => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
@@ -251,7 +272,7 @@ test('main PDF download follows the visible published or saved draft and never e
   const state = structuredClone(published);
   state.rounds = [{ date: '2026-11-07', name: 'Saved weekend', qualifying: true, canceled: false,
     cards: [{ player: 'Paddy Daly', score: 29 }, { player: 'Timothy Cummins', score: 24 }] }];
-  const { $, values, preview, downloads } = await workspace(t, JSON.stringify(state), published);
+  const { $, values, preview, downloads, setPublished } = await workspace(t, JSON.stringify(state), published);
   const definitions = [];
   window.pdfMake = { createPdf: definition => {
     definitions.push(definition);
@@ -260,7 +281,10 @@ test('main PDF download follows the visible published or saved draft and never e
     }) };
   } };
   assert.equal($('export-leaderboard-pdf').disabled, false);
-  assert.equal($('pdf-format').value, 'standings');
+  assert.equal($('pdf-format').value, 'detail');
+  assert.equal($('export-leaderboard-pdf').textContent, 'Export integrated Team standings PDF');
+  $('pdf-format').value = 'standings';
+  await $('pdf-format').emit('change');
   assert.equal($('export-leaderboard-pdf').textContent, 'Export member standings PDF');
   assert.match($('pdf-help').textContent, /awaiting qualifying results.*Published view/);
   const saved = values.get(STORAGE_KEY);
@@ -316,6 +340,19 @@ test('main PDF download follows the visible published or saved draft and never e
   assert.match($('status').textContent, /Synthetic stream failure/);
   assert.equal(downloads.length, count);
   assert.equal($('export-leaderboard-pdf').disabled, false);
+  window.pdfMake.createPdf = createPdf;
+  const historical = structuredClone(state);
+  historical.rounds.push({ date: '2026-11-14', name: 'Cancelled latest', qualifying: true, canceled: true,
+    cards: [{ player: 'Timothy Cummins', score: 99 }] });
+  setPublished(historical);
+  await $('refresh').emit('click');
+  $('pdf-format').value = 'latest';
+  await $('pdf-format').emit('change');
+  await $('export-leaderboard-pdf').emit('click');
+  assert.match(downloads.at(-1).download, /published-latest-2026-11-14.pdf$/);
+  assert.match(JSON.stringify(definitions.at(-1)), /CANCELLED/);
+  assert.match(definitions.at(-1).info.subject, /PUBLISHED/);
+  assert.doesNotMatch(JSON.stringify(definitions.at(-1)), /99 H/);
 });
 
 test('PDF export is disabled with an explanation when no team list is available', async t => {
@@ -747,7 +784,7 @@ test('member draft export snapshots the published view without resuming or savin
   assert.match($('status').textContent, /newsletter prose only/);
   for (const [id, filename] of [
     ['member-team-csv', 'blainroe-team-standings-2026-11-07.csv'],
-    ['member-singles-csv', 'blainroe-singles-2026-11-07.csv']
+    ['member-singles-csv', 'blainroe-singles-cumulative-2026-11-07.csv']
   ]) {
     assert.equal($(id).disabled, false);
     await $(id).emit('click');

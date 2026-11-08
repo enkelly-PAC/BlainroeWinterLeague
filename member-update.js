@@ -1,4 +1,4 @@
-import { canonical, csvCell, escapeHTML, isHeld, league, playerKey, singles, validateState, weekendDate } from './core.js';
+import { canonical, csvCell, cumulativeSinglesCSV, escapeHTML, isHeld, league, playerKey, singles, validateState, weekendDate } from './core.js';
 import { teamLabel, weekendCards } from './leaderboard-layout.js';
 
 const dateLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', {
@@ -110,9 +110,6 @@ ${movement.filter(row => row.previous === 1 && row.rank > 1).map(row => `<p>${ht
   const teamRows = result.rows.map(row => [row.rank, row.team.name,
     ...[0, 1, 2].map(index => row.team.players[index] || 'Vacant'),
     row.retained, ...row.scores.map(score => `${score.total}${score.discarded ? ' D' : ''}`)]);
-  const singleHeaders = ['Rank', 'Player', `${latest.date} net points`, 'Team'];
-  const singleRows = individual.rows.map(row => [row.rank, playerName(row.player), row.score,
-    row.team.startsWith('Unassigned') ? '' : row.team]);
   const body = `<h1>Blainroe Golf Club</h1><h2>Men's Winter League 2026/2027</h2><p>Sponsored by Spirit Ford Wicklow</p>
 <p>Dear members,</p><p>${summaries.length === 1 ? 'The Winter League is under way, with a tightly packed opening leaderboard.' : 'Here are the Winter League results and the latest standings.'}</p>
 ${summaries.map(summary => summary.html + insights.filter(insight => insight.date === summary.date).map(insight => `<p>${html(insight.text)}</p>`).join('')).join('')}${movements}
@@ -121,7 +118,7 @@ ${summaries.map(summary => summary.html + insights.filter(insight => insight.dat
     filename: `blainroe-member-update-draft-${latest?.date || 'awaiting-results'}.html`,
     html: `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"><title>Blainroe Winter League: Weekend ${result.rounds.length}</title><style>body{font:16px Arial,sans-serif;color:#173517;max-width:760px;margin:2rem auto;padding:0 1rem;line-height:1.6}h1,h2,h3{color:#1a5e1a}</style></head><body>${body}</body></html>`,
     teamCSV: csv([teamHeaders, ...teamRows]),
-    singlesCSV: csv([singleHeaders, ...singleRows]),
+    singlesCSV: cumulativeSinglesCSV(state),
     result, individual, through, pendingDate, status, movement, insights
   };
 }

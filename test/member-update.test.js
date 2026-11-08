@@ -32,7 +32,7 @@ test('Weekend 1 newsletter is prose only, with complete tables as separate clean
   assert.doesNotMatch(update.html, /<table|Weekend 2|7 November|moved|climbed|roster|DRAFT|provisional|pending|import|committee|held|unmatched|countback|not sent|not published/i);
   for (const content of [update.teamCSV, update.singlesCSV])
     assert.doesNotMatch(content, /DRAFT|pending|review|assignment|Unassigned|held/i);
-  assert.equal(parseCSV(update.singlesCSV).find(row => row[1] === 'Colin Owens')[3], '');
+  assert.equal(parseCSV(update.singlesCSV).find(row => row[1] === 'Colin Owens')[3], '15');
   assert.doesNotMatch(update.html, /[\u2013\u2014]/u);
   assert.deepEqual(state, before);
 });
@@ -63,6 +63,12 @@ test('combined update preserves both weekends and calculates genuine fixed-roste
   }
   for (const format of ['standings', 'latest', 'detail']) {
     const document = leaderboardPDFDocument(state, { format, audience: 'members' });
+    if (format === 'detail') {
+      const table = document.content.find(block => block.table).table;
+      assert.deepEqual(table.body.slice(table.headerRows).map(row => row.slice(1, 5).map(cell => cell.text)),
+        update.result.rows.map(row => [row.team.name, ...row.team.players]));
+      continue;
+    }
     const labels = document.content.filter(block => block.table).flatMap(block =>
       block.table.body.flat().filter(cell => typeof cell.text === 'string' && /^Team \d+ /.test(cell.text))
         .map(cell => cell.text.replace(/\u200b/g, '')));
@@ -70,7 +76,7 @@ test('combined update preserves both weekends and calculates genuine fixed-roste
   }
   assert.equal(update.movement.find(row => row.team.name === 'Team 1').change, 8);
   assert.equal(update.movement.find(row => row.team.name === 'Team 15').change, -7);
-  assert.equal(parseCSV(update.singlesCSV).length, 160);
+  assert.equal(parseCSV(update.singlesCSV).length, 197);
   assert.equal(parseCSV(update.teamCSV).length, 47);
   assert.doesNotMatch(update.html, /<table|draft|pending|roster|import|held|committee|[\u2013\u2014]/i);
   assert.deepEqual(baseline, before);
@@ -190,7 +196,7 @@ test('PDF headers separate the logo and counting cards are bold dark green', asy
       assert.equal(header.columns[0].image, 'club-logo');
       const grid = document.content.find(block => block.table);
       const rounds = format === 'latest' ? [model.latest] : model.rounds;
-      const offset = audience === 'members' ? format === 'latest' ? 1 : 2 : format === 'latest' ? 4 : 5;
+      const offset = audience === 'members' ? format === 'latest' ? 1 : 6 : format === 'latest' ? 4 : 5;
       model.result.rows.forEach((row, index) => {
         const cells = grid.table.body[index + grid.table.headerRows];
         rounds.forEach((round, roundIndex) => {

@@ -1,4 +1,4 @@
-import { canonical, isHeld, league, playerKey, validateState } from './core.js';
+import { canonical, cumulativeSingles, isHeld, league, playerKey, validateState } from './core.js';
 import { teamLabel, weekendCards } from './leaderboard-layout.js';
 
 const green = '#1a5e1a', pale = '#edf5ed', ink = '#1a2e1a';
@@ -6,6 +6,7 @@ const title = "Men's Winter League 2026/2027";
 const groupSize = 3;
 // Six compact weekend totals leave room for the team and player names.
 const standingsGroupSize = 6;
+const singlesGroupSize = 3;
 const formats = { standings: 'Member standings', latest: 'Latest weekend results', detail: 'Full detail' };
 const text = value => String(value).replace(/[\u2013\u2014]/gu, ':');
 const dateLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', {
@@ -110,38 +111,39 @@ function latestTable(rows, model) {
 
 export function leaderboardPDFDocument(state, context = {}, logo) {
   const model = leaderboardPDFModel(state, context);
-  const { rounds, hasResults, through, status, format } = model;
-  const throughLabel = through ? `Qualifying results through weekend of ${dateLabel(through)}` : 'Awaiting qualifying results';
-  const generated = (context.generatedAt || new Date()).toLocaleString('en-GB', { timeZone: 'Europe/Dublin', hour12: false });
+  const { rounds, hasResults, format } = model;
   const content = [];
   const rows = hasResults ? model.result.rows : state.teams.map(team => ({ team }));
   if (format === 'standings') content.push(...standingsTables(rows, model));
   else if (format === 'latest') content.push(...latestTable(rows, model));
   // Repeat the full named grid for bounded weekend groups, never anonymous detail.
-  else for (let start = 0; start < Math.max(1, rounds.length); start += groupSize) {
-    const group = rounds.slice(start, start + groupSize);
+  else for (let start = 0; start < Math.max(1, rounds.length); start += model.audience === 'members' ? 2 : groupSize) {
+    const group = rounds.slice(start, start + (model.audience === 'members' ? 2 : groupSize));
     const members = model.audience === 'members';
-    const labels = [...(hasResults ? ['Rank'] : []), ...(members ? ['Team (players)'] : ['Team', 'Player 1', 'Player 2', 'Player 3'])];
+    const labels = [...(hasResults ? [members ? 'Pos.' : 'Rank'] : []), 'Team', 'Player 1', 'Player 2', 'Player 3'];
     const identityHeaders = labels.map((label, index) => ({
       ...heading(label), ...(hasResults && index === 0 ? { alignment: 'center' } : {})
     }));
-    const seasonHeader = { ...heading('Season points'), alignment: 'center', noWrap: true };
+    const seasonHeader = { ...heading(members ? 'Combined' : 'Season points'), alignment: 'center', noWrap: true };
+    if (hasResults && members) identityHeaders.push(seasonHeader);
+    if (hasResults && members) labels.push('Combined');
     const headers = [group.length ? labels.map(() => heading('')) : identityHeaders];
     if (group.length) {
       for (const round of group) {
         headers[0].push({ ...heading(`${dateLabel(round.date)}\n${text(round.name)}\n${round.canceled ? 'CANCELLED (C)' : round.qualifying ? 'Qualifying' : 'EXCLUDED (X)'}`), colSpan: 4, alignment: 'center' }, {}, {}, {});
       }
     }
-    if (hasResults) headers[0].push(group.length ? heading('') : seasonHeader);
+    if (hasResults && !members) headers[0].push(group.length ? heading('') : seasonHeader);
     if (group.length) headers.push([
       ...identityHeaders,
       ...group.flatMap(() => ['P1', 'P2', 'P3', 'Team'].map(label => ({ ...heading(label), alignment: 'center' }))),
-      ...(hasResults ? [seasonHeader] : [])
+      ...(hasResults && !members ? [seasonHeader] : [])
     ]);
     const gridRows = rows.map(row => [
       ...(hasResults ? [cell(row.rank, { bold: true, alignment: 'center' })] : []),
-      ...(members ? [cell(teamLabel(row.team))] : [cell(row.team.name, { bold: true }),
-        ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant'))]),
+      cell(row.team.name, { bold: true }),
+      ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
+      ...(hasResults && members ? [cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale })] : []),
       ...group.flatMap(round => {
         return [
           ...weekendCards(row.team, round, model.identityBindings).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
@@ -150,12 +152,13 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
           weekendTotal(row, round, hasResults)
         ];
       }),
-      ...(hasResults ? [cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale })] : [])
+      ...(hasResults && !members ? [cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale })] : [])
     ]);
     const nameWidth = group.length <= 1 ? 120 : group.length === 2 ? 92 : 76;
     const grid = table(headers, gridRows, [
-      ...(hasResults ? [22] : []), ...(members ? [220] : [44, ...[0, 1, 2].map(() => group.length ? nameWidth : '*')]),
-      ...group.flatMap(() => ['*', '*', '*', '*']), ...(hasResults ? [64] : [])
+      ...(hasResults ? [22] : []), 44, ...[0, 1, 2].map(() => group.length ? nameWidth : '*'),
+      ...(hasResults && members ? [52] : []),
+      ...group.flatMap(() => ['*', '*', '*', '*']), ...(hasResults && !members ? [64] : [])
     ], group.length ? 2 : 1);
     grid.layout = { ...layout,
       vLineWidth: column => group.length && column >= labels.length &&
@@ -165,6 +168,12 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
     if (start) grid.pageBreak = 'before';
     content.push(grid);
   }
+  return pdfDocumentFrame(state, context, logo, model, content);
+}
+function pdfDocumentFrame(state, context, logo, model, content) {
+  const { through, status, format, hasResults } = model;
+  const throughLabel = through ? `Qualifying results through weekend of ${dateLabel(through)}` : 'Awaiting qualifying results';
+  const generated = (context.generatedAt || new Date()).toLocaleString('en-GB', { timeZone: 'Europe/Dublin', hour12: false });
   return {
     info: { title: `Blainroe ${title}: ${formats[format]}: ${hasResults ? 'Team leaderboard' : 'Awaiting results'}`,
       author: 'Blainroe Golf Club', subject: `${model.audience === 'members' ? throughLabel : `${status}. ${throughLabel}`}. Sponsored by Spirit Ford Wicklow.` },
@@ -193,6 +202,35 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
     content
   };
 }
+export function singlesPDFModel(state, { mode = 'published', saved = true, selectedDate = null } = {}) {
+  validateState(state);
+  if (!['published', 'draft'].includes(mode)) throw new Error('Unknown leaderboard source.');
+  if (selectedDate) throw new Error('Singles PDF exports cumulative active qualifying results. Historical weekends are review only.');
+  const result = cumulativeSingles(state);
+  if (!result.rows.length) throw new Error('Singles PDF needs active qualifying cards.');
+  const through = result.rounds.filter(round => round.cards.length).at(-1).date;
+  return { result, through, hasResults: true, format: 'detail', audience: mode === 'published' ? 'members' : 'review',
+    status: mode === 'published' ? 'PUBLISHED' : saved ? 'DRAFT: saved on this device, not published' : 'DRAFT: not saved, not published',
+    filename: `blainroe-singles-${mode === 'draft' ? 'draft-' : ''}cumulative-${through}.pdf` };
+}
+export function singlesPDFDocument(state, context = {}, logo) {
+  const model = singlesPDFModel(state, context);
+  const { rounds, rows } = model.result;
+  const content = [];
+  for (let start = 0; start < rounds.length; start += singlesGroupSize) {
+    const group = rounds.slice(start, start + singlesGroupSize);
+    content.push({ text: 'Cumulative Singles: all accepted active qualifying cards', bold: true, color: green,
+      margin: [0, 0, 0, 7], ...(start ? { pageBreak: 'before' } : {}) });
+    content.push(table([['Pos.', 'Player', ...group.map(round => dateLabel(round.date)), 'Overall total'].map(heading)],
+      rows.map(row => [cell(row.rank), cell(row.player), ...group.map(round => cell(row.scores[round.date] ?? 'NA', { alignment: 'center' })),
+        cell(row.total, { alignment: 'center', bold: true, color: green })]),
+      [30, '*', ...group.map(() => 75), 70]));
+  }
+  const definition = pdfDocumentFrame(state, context, logo, model, content);
+  definition.info.title = `Blainroe ${title}: Cumulative Singles`;
+  definition.pageOrientation = 'portrait';
+  return definition;
+}
 
 let library;
 function loadScript(path) {
@@ -214,12 +252,19 @@ async function pdfTools() {
 }
 export async function createLeaderboardPDF(state, context) {
   const model = leaderboardPDFModel(state, context);
+  return createPDF(state, context, model, leaderboardPDFDocument);
+}
+export async function createSinglesPDF(state, context) {
+  const model = singlesPDFModel(state, context);
+  return createPDF(state, context, model, singlesPDFDocument);
+}
+async function createPDF(state, context, model, documentDefinition) {
   const pdfMake = await pdfTools();
   const response = await fetch(new URL('./blainroe-anni-logo.png', import.meta.url));
   if (!response.ok) throw new Error('Club logo could not load. Refresh the page and try again.');
   const bytes = new Uint8Array(await response.arrayBuffer());
   const logo = `data:image/png;base64,${btoa(Array.from(bytes, byte => String.fromCharCode(byte)).join(''))}`;
-  const definition = leaderboardPDFDocument(state, context, logo);
+  const definition = documentDefinition(state, context, logo);
   const buffer = await new Promise((resolve, reject) => {
     // Local embedded assets need no URL resolver. The stream exposes failures
     // that pdfmake's callback-only getBuffer API otherwise leaves unhandled.

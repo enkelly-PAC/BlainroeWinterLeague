@@ -380,6 +380,31 @@ export function singles(state, selectedDate = null) {
   rows.forEach((row, index) => { row.rank = index && rows[index - 1].score === row.score ? rows[index - 1].rank : index + 1; });
   return { rounds, round, status, rows };
 }
+export function cumulativeSingles(state) {
+  const rounds = state.rounds.filter(round => round.qualifying && !round.canceled)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const names = new Map(state.teams.flatMap(team => team.players.map(player => [canonical(player), player])));
+  const confirmed = new Set((state.identityBindings || []).map(binding => canonical(binding.player)));
+  const players = new Map();
+  for (const round of rounds) for (const card of round.cards) {
+    const key = playerKey(card.player, state.identityBindings);
+    const rawName = card.player.includes(',') ? `${card.player.split(',').slice(1).join(' ').trim()} ${card.player.split(',')[0].trim()}` : card.player;
+    // Preserve Handicap Master punctuation for direct matches; confirmed aliases use the authoritative roster target.
+    if (!players.has(key)) players.set(key, { key, player: confirmed.has(key) ? names.get(key) || rawName : rawName, scores: {}, total: 0 });
+    const row = players.get(key);
+    row.scores[round.date] = card.score;
+    row.total += card.score;
+  }
+  const rows = [...players.values()].sort((a, b) => b.total - a.total || a.player.localeCompare(b.player));
+  rows.forEach((row, index) => { row.rank = index && rows[index - 1].total === row.total ? rows[index - 1].rank : index + 1; });
+  return { rounds, rows };
+}
+export function cumulativeSinglesCSV(state) {
+  const { rounds, rows } = cumulativeSingles(state);
+  return [['Rank', 'Player', ...rounds.map(round => `${round.date} net points`), 'Overall total'],
+    ...rows.map(row => [row.rank, row.player, ...rounds.map(round => row.scores[round.date] ?? 'NA'), row.total])]
+    .map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n';
+}
 export function league(state) {
   const rounds = state.rounds.filter(r => r.qualifying && !r.canceled).sort((a, b) => a.date.localeCompare(b.date));
   const discardCount = state.settings.complete ? Math.min(state.settings.discardCount, Math.max(0, rounds.length - 1)) : 0;

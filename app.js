@@ -1,7 +1,8 @@
 import { MAX_BYTES, emptyState, canonical, playerKey, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML, assignments, isHeld, rosterStatus, replaceTeams, editTeam } from './core.js';
 import { readDraft, saveDraft, readBaseline, STORAGE_KEY, BASELINE_KEY } from './storage.js';
 import { synchroniseDraft, protectPublishedHistory } from './publication.js';
-import { createLeaderboardPDF } from './leaderboard-pdf.js';
+import { createLeaderboardPDF, createSinglesPDF } from './leaderboard-pdf.js';
+import { cumulativeSingles, cumulativeSinglesCSV } from './core.js';
 import { weekendCards } from './leaderboard-layout.js';
 import { memberUpdate } from './member-update.js';
 
@@ -194,7 +195,12 @@ $('export-leaderboard-pdf').addEventListener('click', safely(async () => {
   if (pdfBusy) return;
   if (mode === 'published' && !publishedReady) throw new Error('Published results are unavailable. Refresh before exporting.');
   const state = structuredClone(current());
-  const context = { mode, saved: draftSaved, format: $('pdf-format').value };
+  const hasCards = league(state).rounds.some(round => round.cards.some(card =>
+    state.teams.some(team => team.players.some(player => !isHeld(team, player) && canonical(player) === playerKey(card.player, state.identityBindings)))));
+  const format = $('pdf-format').value;
+  const latest = [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).at(-1);
+  const historicalLatest = format === 'latest' && (!latest?.cards.length || latest.canceled || !latest.qualifying);
+  const context = { mode, saved: draftSaved, format, audience: mode === 'published' && hasCards && !historicalLatest ? 'members' : 'review' };
   pdfBusy = true;
   $('export-leaderboard-pdf').disabled = true;
   $('export-leaderboard-pdf').textContent = 'Preparing PDF...';
@@ -207,21 +213,54 @@ $('export-leaderboard-pdf').addEventListener('click', safely(async () => {
     render();
   }
 }));
-$('pdf-format').value = 'standings';
+$('pdf-format').value = 'detail';
 $('pdf-format').addEventListener('change', () => render());
+$('export-singles-csv').addEventListener('click', safely(() => {
+  if (mode === 'published' && !publishedReady) throw new Error('Published results are unavailable.');
+  if (singlesSelection[mode]) throw new Error('Historical weekends are review only. Select cumulative standings to export.');
+  const result = cumulativeSingles(current());
+  if (!result.rows.length) throw new Error('Singles CSV needs active qualifying cards.');
+  download(`blainroe-singles-cumulative-${result.rounds.at(-1).date}.csv`, cumulativeSinglesCSV(current()), 'text/csv;charset=utf-8');
+}));
+$('export-singles-pdf').addEventListener('click', safely(async () => {
+  if (pdfBusy) return;
+  if (mode === 'published' && !publishedReady) throw new Error('Published results are unavailable.');
+  pdfBusy = true; render();
+  try {
+    const { filename, buffer } = await createSinglesPDF(structuredClone(current()), { mode, saved: draftSaved, selectedDate: singlesSelection[mode] });
+    download(filename, buffer, 'application/pdf');
+  } finally { pdfBusy = false; render(); }
+}));
 function renderSingles(state) {
+  const cumulative = !singlesSelection[mode];
+  $('singles-table').classList.toggle('cumulative', cumulative);
   const result = singles(state, singlesSelection[mode]);
-  singlesSelection[mode] = result.round?.date || null;
+  const overallResult = cumulativeSingles(state);
+  if (!cumulative) singlesSelection[mode] = result.round?.date || null;
   const selector = $('singles-weekend');
   selector.replaceChildren();
+  const overall = element('option', 'Cumulative qualifying standings (default)');
+  overall.value = ''; selector.append(overall);
   for (const round of result.rounds) {
     const status = round.canceled ? 'Canceled' : round.qualifying ? 'Qualifying' : 'Excluded / nonqualifying';
     const option = element('option', `${round.date}: ${round.name} (${status})`);
     option.value = round.date; selector.append(option);
   }
   selector.disabled = !result.rounds.length;
-  if (result.round) selector.value = result.round.date;
+  selector.value = cumulative ? '' : result.round?.date || '';
+  $('export-singles-pdf').disabled = pdfBusy || !cumulative || !overallResult.rows.length || (mode === 'published' && !publishedReady);
+  $('export-singles-csv').disabled = !cumulative || !overallResult.rows.length || (mode === 'published' && !publishedReady);
   const summary = $('singles-summary');
+  if (cumulative) {
+    const { rounds, rows } = overallResult;
+    summary.classList.toggle('warning', false);
+    summary.textContent = `${rows.length} players across ${rounds.length} active qualifying weekends. NA means no accepted card.`;
+    table('singles-table', `${mode === 'draft' ? 'Local draft' : 'Published'} cumulative Singles`,
+      ['Position', 'Player', ...rounds.map(round => `${round.date} points`), 'Overall total'],
+      rows.map(row => [row.rank, row.player, ...rounds.map(round => row.scores[round.date] ?? 'NA'), row.total]),
+      'Import active qualifying cards to see cumulative individual results.');
+    return;
+  }
   summary.classList.toggle('warning', Boolean(result.round && (result.round.canceled || !result.round.qualifying)));
   summary.textContent = result.round
     ? `${result.round.date}: ${result.round.name}. ${result.status}. ${result.round.canceled || !result.round.qualifying ? 'Historical review only, not active official standings. ' : ''}${result.rows.length} imported individual cards.`
@@ -251,7 +290,7 @@ function render() {
     $(id).disabled = !state.teams.length || (mode === 'published' && !publishedReady);
   $('pdf-format').disabled = pdfBusy;
   const pdfFormat = $('pdf-format').value;
-  const pdfLabel = pdfFormat === 'latest' ? 'latest weekend results' : pdfFormat === 'detail' ? 'full detail' : 'member standings';
+  const pdfLabel = pdfFormat === 'latest' ? 'latest weekend results' : pdfFormat === 'detail' ? 'integrated Team standings' : 'member standings';
   $('export-leaderboard-pdf').textContent = pdfBusy ? 'Preparing PDF...' : `Export ${pdfLabel} PDF`;
   $('pdf-help').textContent = !state.teams.length || (mode === 'published' && !publishedReady)
     ? 'PDF export needs an available team list. Refresh published results or resume a valid draft.'
@@ -734,7 +773,7 @@ $('member-update').addEventListener('click', safely(() => {
 }));
 for (const [id, type, key] of [
   ['member-team-csv', 'team-standings', 'teamCSV'],
-  ['member-singles-csv', 'singles', 'singlesCSV']
+  ['member-singles-csv', 'singles-cumulative', 'singlesCSV']
 ]) $(id).addEventListener('click', safely(() => {
   if (mode === 'published' && !publishedReady) throw new Error('Cannot prepare member tables until validated published data has loaded.');
   const update = memberUpdate(current(), { mode, saved: draftSaved });
