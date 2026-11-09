@@ -55,7 +55,7 @@ test('combined update preserves both weekends and calculates genuine fixed-roste
   assert.match(update.html, /Team 28 \([^)]*\) posted the weekend&#39;s highest team total of 54/);
   assert.match(update.html, /J\. C\. Doyle and Pat Sheehy set the pace in Singles with 28/);
   assert.match(update.html, /Team 7 \([^)]*\) moved from joint third to first/);
-  assert.match(update.html, /Team 5 \([^)]*\), up 12 places from joint 38th to joint 26th/);
+  assert.match(update.html, /Team 5 \([^)]*\), up 14 places from joint 40th to joint 26th/);
   for (const mention of update.html.matchAll(/Team \d+/g)) {
     const team = state.teams.find(team => team.name === mention[0]);
     const label = escapeHTML(`${team.name} (${team.players.join(', ')})`);

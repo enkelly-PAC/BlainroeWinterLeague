@@ -19,7 +19,7 @@ test('PDF awaiting-results list keeps all real teams and never asserts zero-scor
   assert.deepEqual(summary.body[0].map(node => node.text), ['Team', 'Player 1', 'Player 2', 'Player 3']);
   assert.match(JSON.stringify(summary), /Brian O.Reilly/);
   state.rounds = [{ date: '2026-11-07', name: 'Unmatched only', qualifying: true, canceled: false,
-    cards: [{ player: 'Synthetic Visitor', score: 40 }, { player: 'Colin Owens', score: 30 }] }];
+    cards: [{ player: 'Synthetic Visitor', score: 40 }, { player: 'Synthetic Unassigned', score: 30 }] }];
   assert.equal(leaderboardPDFModel(state).hasResults, false);
   assert.equal(leaderboardPDFModel(state).unmatched, 2);
   const awaiting = leaderboardPDFDocument(state).content.find(node => node.table).table;
@@ -293,7 +293,7 @@ test('replacement PDF roster preserves numbered teams and unresolved entries alo
   const state = parseJSON(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   assert.equal(state.teams.length, 46);
   assert.equal(state.teams.flatMap(t => t.players).length, 138);
-  assert.equal(new Set(state.teams.flatMap(t => t.players.map(canonical))).size, 137);
+  assert.equal(new Set(state.teams.flatMap(t => t.players.map(canonical))).size, 138);
   assert.deepEqual(state.teams.map(t => Number(t.name.slice(5))), Array.from({ length: 46 }, (_, i) => i + 1));
   assert.deepEqual(state.teams.find(t => t.name === 'Team 1').players, ['Robert Kiersey', 'Luke Sheridan', 'David Roche']);
   assert.deepEqual(state.teams.find(t => t.name === 'Team 21').players, ['Amory Schwartz', 'Trevor Townsend', 'Declan Moriarty']);
@@ -304,7 +304,7 @@ test('replacement PDF roster preserves numbered teams and unresolved entries alo
   assert.equal(state.final, null);
   assert.equal(state.settings.complete, false);
   assert.doesNotMatch(reportHTML(state, 'Local review'), /Player 3 vacant/);
-  assert.match(reportHTML(state, 'Local review'), /Score matching held: Colin Owens/);
+  assert.doesNotMatch(reportHTML(state, 'Local review'), /Score matching held: Colin Owens/);
 });
 test('canonical names match surname-first, punctuation, accents and case', () => {
   assert.equal(canonical("O'Br\u00eden, S\u00e9\u00e1n"), canonical('SEAN OBRIEN'));

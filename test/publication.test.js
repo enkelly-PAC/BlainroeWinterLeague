@@ -170,9 +170,9 @@ test('real first weekend has preserved net points, known matches and team best-t
   assert.equal(round.cards.length, 165);
   assert.deepEqual(round.cards.find(card => canonical(card.player) === canonical('Michael Neiland')), { player: 'Neiland, Michael', score: 29, handicap: 7 });
   const assigned = assignments(state.teams, state.identityBindings);
-  assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 50);
-  assert.equal(round.cards.filter(card => assigned.get(canonical(card.player))?.startsWith('Unassigned')).length, 1);
-  assert.equal(round.cards.filter(card => assigned.has(canonical(card.player)) && !assigned.get(canonical(card.player)).startsWith('Unassigned')).length, 114);
+  assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 49);
+  assert.equal(round.cards.filter(card => assigned.get(canonical(card.player))?.startsWith('Unassigned')).length, 0);
+  assert.equal(round.cards.filter(card => assigned.has(canonical(card.player)) && !assigned.get(canonical(card.player)).startsWith('Unassigned')).length, 116);
   const leaders = league(state).rows.filter(row => row.rank === 1);
   assert.deepEqual(leaders.map(row => [row.team.name, row.retained]), [['Team 15', 49], ['Team 27', 49]]);
   assert.equal(state.settings.complete, false);
@@ -205,17 +205,17 @@ test('replacement roster applies existing late-registration rules without changi
   }
   assert.deepEqual(current.rounds, previous.rounds);
 });
-test('real Weekend 2 keeps reported net cards and cumulative totals without resolving held identities', async () => {
+test('real Weekend 2 keeps reported net cards and cumulative totals with the confirmed roster', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   assert.deepEqual(state.rounds.map(round => [round.date, round.cards.length]), [['2026-10-31', 165], ['2026-11-07', 159]]);
   const round = state.rounds[1], assigned = assignments(state.teams, state.identityBindings);
-  assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 42);
-  assert.equal(round.cards.filter(card => assigned.get(canonical(card.player))?.startsWith('Unassigned')).length, 1);
+  assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 41);
+  assert.equal(round.cards.filter(card => assigned.get(canonical(card.player))?.startsWith('Unassigned')).length, 0);
   const table = league(state);
   assert.deepEqual(table.rows.slice(0, 3).map(row => [row.team.name, row.retained]), [['Team 7', 99], ['Team 13', 98], ['Team 27', 98]]);
   assert.equal(table.rows.find(row => row.team.name === 'Team 7').scores[1].total, 51);
   for (const team of state.teams.filter(team => ['Team 10', 'Team 37'].includes(team.name)))
-    assert.ok(team.heldPlayers.includes('Colin Owens'));
+    assert.deepEqual(team.heldPlayers || [], []);
   assert.equal(state.settings.complete, false);
   assert.equal(state.final, null);
 });

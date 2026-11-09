@@ -66,12 +66,15 @@ test('all 16 confirmed one-to-one bindings attach 28 original cards without chan
   assert.deepEqual(rows.map(row => [row.team.name, row.rank, row.retained, row.scores]),
     league(oldBound).rows.map(row => [row.team.name, row.rank, row.retained, row.scores]));
 });
-test('unconfirmed names and distinct lookalikes stay separate; held cards and the W1 DQ stay excluded', () => {
+test('unconfirmed names and distinct lookalikes stay separate; historical holds and the W1 DQ stay excluded', () => {
   for (const [a, b] of [['David Browne', 'David Brown'], ["Michael O'Neill Snr.", "Michael A. O'Neill"],
     ["Brian O'Connor", 'Brian J. Connor'], ['David Starling', 'David Sparling'], ['Mick Farrell', 'Mike Farrell']])
     assert.notEqual(playerKey(a, state.identityBindings), playerKey(b, state.identityBindings));
   assert.equal(state.rounds[0].cards.some(card => canonical(card.player) === canonical('Robert Kiersey')), false);
-  for (const team of state.teams.filter(team => ['Team 10', 'Team 37'].includes(team.name))) {
+  const heldState = structuredClone(state);
+  heldState.teams.find(team => team.name === 'Team 10').players[0] = 'Colin Owens';
+  for (const team of heldState.teams.filter(team => ['Team 10', 'Team 37'].includes(team.name))) {
+    team.heldPlayers = ['Colin Owens'];
     assert.ok(isHeld(team, 'Colin Owens', state.identityBindings));
     for (const round of state.rounds) {
       const cell = weekendCards(team, round, state.identityBindings)[team.players.indexOf('Colin Owens')];
@@ -80,8 +83,42 @@ test('unconfirmed names and distinct lookalikes stay separate; held cards and th
     }
   }
   const alias = [{ source: 'Colin Owens Alias', player: 'Colin Owens' }];
-  assert.ok(isHeld(state.teams.find(team => team.name === 'Team 10'), 'Colin Owens Alias', alias));
-  assert.match(assignments(state.teams, alias).get(canonical('Colin Owens Alias')), /^Unassigned/);
+  assert.ok(isHeld(heldState.teams.find(team => team.name === 'Team 10'), 'Colin Owens Alias', alias));
+  assert.match(assignments(heldState.teams, alias).get(canonical('Colin Owens Alias')), /^Unassigned/);
+});
+test('confirmed Colin roster correction assigns distinct original cards and recalculates both teams without altering the DQ', () => {
+  const before = structuredClone(state);
+  before.teams.find(team => team.name === 'Team 10').players[0] = 'Colin Owens';
+  for (const team of before.teams.filter(team => ['Team 10', 'Team 37'].includes(team.name)))
+    team.heldPlayers = ['Colin Owens'];
+  const assigned = assignments(state.teams, state.identityBindings);
+  assert.equal(assigned.get(canonical('Halion, Colin')), 'Team 10');
+  assert.equal(assigned.get(canonical('Owens, Colin')), 'Team 37');
+  assert.notEqual(playerKey('Colin Halion', state.identityBindings), playerKey('Colin Owens', state.identityBindings));
+  const expectedColins = [['Team 10', 'Colin Halion', [20, 18], [33, 34], 67, [true, true]],
+    ['Team 37', 'Colin Owens', [15, 17], [35, 40], 75, [true, false]]];
+  const rows = league(state).rows, oldRows = league(before).rows;
+  for (const [name, player, scores, totals, retained, counting] of expectedColins) {
+    const row = rows.find(row => row.team.name === name);
+    assert.equal(isHeld(row.team, player), false);
+    assert.deepEqual(row.scores.map(score => score.total), totals);
+    assert.equal(row.retained, retained);
+    assert.deepEqual(state.rounds.map((round, index) => {
+      const cell = weekendCards(row.team, round, state.identityBindings)[row.team.players.indexOf(player)];
+      assert.equal(cell.held, false);
+      assert.equal(cell.counting, counting[index]);
+      return cell.score;
+    }), scores);
+  }
+  for (const row of rows.filter(row => !['Team 10', 'Team 37'].includes(row.team.name)))
+    assert.deepEqual(row.scores, oldRows.find(old => old.team.name === row.team.name).scores);
+  assert.deepEqual(state.rounds, before.rounds);
+  assert.deepEqual(state.teams.find(team => team.name === 'Team 37').notes,
+    before.teams.find(team => team.name === 'Team 37').notes);
+  assert.equal(state.rounds[0].cards.find(card => canonical(card.player) === canonical('Gavin Pembrey')).score, 23);
+  assert.equal(state.rounds[1].cards.some(card => canonical(card.player) === canonical('Gavin Pembrey')), false);
+  const points = singles => singles.map(({ player, total, rank }) => ({ player, total, rank }));
+  assert.deepEqual(points(singles(state).rows), points(singles(before).rows));
 });
 test('roster page and export displays use all 16 source names, with old draw-sheet spellings only as aliases', () => {
   const html = reportHTML(state, 'Local review');

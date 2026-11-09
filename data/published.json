@@ -1,22 +1,70 @@
 {
   "version": 1,
   "identityBindings": [
-    { "source": "Mike Farrell", "player": "Michael Farrell" },
-    { "source": "Josh McCall", "player": "Joshua McCall" },
-    { "source": "Joe Neiland Jnr", "player": "Joseph Neiland Jnr" },
-    { "source": "Keiran Ryan", "player": "Kieran Ryan" },
-    { "source": "Tommy Kelly", "player": "Thomas Kelly" },
-    { "source": "Michael A. O'Neill", "player": "Michael Anthony O'Neill" },
-    { "source": "Mark McElhinny", "player": "Mark McElhinney" },
-    { "source": "Paddy Daly", "player": "Patrick Daly" },
-    { "source": "Callum Rawl", "player": "Calum Rawl" },
-    { "source": "Nick Byrne", "player": "Nicholas Byrne" },
-    { "source": "Paul Deignan", "player": "Paul F Deignan" },
-    { "source": "Amory Swartz", "player": "Amory Schwartz" },
-    { "source": "Rob Kiersey", "player": "Robert Kiersey" },
-    { "source": "Sean Algar", "player": "Sean Alger" },
-    { "source": "Jonathan Tymlin", "player": "Jonathon Tymlin" },
-    { "source": "Ken Forsyth", "player": "Kevin Forsyth" }
+    {
+      "source": "Mike Farrell",
+      "player": "Michael Farrell"
+    },
+    {
+      "source": "Josh McCall",
+      "player": "Joshua McCall"
+    },
+    {
+      "source": "Joe Neiland Jnr",
+      "player": "Joseph Neiland Jnr"
+    },
+    {
+      "source": "Keiran Ryan",
+      "player": "Kieran Ryan"
+    },
+    {
+      "source": "Tommy Kelly",
+      "player": "Thomas Kelly"
+    },
+    {
+      "source": "Michael A. O'Neill",
+      "player": "Michael Anthony O'Neill"
+    },
+    {
+      "source": "Mark McElhinny",
+      "player": "Mark McElhinney"
+    },
+    {
+      "source": "Paddy Daly",
+      "player": "Patrick Daly"
+    },
+    {
+      "source": "Callum Rawl",
+      "player": "Calum Rawl"
+    },
+    {
+      "source": "Nick Byrne",
+      "player": "Nicholas Byrne"
+    },
+    {
+      "source": "Paul Deignan",
+      "player": "Paul F Deignan"
+    },
+    {
+      "source": "Amory Swartz",
+      "player": "Amory Schwartz"
+    },
+    {
+      "source": "Rob Kiersey",
+      "player": "Robert Kiersey"
+    },
+    {
+      "source": "Sean Algar",
+      "player": "Sean Alger"
+    },
+    {
+      "source": "Jonathan Tymlin",
+      "player": "Jonathon Tymlin"
+    },
+    {
+      "source": "Ken Forsyth",
+      "player": "Kevin Forsyth"
+    }
   ],
   "settings": {
     "maxRounds": 10,
@@ -100,12 +148,9 @@
     {
       "name": "Team 10",
       "players": [
-        "Colin Owens",
+        "Colin Halion",
         "Ger McGuinness",
         "Paul Long"
-      ],
-      "heldPlayers": [
-        "Colin Owens"
       ]
     },
     {
@@ -322,9 +367,6 @@
         "Peter O'Keefe",
         "Colin Owens",
         "Eugene McCrystal"
-      ],
-      "heldPlayers": [
-        "Colin Owens"
       ],
       "notes": "Eugene McCrystal (away member at Bundoran): eligibility pending confirmation by Niall."
     },

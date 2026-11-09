@@ -8,6 +8,10 @@ import { STORAGE_KEY, BASELINE_KEY } from '../storage.js';
 async function rosterFixture() {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   state.rounds = [];
+  // Retain the superseded duplicate roster for tests of held-card safeguards.
+  state.teams.find(team => team.name === 'Team 10').players[0] = 'Colin Owens';
+  for (const team of state.teams.filter(team => ['Team 10', 'Team 37'].includes(team.name)))
+    team.heldPlayers = ['Colin Owens'];
   return state;
 }
 
@@ -121,7 +125,7 @@ test('standings precede collapsed review details, with honest live counts and sh
     assert.equal($(id).open, false);
   }
   assert.equal($('review-notice').hidden, false);
-  assert.match($('review-count').textContent, /^94 cards not counted for teams; \d+ team entries need review\.$/);
+  assert.match($('review-count').textContent, /^90 cards not counted for teams; \d+ team entries need review\.$/);
   const view = renderedTable($);
   assert.equal(view.rows.length, 46);
   const firstRound = view.head.children[0].children[6];
@@ -133,7 +137,7 @@ test('standings precede collapsed review details, with honest live counts and sh
     assert.equal(row[9], '49');
   }
   assert.equal(view.rows.find(row => row[1] === 'Team 15')[8], '18');
-  assert.match(contents($('matching-table')), /Owens, Colin/);
+  assert.doesNotMatch(contents($('matching-table')), /Owens, Colin|Halion, Colin/);
 });
 test('member landing keeps admin workflows in an inactive secondary tab and supports keyboard navigation', async t => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
