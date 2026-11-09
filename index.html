@@ -18,59 +18,72 @@
     </div>
   </header>
   <main>
-    <div class="view-bar"><strong id="view-label">Published club results</strong><div><button id="published-view">Return to published view</button><button id="refresh">Refresh published results</button><a href="./README.html">Rules and owner guide</a></div></div>
+    <div class="view-bar"><strong id="view-label">Published club results</strong><div><button id="published-view">Return to published view</button><button id="refresh">Refresh published results</button></div></div>
     <p id="status" role="status" aria-live="polite" aria-atomic="true">Loading published results...</p>
     <p id="draft-banner" class="note" hidden><strong>Saved on this device.</strong> Only the owner's publication updates the public leaderboard. Keep a backup of local results.</p>
-    <div id="resume-notice" class="resume-notice" hidden><span>Results on this device are available.</span> <button id="resume-results">Resume my saved results</button></div>
     <div class="results-card">
     <nav class="tabs" role="tablist" aria-label="Winter League views">
       <button id="tab-league" role="tab" aria-selected="true" aria-controls="league-panel" tabindex="0">Team leaderboard</button>
       <button id="tab-singles" role="tab" aria-selected="false" aria-controls="singles-panel" tabindex="-1">Singles</button>
-      <details id="more-views"><summary>More: team list, final and committee tools</summary>
+      <details id="more-views"><summary>More views and admin</summary>
         <button id="tab-teams" role="tab" aria-selected="false" aria-controls="teams-panel" tabindex="-1">Team list and weekends</button>
         <button id="tab-final" role="tab" aria-selected="false" aria-controls="final-panel" tabindex="-1">Final</button>
-        <button id="tab-admin" role="tab" aria-selected="false" aria-controls="admin-panel" tabindex="-1">Committee tools</button>
+        <button id="tab-admin" role="tab" aria-selected="false" aria-controls="admin-panel" tabindex="-1">Admin / committee</button>
       </details>
     </nav>
     <section id="league-panel" role="tabpanel" aria-labelledby="tab-league">
-      <div class="table-header"><h2 id="leaderboard-heading" tabindex="-1">Team leaderboard</h2><div class="leaderboard-actions"><button id="upload-results" type="button" aria-controls="upload-panel">Upload HandicapMaster results</button><label for="pdf-format">PDF format<select id="pdf-format" aria-describedby="pdf-help"><option value="detail" selected>Integrated Team standings (default / full detail)</option><option value="standings">Standings summary</option><option value="latest">Latest weekend results</option></select></label><button id="export-leaderboard-pdf" type="button" aria-describedby="pdf-help" disabled>Export integrated Team standings PDF</button></div></div>
-      <p id="pdf-help">Loading the team list for PDF export...</p>
-      <p><button id="member-update" type="button" disabled>Download newsletter copy</button> <button id="member-team-csv" type="button" disabled>Download Team table CSV</button> <button id="member-singles-csv" type="button" disabled>Download Singles table CSV</button> Newsletter prose only, with tables as separate attachments. Review before sending; this does not publish or send.</p>
-      <div id="results-empty" class="empty-state" hidden><h3 id="empty-heading">No results uploaded yet</h3><p id="empty-help">Upload a HandicapMaster net results CSV to match players to the team list and calculate the leaderboard.</p><button id="empty-upload" type="button">Upload HandicapMaster results</button></div>
-      <p id="league-summary"></p><p id="tie-warning" class="warning" hidden></p>
-      <p id="review-notice" class="note" hidden><span id="review-count"></span> <a href="#results-review">Review details below</a></p>
+      <div class="table-header"><h2 id="leaderboard-heading" tabindex="-1">Team leaderboard</h2><button id="member-team-pdf" type="button" disabled>Download Team standings PDF</button></div>
+      <div id="results-empty" class="empty-state" hidden><h3 id="empty-heading">No results uploaded yet</h3><p id="empty-help">The committee will publish reviewed results here.</p></div>
+      <p id="league-summary"></p>
       <p id="points-help" class="note" hidden>Best two cards are bold; non-counting cards are muted. P1/P2/P3 = Player 1/2/3. NA: no card/vacant. H: held, never counted. D: discarded weekend total. Scroll for rounds; select headers to sort.</p>
       <div id="league-table"></div>
       <details id="awaiting-teams"><summary>Team list: awaiting results</summary><div id="awaiting-table"></div></details>
-      <section id="results-review" aria-label="Results review">
-        <details id="matching-review" class="review-detail" hidden><summary id="matching-summary"></summary><p>These cards are saved but do not count for a team. Correct the team list or resolve held names in Committee tools. Singles still includes these cards.</p><div id="matching-table"></div></details>
-        <details id="team-review" class="review-detail" hidden><summary id="team-review-summary"></summary><p id="roster-warning"></p></details>
-      </section>
-      <details class="note review-detail"><summary>Scoring details and report</summary><p>Reported 12-hole net Stableford points are used unchanged, with no rescaling or handicap conversions. Individual 0 means a submitted zero. Missing and held cards contribute zero to the best-two calculation, but are not displayed as submitted zeros. Total is cumulative after any discards; D marks an excluded team weekend score. Cancelled and excluded weekends remain in Team list and weekends. Full round titles are available on the round headings. Live tables have no discards. Committee assumption: tied retained totals compare discarded scores highest first; remaining ties share rank.</p><button id="report" class="export-button">Download league and final HTML report</button></details>
-      <details id="upload-panel" class="card"><summary>Upload and review results</summary></details>
     </section>
     <section id="singles-panel" role="tabpanel" aria-labelledby="tab-singles" hidden>
       <h2>Singles leaderboard</h2>
-      <label>Singles view<select id="singles-weekend" aria-describedby="singles-summary" disabled></select></label>
-      <button id="export-singles-pdf" type="button" disabled>Export cumulative Singles PDF</button>
-      <button id="export-singles-csv" type="button" disabled>Export cumulative Singles CSV</button>
+      <button id="export-singles-pdf" type="button" disabled>Download cumulative Singles PDF</button>
       <p id="singles-summary" aria-live="polite"></p>
       <div id="singles-table"></div>
-      <p class="note">Cumulative Singles sum accepted 12-hole net Stableford cards across active qualifying weekends. Each weekend score and the overall total are shown; NA means no accepted card, not zero. All submitted cards count, including zero, regardless of team registration or holds. No team best-two selection or discards apply. Equal totals share competition rank (1, 1, 3). Alphabetical order within ties is display only, not a tie-break. Cancelled and excluded weekends are available for historical review only. PDF and CSV exports use the cumulative qualifying view.</p>
+      <p class="note">All accepted qualifying cards count towards cumulative Singles, including zero. NA means no accepted card. Equal totals share rank; team holds, best-two selection and discards do not apply.</p>
     </section>
     <section id="teams-panel" role="tabpanel" aria-labelledby="tab-teams" hidden>
       <h2>Registered teams</h2><div id="teams-table"></div>
       <h2>Weekend schedule</h2><p>Saturday is the weekend key, including Sunday cards. Weather cancellation excludes the entire weekend for every team.</p><div id="rounds-table"></div>
-      <h3>Individual weekend cards</h3><p>All three players' reported 12-hole net Stableford cards are retained and shown unchanged. A team's weekly score uses only its highest two cards; the third card is not deleted.</p><div id="cards-table"></div>
-      <h3>Unassigned cards</h3><p>Scores can arrive before registration. They remain unassigned until a matching player is registered.</p><div id="unassigned-table"></div>
     </section>
     <section id="final-panel" role="tabpanel" aria-labelledby="tab-final" hidden>
-      <div class="table-header"><h2>Winter League final</h2><button id="final-template" class="export-button">Download eligible final CSV template</button></div><p><strong>Zero league carryover.</strong> Final date awaiting committee confirmation unless a confirmed date is entered.</p>
+      <h2>Winter League final</h2><p><strong>Zero league carryover.</strong> Final date awaiting committee confirmation unless a confirmed date is entered.</p>
       <p id="final-summary" class="warning"></p><div id="final-table"></div>
       <p>All 3 distinct registered players must submit final cards before their team is ranked. Countback aggregates all 3 players' back 9, 6, 3 and 1 in that order. Unresolved ties share rank.</p>
-      <p class="note">Enter final cards through the leaderboard's Upload and review results, then Other imports. Template scores are blank, not invented results.</p>
     </section>
     <section id="admin-panel" role="tabpanel" aria-labelledby="tab-admin" hidden>
+      <h2>Admin / committee</h2>
+      <p class="note">Tools for preparing and reviewing results, not a sign-in or access restriction. Changes stay on this device until reviewed owner publication.</p>
+      <p><a href="./README.html">Rules and owner guide</a></p>
+      <div id="resume-notice" class="resume-notice" hidden><span>Results on this device are available.</span> <button id="resume-results">Resume my saved results</button></div>
+      <div class="actions"><button id="upload-results" type="button" aria-controls="upload-panel">Upload HandicapMaster results</button><button id="empty-upload" type="button">Choose results CSVs</button></div>
+      <details id="upload-panel" class="card"><summary>Upload and review results</summary></details>
+      <details class="card"><summary>Newsletter, CSVs and advanced exports</summary>
+        <div class="leaderboard-actions"><label for="pdf-format">Team PDF format<select id="pdf-format" aria-describedby="pdf-help"><option value="detail" selected>Integrated Team standings (default / full detail)</option><option value="standings">Standings summary</option><option value="latest">Latest weekend results</option></select></label><button id="export-leaderboard-pdf" type="button" aria-describedby="pdf-help" disabled>Export integrated Team standings PDF</button></div>
+        <p id="pdf-help">Loading the team list for PDF export...</p>
+        <p><button id="member-update" type="button" disabled>Download newsletter copy</button> <button id="member-team-csv" type="button" disabled>Download Team table CSV</button> <button id="member-singles-csv" type="button" disabled>Download Singles table CSV</button> Newsletter prose only, with tables as separate attachments. Review before sending; this does not publish or send.</p>
+        <label>Singles view (also changes the Singles tab)<select id="singles-weekend" aria-describedby="singles-summary" disabled></select></label>
+        <p class="note">Cancelled and excluded weekends are historical review only. Select cumulative qualifying standings to enable the Singles PDF and CSV downloads. Alphabetical order within ties is display only, not a tie-break.</p>
+        <button id="export-singles-csv" type="button" disabled>Export cumulative Singles CSV</button>
+        <p><button id="final-template" class="export-button">Download eligible final CSV template</button></p>
+        <p class="note">Enter final cards through Upload and review results, then Other imports. Template scores are blank, not invented results.</p>
+      </details>
+      <section id="results-review" aria-label="Results review">
+        <h3>Results review</h3>
+        <p id="tie-warning" class="warning" hidden></p>
+        <p id="review-notice" class="note" hidden><span id="review-count"></span> Review the details below.</p>
+        <details id="matching-review" class="review-detail" hidden><summary id="matching-summary"></summary><p>These cards are saved but do not count for a team. Correct the team list or resolve held names in Committee tools. Singles still includes these cards.</p><div id="matching-table"></div></details>
+        <details id="team-review" class="review-detail" hidden><summary id="team-review-summary"></summary><p id="roster-warning"></p></details>
+        <details class="review-detail"><summary>Individual and unassigned weekend cards</summary>
+          <h3>Individual weekend cards</h3><p>All three players' reported 12-hole net Stableford cards are retained and shown unchanged. A team's weekly score uses only its highest two cards; the third card is not deleted.</p><div id="cards-table"></div>
+          <h3>Unassigned cards</h3><p>Scores can arrive before registration. They remain unassigned until a matching player is registered.</p><div id="unassigned-table"></div>
+        </details>
+      </section>
+      <details class="note review-detail"><summary>Scoring details and report</summary><p>Reported 12-hole net Stableford points are used unchanged, with no rescaling or handicap conversions. Individual 0 means a submitted zero. Missing and held cards contribute zero to the best-two calculation, but are not displayed as submitted zeros. Total is cumulative after any discards; D marks an excluded team weekend score. Cancelled and excluded weekends remain in Team list and weekends. Full round titles are available on the round headings. Live tables have no discards. Committee assumption: tied retained totals compare discarded scores highest first; remaining ties share rank.</p><button id="report" class="export-button">Download league and final HTML report</button></details>
         <section id="results-upload">
           <h2 id="import-heading">Upload HandicapMaster results</h2>
           <p id="import-help"><strong>Feeds League and Singles.</strong> Select your results and scorecard CSVs together. Net reports supply points; recognized gross scorecards are excluded.</p>

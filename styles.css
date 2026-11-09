@@ -105,6 +105,8 @@ tbody td:first-child { font-weight: 600; color: var(--green); }
 #awaiting-table td, #matching-table td, #preview-table td { white-space: normal; }
 #more-views { margin-left: auto; padding: .6rem; }
 #more-views summary { font-size: .9rem; }
+#admin-panel > h2 { margin-top: 0; }
+#member-team-pdf { min-height: 2.75rem; }
 .empty-state { text-align: center; padding: 2rem 1rem; background: var(--pale); border-radius: 8px; margin: 1rem 0; }
 .empty-state h3 { font-size: 1.4rem; margin-top: 0; }
 .resume-notice { background: var(--pale); border: 1px solid var(--border); padding: .8rem; margin: 1rem 0; border-radius: 8px; }

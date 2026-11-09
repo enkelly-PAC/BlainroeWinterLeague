@@ -26,6 +26,7 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
     append(...children) { this.children.push(...children); }
     replaceChildren(...children) { this.children = children; }
     setAttribute(name, value) { this.attributes.set(name, value); }
+    getAttribute(name) { return this.attributes.get(name); }
     querySelectorAll(tagName) {
       return this.children.flatMap(child => [...(child.tagName === tagName ? [child] : []), ...child.querySelectorAll(tagName)]);
     }
@@ -33,15 +34,22 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
     click() { this.clicked = true; }
     remove() {}
     addEventListener(event, listener) { this.listeners.set(event, listener); }
-    async emit(event) { await this.listeners.get(event)?.({ preventDefault() {} }); }
+    async emit(event, properties = {}) { await this.listeners.get(event)?.({ preventDefault() {}, ...properties }); }
   }
-  for (const match of html.matchAll(/\bid="([^"]+)"/g)) nodes.set(match[1], new Node());
+  for (const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*\bid="([^"]+)"[^>]*)>/g)) {
+    const node = new Node(match[1]);
+    for (const attribute of match[2].matchAll(/([\w-]+)="([^"]*)"/g)) node.setAttribute(attribute[1], attribute[2]);
+    node.hidden = /\bhidden\b/.test(match[2]);
+    node.open = /\bopen\b/.test(match[2]);
+    nodes.set(match[3], node);
+  }
   nodes.get('import-type').value = 'scores';
   const values = new Map(source === null ? [] : [[STORAGE_KEY, source]]);
   if (baseline) values.set(BASELINE_KEY, JSON.stringify({ draft: JSON.parse(source), published: baseline }));
   const original = Object.fromEntries(['document', 'window', 'fetch', 'confirm'].map(key => [key, globalThis[key]]));
   globalThis.document = {
-    getElementById: id => nodes.get(id), createElement: tagName => new Node(tagName), querySelectorAll: () => [],
+    getElementById: id => nodes.get(id), createElement: tagName => new Node(tagName),
+    querySelectorAll: selector => selector === '[role="tab"]' ? [...nodes.values()].filter(node => node.getAttribute('role') === 'tab') : [],
     body: { append: node => downloads.push(node) },
     head: { append: node => queueMicrotask(() => node.onload()) }
   };
@@ -126,6 +134,43 @@ test('standings precede collapsed review details, with honest live counts and sh
   }
   assert.equal(view.rows.find(row => row[1] === 'Team 15')[8], '18');
   assert.match(contents($('matching-table')), /Owens, Colin/);
+});
+test('member landing keeps admin workflows in an inactive secondary tab and supports keyboard navigation', async t => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const { $, values } = await workspace(t, JSON.stringify(state), state);
+  const adminStart = html.indexOf('<section id="admin-panel"');
+  for (const id of ['resume-notice', 'upload-results', 'upload-panel', 'results-upload', 'member-update',
+    'member-team-csv', 'member-singles-csv', 'pdf-format', 'export-leaderboard-pdf', 'singles-weekend',
+    'export-singles-csv', 'results-review', 'review-notice', 'matching-review', 'team-review', 'cards-table', 'unassigned-table', 'report',
+    'final-template', 'settings-form', 'backup', 'publication', 'start-draft', 'delete-draft']) {
+    assert.ok(html.indexOf(`id="${id}"`) > adminStart, `${id} must be inside Admin / committee`);
+  }
+  assert.ok(html.indexOf('href="./README.html"') > adminStart);
+  assert.equal($('admin-panel').hidden, true);
+  assert.equal($('more-views').open, false);
+  assert.equal($('league-panel').hidden, false);
+  assert.equal($('singles-panel').hidden, true);
+  assert.equal($('view-label').textContent, 'PUBLISHED: club results');
+  assert.equal($('member-team-pdf').disabled, false);
+  assert.match($('league-summary').textContent, /2026-10-31, 2026-11-07/);
+  const stored = values.get(STORAGE_KEY);
+  await $('tab-league').emit('keydown', { key: 'ArrowRight' });
+  assert.equal($('singles-panel').hidden, false);
+  assert.equal(document.activeElement, $('tab-singles'));
+  await $('tab-singles').emit('keydown', { key: 'End' });
+  assert.equal($('more-views').open, true);
+  assert.equal($('admin-panel').hidden, false);
+  assert.equal($('league-panel').hidden, true);
+  await $('upload-results').emit('click');
+  assert.equal($('admin-panel').hidden, false);
+  assert.equal($('upload-panel').open, true);
+  assert.equal(document.activeElement, $('import-files'));
+  await $('tab-admin').emit('keydown', { key: 'Home' });
+  assert.equal($('admin-panel').hidden, true);
+  assert.equal($('league-panel').hidden, false);
+  assert.equal($('tab-league').getAttribute('aria-selected'), 'true');
+  assert.equal(values.get(STORAGE_KEY), stored);
 });
 test('table headers sort numeric points and natural team names both ways without changing ranks or stored state', async t => {
   const state = sortingFixture(), original = JSON.stringify(state);
@@ -288,6 +333,11 @@ test('main PDF download follows the visible published or saved draft and never e
   assert.equal($('export-leaderboard-pdf').textContent, 'Export member standings PDF');
   assert.match($('pdf-help').textContent, /awaiting qualifying results.*Published view/);
   const saved = values.get(STORAGE_KEY);
+  await $('member-team-pdf').emit('click');
+  assert.match(downloads.at(-1).download, /published-awaiting-results.pdf$/);
+  assert.match(definitions.at(-1).info.title, /Full detail/);
+  assert.equal($('pdf-format').value, 'standings');
+  assert.equal(values.get(STORAGE_KEY), saved);
   await $('export-leaderboard-pdf').emit('click');
   assert.equal(downloads.at(-1).download, 'blainroe-winter-league-2026-2027-published-standings-awaiting-results.pdf');
   assert.match(definitions.at(-1).info.subject, /PUBLISHED/);
@@ -296,6 +346,11 @@ test('main PDF download follows the visible published or saved draft and never e
   await renderedTable($).buttons[5].emit('click');
   assert.equal(renderedTable($).rows[0][5], '0');
   await preview('Played on,15/11/2026\nPlayer,Score\nPaddy Daly,40');
+  await $('member-team-pdf').emit('click');
+  assert.match(downloads.at(-1).download, /draft-2026-11-07.pdf$/);
+  assert.match(definitions.at(-1).info.subject, /DRAFT: saved on this device, not published/);
+  assert.doesNotMatch(JSON.stringify(definitions.at(-1)), /15 Nov/);
+  assert.equal($('pdf-format').value, 'standings');
   await $('export-leaderboard-pdf').emit('click');
   assert.equal(downloads.at(-1).download, 'blainroe-winter-league-2026-2027-draft-standings-2026-11-07.pdf');
   const definition = definitions.at(-1);
@@ -324,8 +379,12 @@ test('main PDF download follows the visible published or saved draft and never e
   await $('export-leaderboard-pdf').emit('click');
   assert.match(downloads.at(-1).download, /published-standings-awaiting-results.pdf$/);
   assert.equal($('export-leaderboard-pdf').disabled, false);
+  assert.equal($('member-team-pdf').disabled, false);
   const createPdf = window.pdfMake.createPdf;
   window.pdfMake.createPdf = () => { throw new Error('Synthetic PDF failure'); };
+  await $('member-team-pdf').emit('click');
+  assert.match($('status').textContent, /Synthetic PDF failure/);
+  assert.equal($('member-team-pdf').disabled, false);
   await $('export-leaderboard-pdf').emit('click');
   assert.match($('status').textContent, /Synthetic PDF failure/);
   assert.equal($('export-leaderboard-pdf').disabled, false);
@@ -358,9 +417,10 @@ test('main PDF download follows the visible published or saved draft and never e
 test('PDF export is disabled with an explanation when no team list is available', async t => {
   const { $ } = await workspace(t);
   assert.equal($('export-leaderboard-pdf').disabled, true);
+  assert.equal($('member-team-pdf').disabled, true);
   assert.match($('pdf-help').textContent, /needs an available team list/);
 });
-test('default team leaderboard has an honest empty state and primary upload without committee navigation', async t => {
+test('empty member leaderboard stays honest and committee upload opens the shared form', async t => {
   const published = await rosterFixture();
   const { $, values, contents } = await workspace(t, null, published);
   assert.equal($('view-label').textContent, 'PUBLISHED: club results');

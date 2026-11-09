@@ -7,7 +7,7 @@ import { weekendCards } from './leaderboard-layout.js';
 import { memberUpdate } from './member-update.js';
 
 const $ = id => document.getElementById(id);
-// Keep the shared import form on the leaderboard, including its advanced import types.
+// Keep all import types together in the secondary committee view.
 $('upload-panel').append($('results-upload'));
 let published = emptyState(), publishedReady = false, draft = null, mode = 'published', pending = null, storageBlocked = false, previewRevision = 0;
 let draftSaved = false;
@@ -191,17 +191,17 @@ function download(filename, content, type) {
 function csvDownload(filename, columns, rows) {
   download(filename, [columns, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n', 'text/csv;charset=utf-8');
 }
-$('export-leaderboard-pdf').addEventListener('click', safely(async () => {
+async function exportTeamPDF(format) {
   if (pdfBusy) return;
   if (mode === 'published' && !publishedReady) throw new Error('Published results are unavailable. Refresh before exporting.');
   const state = structuredClone(current());
   const hasCards = league(state).rounds.some(round => round.cards.some(card =>
     state.teams.some(team => team.players.some(player => !isHeld(team, player) && canonical(player) === playerKey(card.player, state.identityBindings)))));
-  const format = $('pdf-format').value;
   const latest = [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).at(-1);
   const historicalLatest = format === 'latest' && (!latest?.cards.length || latest.canceled || !latest.qualifying);
   const context = { mode, saved: draftSaved, format, audience: mode === 'published' && hasCards && !historicalLatest ? 'members' : 'review' };
   pdfBusy = true;
+  $('member-team-pdf').disabled = true;
   $('export-leaderboard-pdf').disabled = true;
   $('export-leaderboard-pdf').textContent = 'Preparing PDF...';
   message('Preparing your leaderboard PDF on this device...');
@@ -212,7 +212,9 @@ $('export-leaderboard-pdf').addEventListener('click', safely(async () => {
     pdfBusy = false;
     render();
   }
-}));
+}
+$('export-leaderboard-pdf').addEventListener('click', safely(() => exportTeamPDF($('pdf-format').value)));
+$('member-team-pdf').addEventListener('click', safely(() => exportTeamPDF('detail')));
 $('pdf-format').value = 'detail';
 $('pdf-format').addEventListener('change', () => render());
 $('export-singles-csv').addEventListener('click', safely(() => {
@@ -264,7 +266,7 @@ function renderSingles(state) {
   summary.classList.toggle('warning', Boolean(result.round && (result.round.canceled || !result.round.qualifying)));
   summary.textContent = result.round
     ? `${result.round.date}: ${result.round.name}. ${result.status}. ${result.round.canceled || !result.round.qualifying ? 'Historical review only, not active official standings. ' : ''}${result.rows.length} imported individual cards.`
-    : 'No results uploaded yet. Use Upload HandicapMaster results on the team leaderboard.';
+    : 'No results uploaded yet. Uploads are available in Admin / committee.';
   table('singles-table', `${mode === 'draft' ? 'Local draft' : 'Published'} singles: ${result.round?.date || 'no weekend'} (${result.status || 'no results'})`,
     ['Position', 'Player', 'Net Stableford points', 'Team membership'], result.rows.map(row => [row.rank, row.player, row.score, row.team]),
     result.round ? 'No submitted individual cards for this weekend. No absent players or scores have been invented.' : 'Import weekend scores to see individual results, even before teams are registered.');
@@ -286,6 +288,8 @@ function render() {
   const uploaded = result.rounds.some(round => round.cards.length);
   const hasResults = result.rounds.some(round => round.cards.some(card => activePlayers.has(playerKey(card.player, state.identityBindings))));
   $('export-leaderboard-pdf').disabled = pdfBusy || !state.teams.length || (mode === 'published' && !publishedReady);
+  $('member-team-pdf').disabled = $('export-leaderboard-pdf').disabled;
+  $('member-team-pdf').textContent = pdfBusy ? 'Preparing PDF...' : 'Download Team standings PDF';
   for (const id of ['member-update', 'member-team-csv', 'member-singles-csv'])
     $(id).disabled = !state.teams.length || (mode === 'published' && !publishedReady);
   $('pdf-format').disabled = pdfBusy;
@@ -297,15 +301,16 @@ function render() {
     : `Download ${pdfLabel}. ${pdfFormat === 'latest' ? 'Latest dated imported weekend, including cancelled, excluded or empty weekends, clearly labelled.' :
       hasResults ? 'Official rank order and full season points, repeated for each readable weekend group.' : 'Registered team list, awaiting qualifying results (no invented ranks or totals).'} ${mode === 'draft' ? draftSaved ? 'Saved local draft, clearly marked DRAFT.' : 'Unsaved local results, clearly marked DRAFT: not saved.' : 'Published view; any saved local draft is not included.'} Nothing is published or sent to another service.`;
   $('results-empty').hidden = hasResults;
+  $('empty-upload').hidden = hasResults;
   $('empty-heading').textContent = uploaded && !hasResults ? 'No team matches yet' : state.rounds.length ? 'No qualifying results yet' : 'No results uploaded yet';
   $('empty-help').textContent = uploaded && !hasResults
-    ? 'Results are saved, but no qualifying cards match an active team player. Review the unmatched or held cards below, or correct the team list in Committee tools.'
-    : 'Upload a HandicapMaster net results CSV to match players to the team list and calculate the leaderboard.';
+    ? 'Results are saved, but no qualifying cards match an active team player. Matching diagnostics are available in Admin / committee.'
+    : 'The committee will publish reviewed results here. Uploads are available in Admin / committee.';
   $('points-help').hidden = !hasResults;
   $('awaiting-teams').hidden = hasResults;
   $('league-table').hidden = !hasResults;
   $('league-summary').textContent = hasResults
-    ? `${state.teams.length} teams. ${result.rounds.length} qualifying weekend${result.rounds.length === 1 ? '' : 's'}.${state.settings.complete ? ` Qualification complete; ${result.discardCount} worst weekend(s) excluded from team points.` : ''}`
+    ? `${state.teams.length} teams. ${result.rounds.length} qualifying weekend${result.rounds.length === 1 ? '' : 's'}: ${result.rounds.map(round => round.date).join(', ')}.${state.settings.complete ? ` Qualification complete; ${result.discardCount} worst weekend(s) excluded from team points.` : ''}`
     : `${state.teams.length} registered teams. Standings appear when qualifying results match the team list.`;
   const warnings = [];
   if (hasResults && state.settings.complete && result.firstUnresolved) warnings.push('First place remains tied after the configured tie hierarchy.');
@@ -501,7 +506,7 @@ async function resumeResults() { await loadPublished(); persist(resultsState(wor
 $('start-draft').addEventListener('click', safely(resumeResults));
 $('resume-results').addEventListener('click', safely(resumeResults));
 function openResultsUpload() {
-  selectTab(0);
+  selectTab(4);
   if ($('import-type').value !== 'scores') chooseImportType('scores');
   $('upload-panel').open = true;
   $('import-files').focus();
@@ -593,7 +598,7 @@ function updateImportType() {
   $('import-status').classList.toggle('error', false);
 }
 function chooseImportType(kind) {
-  selectTab(0);
+  selectTab(4);
   $('upload-panel').open = true;
   $('import-type').value = kind;
   updateImportType();
