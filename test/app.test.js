@@ -25,6 +25,7 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
       this.tagName = tagName; this.attributes = new Map();
       this.value = ''; this.textContent = ''; this.files = []; this.hidden = false;
       this.checked = false; this.open = false; this.children = []; this.listeners = new Map();
+      this.style = {}; this.scrollLeft = 0; this.scrollTop = 0; this.clientWidth = 0; this.scrollWidth = 0;
       this.classList = { toggle() {} };
     }
     append(...children) { this.children.push(...children); }
@@ -38,7 +39,13 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
     click() { this.clicked = true; }
     remove() {}
     addEventListener(event, listener) { this.listeners.set(event, listener); }
-    async emit(event, properties = {}) { await this.listeners.get(event)?.({ preventDefault() {}, ...properties }); }
+    removeEventListener(event, listener) { if (this.listeners.get(event) === listener) this.listeners.delete(event); }
+    scrollTo(options) {
+      this.lastScroll = options;
+      this.scrollLeft = Math.max(0, Math.min(this.scrollWidth - this.clientWidth, options.left));
+      return this.emit('scroll');
+    }
+    async emit(event, properties = {}) { await this.listeners.get(event)?.({ preventDefault() {}, target: this, currentTarget: this, ...properties }); }
   }
   for (const match of html.matchAll(/<([a-z][a-z0-9-]*)\b([^>]*\bid="([^"]+)"[^>]*)>/g)) {
     const node = new Node(match[1]);
@@ -50,14 +57,25 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
   nodes.get('import-type').value = 'scores';
   const values = new Map(source === null ? [] : [[STORAGE_KEY, source]]);
   if (baseline) values.set(BASELINE_KEY, JSON.stringify({ draft: JSON.parse(source), published: baseline }));
-  const original = Object.fromEntries(['document', 'window', 'fetch', 'confirm'].map(key => [key, globalThis[key]]));
+  const original = Object.fromEntries(['document', 'window', 'fetch', 'confirm', 'ResizeObserver'].map(key => [key, globalThis[key]]));
+  const observers = [];
+  globalThis.ResizeObserver = class {
+    constructor(callback) { this.callback = callback; this.targets = []; observers.push(this); }
+    observe(target) { this.targets.push(target); }
+    disconnect() { this.disconnected = true; }
+  };
   globalThis.document = {
     getElementById: id => nodes.get(id), createElement: tagName => new Node(tagName),
     querySelectorAll: selector => selector === '[role="tab"]' ? [...nodes.values()].filter(node => node.getAttribute('role') === 'tab') : [],
     body: { append: node => downloads.push(node) },
     head: { append: node => queueMicrotask(() => node.onload()) }
   };
-  globalThis.window = { localStorage: {
+  const windowListeners = new EventEmitter(), motion = { matches: false };
+  globalThis.window = {
+    addEventListener: (event, listener) => windowListeners.on(event, listener),
+    removeEventListener: (event, listener) => windowListeners.off(event, listener),
+    matchMedia: () => motion,
+    localStorage: {
     getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key)
   } };
   globalThis.fetch = async () => ({ ok: true, text: async () => JSON.stringify(published),
@@ -78,10 +96,11 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
     await new Promise(resolve => setImmediate(resolve));
   }
   const contents = node => [node.textContent, ...node.children.map(contents)].join('\n');
-  return { $, values, preview, reload, contents, downloads, setPublished: state => { published = state; } };
+  return { $, values, preview, reload, contents, downloads, observers, motion, windowListeners,
+    resize: () => windowListeners.emit('resize'), setPublished: state => { published = state; } };
 }
 function renderedTable($, id = 'league-table') {
-  const wrapper = $(id).children[0], table = wrapper.children[0];
+  const wrapper = $(id).children.find(node => node.className === 'table-wrap'), table = wrapper.children[0];
   const head = table.children[1], body = table.children[2];
   return { wrapper, head, body, buttons: head.querySelectorAll('button'), rows: body.children.map(row => row.children.map(cell => cell.textContent)) };
 }
@@ -93,6 +112,108 @@ function sortingFixture() {
       { player: 'Beta 10', score: 0 }] }];
   return state;
 }
+function scrollControls($, id = 'league-table') {
+  const controls = $(id).children[0], [actions, track] = controls.children;
+  const [left, right] = actions.children, wrapper = renderedTable($, id).wrapper;
+  return { controls, track, left, right, wrapper };
+}
+test('leaderboard scroll buttons, keyboard and both native scrollbars stay synchronised at bounds', async t => {
+  const { $, resize, motion } = await workspace(t, null, sortingFixture());
+  const { controls, track, left, right, wrapper } = scrollControls($);
+  Object.assign(wrapper, { clientWidth: 400, scrollWidth: 1400 });
+  resize();
+  assert.equal(controls.hidden, false);
+  assert.equal(track.children[0].style.width, '1400px');
+  assert.equal(left.textContent, 'Scroll left');
+  assert.equal(right.textContent, 'Scroll right');
+  assert.equal(left.getAttribute('aria-controls'), wrapper.id);
+  assert.equal(track.tabIndex, 0);
+  assert.equal(left.disabled, true);
+  assert.equal(right.disabled, false);
+  await right.emit('click');
+  assert.equal(wrapper.scrollLeft, 300);
+  assert.equal(wrapper.lastScroll.behavior, 'smooth');
+  assert.equal(track.scrollLeft, 300);
+  assert.equal(left.disabled, false);
+  let prevented = false;
+  motion.matches = true;
+  await track.emit('keydown', { key: 'ArrowRight', preventDefault() { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.equal(wrapper.scrollLeft, 600);
+  assert.equal(wrapper.lastScroll.behavior, 'instant');
+  await wrapper.emit('keydown', { key: 'ArrowRight', target: renderedTable($).buttons[0] });
+  assert.equal(wrapper.scrollLeft, 600); // Sorting buttons retain their own keyboard behaviour.
+  await right.emit('click'); await right.emit('click');
+  assert.equal(wrapper.scrollLeft, 1000);
+  assert.equal(track.scrollLeft, 1000);
+  assert.equal(right.disabled, true);
+  await left.emit('click');
+  assert.equal(wrapper.scrollLeft, 700);
+  track.scrollLeft = 125;
+  await track.emit('scroll');
+  assert.equal(wrapper.scrollLeft, 125);
+  wrapper.scrollLeft = 0;
+  await wrapper.emit('scroll');
+  assert.equal(track.scrollLeft, 0);
+  assert.equal(left.disabled, true);
+  await wrapper.emit('keydown', { key: 'ArrowLeft' });
+  assert.equal(wrapper.scrollLeft, 0);
+});
+test('scroll controls refresh on resize, tab reveal and content resize, without touching admin tables', async t => {
+  const { $, resize, observers } = await workspace(t, null, sortingFixture());
+  const view = scrollControls($), singles = scrollControls($, 'singles-table');
+  Object.assign(view.wrapper, { clientWidth: 600, scrollWidth: 600 });
+  resize();
+  assert.equal(view.controls.hidden, true);
+  assert.equal(view.left.disabled, true);
+  assert.equal(view.right.disabled, true);
+  view.wrapper.scrollWidth = 1600;
+  observers.find(observer => observer.targets.includes(view.wrapper)).callback();
+  assert.equal(view.controls.hidden, false);
+  assert.equal(view.right.disabled, false);
+  view.wrapper.clientWidth = 1600;
+  resize();
+  assert.equal(view.controls.hidden, true);
+  assert.equal(singles.controls.hidden, true);
+  Object.assign(singles.wrapper, { clientWidth: 320, scrollWidth: 900 });
+  await $('tab-singles').emit('click');
+  assert.equal(singles.controls.hidden, false);
+  assert.equal(singles.track.children[0].style.width, '900px');
+  await singles.right.emit('click');
+  assert.equal(singles.wrapper.scrollLeft, 240);
+  assert.equal(singles.track.scrollLeft, 240);
+  assert.equal($('teams-table').children[0].className, 'table-wrap');
+});
+test('changed tables reset left and release observers and listeners; unchanged renders and sorting preserve position', async t => {
+  const state = sortingFixture();
+  const { $, resize, observers, windowListeners, setPublished } = await workspace(t, null, state);
+  const old = scrollControls($), oldObserver = observers.find(observer => observer.targets.includes(old.wrapper));
+  Object.assign(old.wrapper, { clientWidth: 400, scrollWidth: 1400, scrollLeft: 250 });
+  resize();
+  await $('pdf-format').emit('change');
+  assert.equal(renderedTable($).wrapper, old.wrapper);
+  assert.equal(old.wrapper.scrollLeft, 250);
+  await renderedTable($).buttons[5].emit('click');
+  const sorted = scrollControls($);
+  assert.equal(sorted.wrapper.scrollLeft, 250);
+  assert.equal(sorted.track.scrollLeft, 250);
+  assert.equal(document.activeElement, renderedTable($).buttons[5]);
+  assert.equal(oldObserver.disconnected, true);
+  assert.equal(old.wrapper.listeners.has('scroll'), false);
+  assert.equal(old.track.listeners.has('scroll'), false);
+  assert.equal(windowListeners.listenerCount('resize'), 2);
+  const next = structuredClone(state);
+  next.rounds[0].cards[0].score++;
+  setPublished(next);
+  await $('refresh').emit('click');
+  assert.notEqual(renderedTable($).wrapper, sorted.wrapper);
+  assert.equal(renderedTable($).wrapper.scrollLeft, 0);
+  assert.equal(windowListeners.listenerCount('resize'), 2);
+  setPublished(emptyState());
+  await $('refresh').emit('click');
+  assert.equal(windowListeners.listenerCount('resize'), 0);
+  assert.ok(observers.every(observer => observer.disconnected));
+});
 test('Singles defaults to cumulative cards and historical review disables official exports without changing Teams', async t => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   state.rounds.push({ date: '2026-11-14', name: 'Cancelled review', canceled: true, qualifying: true,

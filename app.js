@@ -94,10 +94,83 @@ function element(tag, value, className) {
   return node;
 }
 const tableSorts = new Map();
+const scrollableTables = new Map();
 const tableCollator = new Intl.Collator('en-GB', { sensitivity: 'base', numeric: true });
 const displayCell = (text, sortValue) => ({ text, sortValue });
 const cellText = value => value && typeof value === 'object' ? value.text : value;
 const cellValue = value => value && typeof value === 'object' ? value.sortValue : value;
+function tableScrollControls(id, host, wrapper, tbl, signature) {
+  const controls = element('div', undefined, 'table-scroll-controls');
+  controls.setAttribute('role', 'group');
+  controls.setAttribute('aria-label', 'Table horizontal scrolling');
+  const actions = element('div', undefined, 'table-scroll-actions');
+  const left = element('button', 'Scroll left'), right = element('button', 'Scroll right');
+  for (const button of [left, right]) {
+    button.type = 'button';
+    button.setAttribute('aria-controls', `${id}-viewport`);
+  }
+  actions.append(left, right);
+  const track = element('div', undefined, 'table-scroll-track');
+  track.tabIndex = 0;
+  track.setAttribute('role', 'region');
+  track.setAttribute('aria-label', 'Table top horizontal scrollbar');
+  track.setAttribute('aria-controls', `${id}-viewport`);
+  const spacer = element('div', undefined, 'table-scroll-spacer');
+  spacer.setAttribute('aria-hidden', 'true');
+  track.append(spacer); controls.append(actions, track);
+  wrapper.id = `${id}-viewport`;
+  host.append(controls, wrapper);
+  function updateEdges() {
+    const max = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+    left.disabled = wrapper.scrollLeft <= 1;
+    right.disabled = wrapper.scrollLeft >= max - 1;
+  }
+  function refresh() {
+    controls.hidden = wrapper.clientWidth === 0 || wrapper.scrollWidth <= wrapper.clientWidth + 1;
+    spacer.style.width = `${wrapper.scrollWidth}px`;
+    if (track.scrollLeft !== wrapper.scrollLeft) track.scrollLeft = wrapper.scrollLeft;
+    updateEdges();
+  }
+  function fromTable() {
+    if (track.scrollLeft !== wrapper.scrollLeft) track.scrollLeft = wrapper.scrollLeft;
+    updateEdges();
+  }
+  function fromTrack() {
+    if (wrapper.scrollLeft !== track.scrollLeft) wrapper.scrollLeft = track.scrollLeft;
+    updateEdges();
+  }
+  function move(direction) {
+    const max = Math.max(0, wrapper.scrollWidth - wrapper.clientWidth);
+    const left = Math.max(0, Math.min(max, wrapper.scrollLeft + direction * wrapper.clientWidth * .75));
+    wrapper.scrollTo({ left, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+  }
+  function keyboard(event) {
+    const direction = { ArrowLeft: -1, ArrowRight: 1 }[event.key];
+    if (direction && event.target === event.currentTarget) {
+      event.preventDefault();
+      move(direction);
+    }
+  }
+  left.addEventListener('click', () => move(-1));
+  right.addEventListener('click', () => move(1));
+  track.addEventListener('scroll', fromTrack);
+  wrapper.addEventListener('scroll', fromTable);
+  track.addEventListener('keydown', keyboard);
+  wrapper.addEventListener('keydown', keyboard);
+  window.addEventListener('resize', refresh);
+  const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(refresh);
+  observer?.observe(wrapper);
+  observer?.observe(tbl);
+  scrollableTables.set(id, { signature, wrapper, refresh, destroy() {
+    observer?.disconnect();
+    window.removeEventListener('resize', refresh);
+    wrapper.removeEventListener('scroll', fromTable);
+    wrapper.removeEventListener('keydown', keyboard);
+    track.removeEventListener('scroll', fromTrack);
+    track.removeEventListener('keydown', keyboard);
+  } });
+  refresh();
+}
 function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owner will publish reviewed registration and results.') {
   const definitions = columns.map(column => typeof column === 'string' ? { key: column, label: column } : column);
   let sort = tableSorts.get(id);
@@ -107,6 +180,12 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
   }
   if (!sort && id === 'league-table') sort = { key: 'Rank', direction: 'ascending' };
   const host = $(id);
+  const navigable = id === 'league-table' || id === 'singles-table';
+  const signature = navigable ? JSON.stringify([caption, columns, rows, emptyMessage, sort]) : null;
+  const previous = scrollableTables.get(id);
+  if (previous?.signature === signature) { previous.refresh(); return previous.wrapper; }
+  previous?.destroy();
+  scrollableTables.delete(id);
   host.replaceChildren();
   if (!rows.length) { host.append(element('p', emptyMessage)); return; }
   const wrapper = element('div', undefined, 'table-wrap');
@@ -130,9 +209,10 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
     button.addEventListener('click', () => {
       tableSorts.set(id, { key: column.key, direction: sort?.key === column.key && sort.direction === 'ascending' ? 'descending' : 'ascending' });
       const scrollLeft = wrapper.scrollLeft, scrollTop = wrapper.scrollTop;
-      table(id, caption, columns, rows, emptyMessage);
-      host.children[0].scrollLeft = scrollLeft; host.children[0].scrollTop = scrollTop;
-      host.querySelectorAll('button')[index].focus({ preventScroll: true });
+      const next = table(id, caption, columns, rows, emptyMessage);
+      next.scrollLeft = scrollLeft; next.scrollTop = scrollTop;
+      scrollableTables.get(id)?.refresh();
+      next.querySelectorAll('button')[index].focus({ preventScroll: true });
     });
     th.append(button);
     if (grouped && column.group) {
@@ -179,7 +259,10 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
     if (rowHeader) cell.scope = 'row';
     row.append(cell);
   }); body.append(row); });
-  tbl.append(body); wrapper.append(tbl); host.append(wrapper);
+  tbl.append(body); wrapper.append(tbl);
+  if (navigable) tableScrollControls(id, host, wrapper, tbl, signature);
+  else host.append(wrapper);
+  return wrapper;
 }
 function download(filename, content, type) {
   const url = URL.createObjectURL(new Blob([content], { type }));
@@ -486,6 +569,7 @@ function selectTab(index, focus = false) {
     tab.tabIndex = index === i ? 0 : -1;
     $(tab.getAttribute('aria-controls')).hidden = index !== i;
   });
+  for (const controller of scrollableTables.values()) controller.refresh();
   if (focus) tabs[index].focus();
 }
 tabs.forEach((tab, index) => {
