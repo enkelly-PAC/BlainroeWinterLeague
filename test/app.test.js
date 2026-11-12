@@ -122,25 +122,33 @@ function scrollControls($, id = 'league-table') {
 test('landing page shows the server publication timestamp in Irish winter and summer time, not draft or refresh time', async t => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   assert.ok(html.indexOf('id="last-updated"') < html.indexOf('class="tabs"'));
+  assert.match(html, /class="publication-details"><strong id="view-label">[^<]+<\/strong><span id="last-updated"/);
+  assert.match(html, /<script type="module" src="\.\/app\.js\?v=[^"]+"><\/script>/);
+  assert.match(html, /<link rel="stylesheet" href="\.\/styles\.css\?v=[^"]+">/);
   const { $, setLastModified } = await workspace(t, null, emptyState(), null, 'Thu, 12 Nov 2026 13:45:43 GMT');
   assert.equal($('last-updated').hidden, false);
-  assert.equal($('last-updated').textContent, 'Published results last updated: 12 November 2026 at 13:45 (Irish time).');
+  assert.equal($('last-updated').textContent, 'Last updated: 12 Nov 2026, 13:45 (Irish time)');
+  assert.equal($('status').hidden, true);
   setLastModified('Mon, 01 Jun 2026 12:00:00 GMT');
   await $('refresh').emit('click');
-  assert.equal($('last-updated').textContent, 'Published results last updated: 1 June 2026 at 13:00 (Irish time).');
+  assert.equal($('last-updated').textContent, 'Last updated: 1 Jun 2026, 13:00 (Irish time)');
+  assert.equal($('status').hidden, true);
   const updated = $('last-updated').textContent;
   await $('start-draft').emit('click');
   assert.equal($('last-updated').textContent, updated);
+  assert.equal($('status').hidden, false);
   globalThis.fetch = async () => { throw new Error('Offline'); };
   await $('refresh').emit('click');
   assert.equal($('last-updated').textContent, updated);
+  assert.equal($('status').hidden, false);
+  assert.match($('status').textContent, /Offline/);
 });
 test('missing or invalid server publication timestamps are unavailable rather than an invented current time', async t => {
   const { $, setLastModified } = await workspace(t);
-  assert.equal($('last-updated').textContent, 'Published results last updated: unavailable.');
+  assert.equal($('last-updated').textContent, 'Last updated: unavailable');
   setLastModified('not a date');
   await $('refresh').emit('click');
-  assert.equal($('last-updated').textContent, 'Published results last updated: unavailable.');
+  assert.equal($('last-updated').textContent, 'Last updated: unavailable');
 });
 test('leaderboard scroll buttons, keyboard and both native scrollbars stay synchronised at bounds', async t => {
   const { $, resize, motion } = await workspace(t, null, sortingFixture());

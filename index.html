@@ -7,8 +7,8 @@
   <meta name="description" content="Blainroe Men's Winter League 2026/2027 standings and final. Sponsored by Spirit Ford Wicklow.">
   <title>Blainroe Winter League 2026/2027</title>
   <link rel="icon" type="image/png" href="./blainroe-anni-logo.png">
-  <link rel="stylesheet" href="./styles.css">
-  <script type="module" src="./app.js"></script>
+  <link rel="stylesheet" href="./styles.css?v=20261112-2">
+  <script type="module" src="./app.js?v=20261112-2"></script>
 </head>
 <body>
   <header class="brand">
@@ -18,8 +18,10 @@
     </div>
   </header>
   <main>
-    <div class="view-bar"><strong id="view-label">Published club results</strong><div><button id="published-view">Return to published view</button><button id="refresh">Refresh published results</button></div></div>
-    <p id="last-updated" class="note">Published results last updated: loading...</p>
+    <div class="view-bar">
+      <div class="publication-details"><strong id="view-label">Published club results</strong><span id="last-updated" aria-live="polite">Last updated: checking...</span></div>
+      <div><button id="published-view">Return to published view</button><button id="refresh">Refresh published results</button></div>
+    </div>
     <p id="status" role="status" aria-live="polite" aria-atomic="true">Loading published results...</p>
     <p id="draft-banner" class="note" hidden><strong>Saved on this device.</strong> Only the owner's publication updates the public leaderboard. Keep a backup of local results.</p>
     <div class="results-card">

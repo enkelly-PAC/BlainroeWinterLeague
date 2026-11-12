@@ -24,6 +24,7 @@ storageBlocked = Boolean(restored.error);
 $('storage-notice').textContent = restored.error || (draft ? 'Saved local draft available. Public view is shown by default.' : 'No local draft saved yet.');
 function message(value, error = false) {
   $('status').textContent = value;
+  $('status').hidden = !value;
   $('status').classList.toggle('error', error);
 }
 function importMessage(value, error = false, focus = false) {
@@ -359,10 +360,11 @@ function render() {
   const state = current(), result = league(state);
   $('view-label').textContent = mode === 'draft' ? 'DRAFT: results on this device' : publishedReady ? 'PUBLISHED: club results' : 'Published data unavailable';
   $('last-updated').textContent = publishedUpdatedAt
-    ? `Published results last updated: ${new Intl.DateTimeFormat('en-IE', {
-      dateStyle: 'long', timeStyle: 'short', hourCycle: 'h23', timeZone: 'Europe/Dublin'
-    }).format(publishedUpdatedAt)} (Irish time).`
-    : 'Published results last updated: unavailable.';
+    ? `Last updated: ${new Intl.DateTimeFormat('en-IE', {
+      day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      hourCycle: 'h23', timeZone: 'Europe/Dublin'
+    }).format(publishedUpdatedAt)} (Irish time)`
+    : 'Last updated: unavailable';
   $('resume-notice').hidden = mode === 'draft' || !draft?.rounds.some(round => round.cards.length);
   $('resume-results').textContent = draftSaved ? 'Resume my saved results' : 'Resume local results (not saved)';
   $('draft-banner').hidden = mode !== 'draft';
@@ -564,7 +566,7 @@ async function refresh() {
       persist(synchroniseDraft(draft, published, draftBaseline), 'Draft synchronised with latest published history.');
       return;
     }
-    render(); message('Published results loaded.');
+    render(); message('');
   } catch (error) {
     render();
     message(`Could not refresh published results: ${error.message}. ${publishedReady ? 'Keeping the last validated published data.' : 'No published result is available. Use a local HTTP server, not file://, for local viewing.'}`, true);
