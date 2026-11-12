@@ -1284,9 +1284,9 @@
       "canceled": false,
       "cards": [
         {
-          "player": "Doyle, J. C.",
-          "score": 28,
-          "handicap": 15
+          "player": "Pembrey, Gavin",
+          "score": 29,
+          "handicap": 10
         },
         {
           "player": "Doolan, Alan",
@@ -1404,11 +1404,6 @@
           "handicap": 6
         },
         {
-          "player": "Kavanagh, Darragh",
-          "score": 20,
-          "handicap": 3
-        },
-        {
           "player": "O'Keefe, Peter",
           "score": 19,
           "handicap": 6
@@ -1449,6 +1444,11 @@
           "handicap": 5
         },
         {
+          "player": "Byrne, Cormac",
+          "score": 18,
+          "handicap": 7
+        },
+        {
           "player": "Kiersey, Robert",
           "score": 18,
           "handicap": 6
@@ -1479,6 +1479,11 @@
           "handicap": 7
         },
         {
+          "player": "Mahon, Chris",
+          "score": 16,
+          "handicap": 6
+        },
+        {
           "player": "Kiely, Jamie",
           "score": 16,
           "handicap": 4
@@ -1502,6 +1507,11 @@
           "player": "Roche, David",
           "score": 26,
           "handicap": 7
+        },
+        {
+          "player": "Kenna, DJ",
+          "score": 25,
+          "handicap": 10
         },
         {
           "player": "Timon, Con",
@@ -1542,6 +1552,11 @@
           "player": "Gavin, Micheal",
           "score": 22,
           "handicap": 7
+        },
+        {
+          "player": "Harrington, Eamonn",
+          "score": 22,
+          "handicap": 10
         },
         {
           "player": "Burgess, Peter",
@@ -1602,6 +1617,11 @@
           "player": "O'Sullivan, Justin",
           "score": 20,
           "handicap": 7
+        },
+        {
+          "player": "Seymour, William",
+          "score": 19,
+          "handicap": 9
         },
         {
           "player": "Doyle, Don",
@@ -1694,16 +1714,6 @@
           "handicap": 12
         },
         {
-          "player": "Kenna, DJ",
-          "score": 25,
-          "handicap": 10
-        },
-        {
-          "player": "Keogh, Fergal",
-          "score": 25,
-          "handicap": 13
-        },
-        {
           "player": "Lynch, Colm",
           "score": 24,
           "handicap": 12
@@ -1739,11 +1749,6 @@
           "handicap": 12
         },
         {
-          "player": "Harrington, Eamonn",
-          "score": 22,
-          "handicap": 10
-        },
-        {
           "player": "Kelly, Edward",
           "score": 22,
           "handicap": 11
@@ -1777,6 +1782,11 @@
           "player": "Neiland, Joe",
           "score": 20,
           "handicap": 12
+        },
+        {
+          "player": "Bradshaw, Leslie T",
+          "score": 20,
+          "handicap": 13
         },
         {
           "player": "O'Neill, Ruben",
@@ -1829,6 +1839,11 @@
           "handicap": 10
         },
         {
+          "player": "McConnell, Owen",
+          "score": 17,
+          "handicap": 12
+        },
+        {
           "player": "O'Connor, Brian",
           "score": 17,
           "handicap": 10
@@ -1859,6 +1874,11 @@
           "handicap": 13
         },
         {
+          "player": "McConnell, Scott",
+          "score": 16,
+          "handicap": 11
+        },
+        {
           "player": "Deignan, Paul F",
           "score": 12,
           "handicap": 13
@@ -1867,6 +1887,11 @@
           "player": "O'Mahony, Denis",
           "score": 12,
           "handicap": 13
+        },
+        {
+          "player": "Doyle, J. C.",
+          "score": 28,
+          "handicap": 15
         },
         {
           "player": "Sheehy, Pat",
@@ -1882,11 +1907,6 @@
           "player": "O'Neill, Seamus",
           "score": 23,
           "handicap": 16
-        },
-        {
-          "player": "O'Malley, Dominic",
-          "score": 21,
-          "handicap": 17
         },
         {
           "player": "Morgan, Michael",
@@ -1912,11 +1932,6 @@
           "player": "Keogh, Stephen",
           "score": 20,
           "handicap": 14
-        },
-        {
-          "player": "Bradshaw, Leslie T",
-          "score": 20,
-          "handicap": 13
         },
         {
           "player": "Connick McKenna, Jake",

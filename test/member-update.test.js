@@ -53,7 +53,8 @@ test('combined update preserves both weekends and calculates genuine fixed-roste
   assert.match(update.html, /Team 15 \([^)]*\) and Team 27 \([^)]*\) share the lead on 49/);
   assert.match(update.html, /Team 7 \([^)]*\) leads on 99/);
   assert.match(update.html, /Team 28 \([^)]*\) posted the weekend&#39;s highest team total of 54/);
-  assert.match(update.html, /J\. C\. Doyle and Pat Sheehy set the pace in Singles with 28/);
+  assert.match(update.html, /Gavin Pembrey sets the pace in Singles with 29/);
+  assert.match(update.html, /J\. C\. Doyle and Pat Sheehy follow on 28/);
   assert.match(update.html, /Team 7 \([^)]*\) moved from joint third to first/);
   assert.match(update.html, /Team 5 \([^)]*\), up 14 places from joint 40th to joint 26th/);
   for (const mention of update.html.matchAll(/Team \d+/g)) {
@@ -74,9 +75,9 @@ test('combined update preserves both weekends and calculates genuine fixed-roste
         .map(cell => cell.text.replace(/\u200b/g, '')));
     assert.deepEqual(labels, update.result.rows.map(row => `${row.team.name} (${row.team.players.join(', ')})`));
   }
-  assert.equal(update.movement.find(row => row.team.name === 'Team 1').change, 8);
-  assert.equal(update.movement.find(row => row.team.name === 'Team 15').change, -7);
-  assert.equal(parseCSV(update.singlesCSV).length, 197);
+  assert.equal(update.movement.find(row => row.team.name === 'Team 1').change, 6);
+  assert.equal(update.movement.find(row => row.team.name === 'Team 15').change, -9);
+  assert.equal(parseCSV(update.singlesCSV).length, 198);
   assert.equal(parseCSV(update.teamCSV).length, 47);
   assert.doesNotMatch(update.html, /<table|draft|pending|roster|import|held|committee|[\u2013\u2014]/i);
   assert.deepEqual(baseline, before);

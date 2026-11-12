@@ -207,13 +207,23 @@ test('replacement roster applies existing late-registration rules without changi
 });
 test('real Weekend 2 keeps reported net cards and cumulative totals with the confirmed roster', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
-  assert.deepEqual(state.rounds.map(round => [round.date, round.cards.length]), [['2026-10-31', 165], ['2026-11-07', 159]]);
+  assert.deepEqual(state.rounds.map(round => [round.date, round.cards.length]), [['2026-10-31', 165], ['2026-11-07', 162]]);
   const round = state.rounds[1], assigned = assignments(state.teams, state.identityBindings);
-  assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 41);
+  assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 42);
   assert.equal(round.cards.filter(card => assigned.get(canonical(card.player))?.startsWith('Unassigned')).length, 0);
   const table = league(state);
   assert.deepEqual(table.rows.slice(0, 3).map(row => [row.team.name, row.retained]), [['Team 7', 99], ['Team 13', 98], ['Team 27', 98]]);
   assert.equal(table.rows.find(row => row.team.name === 'Team 7').scores[1].total, 51);
+  for (const [player, score] of [['Gavin Pembrey', 29], ['William Seymour', 19], ['Cormac Byrne', 18],
+    ['Owen McConnell', 17], ['Chris Mahon', 16], ['Scott McConnell', 16]])
+    assert.equal(round.cards.find(card => canonical(card.player) === canonical(player)).score, score);
+  for (const player of ['Fergal Keogh', "Dominic O'Malley", 'Darragh Kavanagh', 'Aidan Whelan', 'Thomas McDougall', 'Neil Campbell'])
+    assert.equal(round.cards.some(card => canonical(card.player) === canonical(player)), false);
+  for (const [team, total, retained, rank] of [['Team 23', 46, 91, 8], ['Team 15', 41, 90, 10],
+    ['Team 22', 36, 77, 28], ['Team 46', 37, 77, 28], ['Team 29', 36, 74, 32]]) {
+    const row = table.rows.find(row => row.team.name === team);
+    assert.deepEqual([row.scores[1].total, row.retained, row.rank], [total, retained, rank]);
+  }
   for (const team of state.teams.filter(team => ['Team 10', 'Team 37'].includes(team.name)))
     assert.deepEqual(team.heldPlayers || [], []);
   assert.equal(state.settings.complete, false);
