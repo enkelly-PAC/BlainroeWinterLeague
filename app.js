@@ -12,6 +12,7 @@ $('upload-panel').append($('results-upload'));
 let published = emptyState(), publishedReady = false, draft = null, mode = 'published', pending = null, storageBlocked = false, previewRevision = 0;
 let draftSaved = false;
 let pdfBusy = false;
+let publishedUpdatedAt = null;
 const singlesSelection = { published: null, draft: null };
 let storage;
 try { storage = window.localStorage; } catch { storage = null; }
@@ -357,6 +358,11 @@ function renderSingles(state) {
 function render() {
   const state = current(), result = league(state);
   $('view-label').textContent = mode === 'draft' ? 'DRAFT: results on this device' : publishedReady ? 'PUBLISHED: club results' : 'Published data unavailable';
+  $('last-updated').textContent = publishedUpdatedAt
+    ? `Published results last updated: ${new Intl.DateTimeFormat('en-IE', {
+      dateStyle: 'long', timeStyle: 'short', hourCycle: 'h23', timeZone: 'Europe/Dublin'
+    }).format(publishedUpdatedAt)} (Irish time).`
+    : 'Published results last updated: unavailable.';
   $('resume-notice').hidden = mode === 'draft' || !draft?.rounds.some(round => round.cards.length);
   $('resume-results').textContent = draftSaved ? 'Resume my saved results' : 'Resume local results (not saved)';
   $('draft-banner').hidden = mode !== 'draft';
@@ -546,6 +552,9 @@ async function loadPublished() {
   const response = await fetch('./data/published.json', { cache: 'no-store' });
   if (!response.ok) throw new Error(`Could not load latest published results (HTTP ${response.status}). Retry before importing or exporting publication JSON.`);
   const state = parseJSON(await response.text());
+  const modified = response.headers?.get('Last-Modified');
+  const updatedAt = modified ? new Date(modified) : null;
+  publishedUpdatedAt = updatedAt && Number.isFinite(updatedAt.getTime()) ? updatedAt : null;
   published = state; publishedReady = true;
 }
 async function refresh() {
