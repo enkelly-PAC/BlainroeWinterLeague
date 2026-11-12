@@ -33,14 +33,14 @@ test('cumulative Singles resolves explicit identities without team restrictions,
   assert.deepEqual(state, before);
 });
 
-test('current cumulative Singles contains all 196 players, with 128 both-weekend cards and honest held scores', async () => {
+test('current cumulative Singles contains all 197 players, with 130 both-weekend cards and honest held scores', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
   const { rows } = cumulativeSingles(state);
-  assert.equal(rows.length, 196);
-  assert.equal(rows.filter(row => Object.keys(row.scores).length === 2).length, 128);
+  assert.equal(rows.length, 197);
+  assert.equal(rows.filter(row => Object.keys(row.scores).length === 2).length, 130);
   assert.equal(rows.find(row => row.player === 'Colin Owens').total, 32);
-  assert.equal(rows.flatMap(row => Object.values(row.scores)).length, 324);
-  assert.equal(parseCSV(cumulativeSinglesCSV(state)).length, 197);
+  assert.equal(rows.flatMap(row => Object.values(row.scores)).length, 327);
+  assert.equal(parseCSV(cumulativeSinglesCSV(state)).length, 198);
 });
 
 test('member integrated PDF repeats named identities and Combined before bounded weekend columns', async () => {

@@ -221,9 +221,9 @@ test('Singles defaults to cumulative cards and historical review disables offici
   const { $, contents } = await workspace(t, null, state);
   const teams = renderedTable($).rows;
   assert.equal($('singles-weekend').value, '');
-  assert.match($('singles-summary').textContent, /196 players across 2 active/);
+  assert.match($('singles-summary').textContent, /197 players across 2 active/);
   assert.equal($('export-singles-pdf').disabled, false);
-  assert.equal(renderedTable($, 'singles-table').rows.length, 196);
+  assert.equal(renderedTable($, 'singles-table').rows.length, 197);
   $('singles-weekend').value = '2026-11-14';
   await $('singles-weekend').emit('change');
   assert.match($('singles-summary').textContent, /Historical review only/);
@@ -233,7 +233,7 @@ test('Singles defaults to cumulative cards and historical review disables offici
   assert.deepEqual(renderedTable($).rows, teams);
   $('singles-weekend').value = '';
   await $('singles-weekend').emit('change');
-  assert.equal(renderedTable($, 'singles-table').rows.length, 196);
+  assert.equal(renderedTable($, 'singles-table').rows.length, 197);
 });
 test('standings precede collapsed review details, with honest live counts and short accessible round headings', async t => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
@@ -246,7 +246,7 @@ test('standings precede collapsed review details, with honest live counts and sh
     assert.equal($(id).open, false);
   }
   assert.equal($('review-notice').hidden, false);
-  assert.match($('review-count').textContent, /^90 cards not counted for teams; \d+ team entries need review\.$/);
+  assert.match($('review-count').textContent, /^91 cards not counted for teams; \d+ team entries need review\.$/);
   const view = renderedTable($);
   assert.equal(view.rows.length, 46);
   const firstRound = view.head.children[0].children[6];
@@ -254,7 +254,7 @@ test('standings precede collapsed review details, with honest live counts and sh
   assert.match(firstRound.title, /2026-10-31.*Mens Winter League singles/);
   for (const team of ['Team 15', 'Team 27']) {
     const row = view.rows.find(row => row[1] === team);
-    assert.equal(row[5], team === 'Team 15' ? '93' : '98');
+    assert.equal(row[5], team === 'Team 15' ? '90' : '98');
     assert.equal(row[9], '49');
   }
   assert.equal(view.rows.find(row => row[1] === 'Team 15')[8], '18');
