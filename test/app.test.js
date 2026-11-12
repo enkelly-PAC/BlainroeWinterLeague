@@ -16,7 +16,7 @@ async function rosterFixture() {
 }
 
 let instance = 0;
-async function workspace(t, source = null, published = emptyState(), baseline = null) {
+async function workspace(t, source = null, published = emptyState(), baseline = null, lastModified = null) {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const nodes = new Map();
   const downloads = [];
@@ -79,6 +79,7 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
     getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key)
   } };
   globalThis.fetch = async () => ({ ok: true, text: async () => JSON.stringify(published),
+    headers: { get: name => name.toLowerCase() === 'last-modified' ? lastModified : null },
     arrayBuffer: async () => new Uint8Array([137, 80, 78, 71]).buffer });
   globalThis.confirm = () => true;
   t.after(() => { for (const [key, value] of Object.entries(original)) {
@@ -97,7 +98,8 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
   }
   const contents = node => [node.textContent, ...node.children.map(contents)].join('\n');
   return { $, values, preview, reload, contents, downloads, observers, motion, windowListeners,
-    resize: () => windowListeners.emit('resize'), setPublished: state => { published = state; } };
+    resize: () => windowListeners.emit('resize'), setPublished: state => { published = state; },
+    setLastModified: value => { lastModified = value; } };
 }
 function renderedTable($, id = 'league-table') {
   const wrapper = $(id).children.find(node => node.className === 'table-wrap'), table = wrapper.children[0];
@@ -117,6 +119,29 @@ function scrollControls($, id = 'league-table') {
   const [left, right] = actions.children, wrapper = renderedTable($, id).wrapper;
   return { controls, track, left, right, wrapper };
 }
+test('landing page shows the server publication timestamp in Irish winter and summer time, not draft or refresh time', async t => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
+  assert.ok(html.indexOf('id="last-updated"') < html.indexOf('class="tabs"'));
+  const { $, setLastModified } = await workspace(t, null, emptyState(), null, 'Thu, 12 Nov 2026 13:45:43 GMT');
+  assert.equal($('last-updated').hidden, false);
+  assert.equal($('last-updated').textContent, 'Published results last updated: 12 November 2026 at 13:45 (Irish time).');
+  setLastModified('Mon, 01 Jun 2026 12:00:00 GMT');
+  await $('refresh').emit('click');
+  assert.equal($('last-updated').textContent, 'Published results last updated: 1 June 2026 at 13:00 (Irish time).');
+  const updated = $('last-updated').textContent;
+  await $('start-draft').emit('click');
+  assert.equal($('last-updated').textContent, updated);
+  globalThis.fetch = async () => { throw new Error('Offline'); };
+  await $('refresh').emit('click');
+  assert.equal($('last-updated').textContent, updated);
+});
+test('missing or invalid server publication timestamps are unavailable rather than an invented current time', async t => {
+  const { $, setLastModified } = await workspace(t);
+  assert.equal($('last-updated').textContent, 'Published results last updated: unavailable.');
+  setLastModified('not a date');
+  await $('refresh').emit('click');
+  assert.equal($('last-updated').textContent, 'Published results last updated: unavailable.');
+});
 test('leaderboard scroll buttons, keyboard and both native scrollbars stay synchronised at bounds', async t => {
   const { $, resize, motion } = await workspace(t, null, sortingFixture());
   const { controls, track, left, right, wrapper } = scrollControls($);
