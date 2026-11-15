@@ -1,4 +1,4 @@
-import { canonical, cumulativeSingles, isHeld, league, playerKey, validateState } from './core.js';
+import { canonical, cumulativeSingles, isHeld, league, leagueMovement, playerKey, validateState } from './core.js?v=20261115-1';
 import { teamLabel, weekendCards } from './leaderboard-layout.js';
 
 const green = '#1a5e1a', pale = '#edf5ed', ink = '#1a2e1a';
@@ -15,6 +15,8 @@ const dateLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-G
 // Soft breaks prevent a long unspaced name forcing a whole table beyond the page.
 const cell = (value, extra = {}) => ({ text: text(value).replace(/(\S{16})(?=\S)/gu, '$1\u200b'), ...extra });
 const heading = value => cell(value, { bold: true, color: 'white', fillColor: green });
+const pdfPlayerName = player => canonical(player) === canonical("Michael Anthony O'Neill") ? "M.A. O'Neill" : player;
+const pdfTeamLabel = team => teamLabel({ ...team, players: team.players.map(pdfPlayerName) });
 const layout = {
   hLineWidth: () => 0.4, vLineWidth: () => 0,
   hLineColor: () => '#d8e6d8',
@@ -53,7 +55,7 @@ export function leaderboardPDFModel(state, { mode = 'published', saved = true, f
     throw new Error('Latest weekend has no active results for a member PDF.');
   const filename = `blainroe-winter-league-2026-2027-${sourceName}-${format === 'detail' ? '' : `${format}-`}${format === 'latest' ? latest?.date || 'awaiting-results' : hasResults ? through : 'awaiting-results'}.pdf`;
   return { result, rounds, hasResults, through, status, unmatched, filename, format, latest, audience,
-    identityBindings: state.identityBindings || [] };
+    identityBindings: state.identityBindings || [], integrated: audience === 'members' && format === 'detail' };
 }
 
 function weekendTotal(row, round, hasResults) {
@@ -76,8 +78,8 @@ function standingsTables(rows, model) {
       ...heading(label), ...(hasResults && index === 0 || index >= (members ? hasResults ? 2 : 1 : hasResults ? 5 : 4) ? { alignment: 'center' } : {})
     }))], rows.map(row => [
       ...(hasResults ? [cell(row.rank, { bold: true, alignment: 'center' })] : []),
-      ...(members ? [cell(teamLabel(row.team))] : [cell(row.team.name, { bold: true }),
-        ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant'))]),
+      ...(members ? [cell(pdfTeamLabel(row.team))] : [cell(row.team.name, { bold: true }),
+        ...[0, 1, 2].map(index => cell(pdfPlayerName(row.team.players[index] || 'Vacant')))]),
       ...group.map(round => weekendTotal(row, round, hasResults)),
       ...(hasResults ? [cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale })] : [])
     ]), [...(hasResults ? [22] : []), ...(members ? ['*'] : [44, '*', '*', '*']),
@@ -98,8 +100,8 @@ function latestTable(rows, model) {
       ...heading(label), ...(index >= (members ? 1 : 4) ? { alignment: 'center' } : {})
     }))],
       rows.map(row => [
-        ...(members ? [cell(teamLabel(row.team))] : [cell(row.team.name, { bold: true }),
-          ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant'))]),
+        ...(members ? [cell(pdfTeamLabel(row.team))] : [cell(row.team.name, { bold: true }),
+          ...[0, 1, 2].map(index => cell(pdfPlayerName(row.team.players[index] || 'Vacant')))]),
         ...weekendCards(row.team, round, model.identityBindings).map(card => cell(model.audience === 'members' && card.held ? 'NA' : card.text, {
           alignment: 'center', bold: card.counting, color: card.counting ? green : '#687568',
           ...(card.counting ? { fillColor: pale } : {})
@@ -109,12 +111,65 @@ function latestTable(rows, model) {
   ];
 }
 
+function integratedTables(state, rows, model) {
+  const a3 = model.rounds.length > 3, capacity = a3 ? 6 : 3;
+  const pageWidth = a3 ? 1190.55 : 841.89;
+  const movement = new Map(leagueMovement(state, model.result).rows.map(row => [row.team, row.places]));
+  const boundaryRank = model.result.cutoffUnresolved ? rows[15].rank : null;
+  const zone = row => row.rank === boundaryRank ? 'tied' : row.rank <= 16 ? 'top' : 'outside';
+  const content = [];
+  for (let start = 0; start < model.rounds.length; start += capacity) {
+    const group = model.rounds.slice(start, start + capacity);
+    const columns = 6 + group.length * 4;
+    const nameWidth = (pageWidth - 40 - 40 - 34 - 44 - group.length * 87 - columns * 2 - (group.length + 1) * 0.8) / 3;
+    const headers = [
+      [...Array.from({ length: 6 }, () => heading('')),
+        ...group.flatMap((round, index) => [{
+          ...heading(`Round ${start + index + 1}\n${dateLabel(round.date).replace(/ \d{4}$/u, '')}${round.canceled ? ' (C)' : round.qualifying ? '' : ' (X)'}`),
+          colSpan: 4, alignment: 'center'
+        }, {}, {}, {}])],
+      [...['Pos.', 'Team', 'Player 1', 'Player 2', 'Player 3', 'Overall'].map(heading),
+        ...group.flatMap(() => ['P1', 'P2', 'P3', 'Team'].map(label => ({ ...heading(label), alignment: 'center' })))]
+    ];
+    const grid = table(headers, rows.map(row => {
+      const places = movement.get(row.team.name);
+      const marker = zone(row) === 'tied' ? '?' : zone(row) === 'top' ? '*' : '';
+      const change = places === null ? 'New' : places === 0 ? '=' : `${places > 0 ? '+' : '-'}${Math.abs(places)}`;
+      return [
+        cell(`${row.rank}${marker} ${change}`, { bold: true, alignment: 'center' }),
+        cell(row.team.name, { bold: true }),
+        ...[0, 1, 2].map(index => cell(pdfPlayerName(row.team.players[index] || 'Vacant'))),
+        cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale }),
+        ...group.flatMap(round => [
+          ...weekendCards(row.team, round, model.identityBindings).map(card => cell(card.held ? 'NA' : card.text, {
+            alignment: 'center', bold: card.counting, color: card.counting ? green : '#687568'
+          })),
+          weekendTotal(row, round, true)
+        ])
+      ];
+    }), [40, 34, nameWidth, nameWidth, nameWidth, 44, ...group.flatMap(() => [20, 20, 20, 27])], 2);
+    const cutoff = rows.findIndex(row => zone(row) === 'outside');
+    grid.layout = {
+      ...layout, paddingLeft: () => 1, paddingRight: () => 1, paddingTop: () => 0.2, paddingBottom: () => 0.2,
+      hLineWidth: index => cutoff > 0 && index === cutoff + 2 ? 1.2 : 0.3,
+      vLineWidth: column => column >= 6 && (column - 6) % 4 === 0 ? 0.8 : 0,
+      vLineColor: () => green,
+      fillColor: index => index < 2 ? green : zone(rows[index - 2]) === 'tied' ? '#fff5de' :
+        zone(rows[index - 2]) === 'top' ? '#f0f7f0' : index % 2 ? '#f5f8f5' : null
+    };
+    if (start) grid.pageBreak = 'before';
+    content.push(grid);
+  }
+  return content;
+}
+
 export function leaderboardPDFDocument(state, context = {}, logo) {
   const model = leaderboardPDFModel(state, context);
   const { rounds, hasResults, format } = model;
   const content = [];
   const rows = hasResults ? model.result.rows : state.teams.map(team => ({ team }));
-  if (format === 'standings') content.push(...standingsTables(rows, model));
+  if (model.integrated) content.push(...integratedTables(state, rows, model));
+  else if (format === 'standings') content.push(...standingsTables(rows, model));
   else if (format === 'latest') content.push(...latestTable(rows, model));
   // Repeat the full named grid for bounded weekend groups, never anonymous detail.
   else for (let start = 0; start < Math.max(1, rounds.length); start += model.audience === 'members' ? 2 : groupSize) {
@@ -142,7 +197,7 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
     const gridRows = rows.map(row => [
       ...(hasResults ? [cell(row.rank, { bold: true, alignment: 'center' })] : []),
       cell(row.team.name, { bold: true }),
-      ...[0, 1, 2].map(index => cell(row.team.players[index] || 'Vacant')),
+      ...[0, 1, 2].map(index => cell(pdfPlayerName(row.team.players[index] || 'Vacant'))),
       ...(hasResults && members ? [cell(row.retained, { bold: true, alignment: 'center', color: green, fillColor: pale })] : []),
       ...group.flatMap(round => {
         return [
@@ -172,32 +227,42 @@ export function leaderboardPDFDocument(state, context = {}, logo) {
 }
 function pdfDocumentFrame(state, context, logo, model, content) {
   const { through, status, format, hasResults } = model;
+  const compact = model.integrated === true;
   const throughLabel = through ? `Qualifying results through weekend of ${dateLabel(through)}` : 'Awaiting qualifying results';
   const generated = (context.generatedAt || new Date()).toLocaleString('en-GB', { timeZone: 'Europe/Dublin', hour12: false });
   return {
     info: { title: `Blainroe ${title}: ${formats[format]}: ${hasResults ? 'Team leaderboard' : 'Awaiting results'}`,
       author: 'Blainroe Golf Club', subject: `${model.audience === 'members' ? throughLabel : `${status}. ${throughLabel}`}. Sponsored by Spirit Ford Wicklow.` },
-    pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [30, 80, 30, 39],
-    defaultStyle: { font: 'Roboto', fontSize: 9, color: ink, lineHeight: 1.12 },
+    pageSize: compact && model.rounds.length > 3 ? 'A3' : 'A4', pageOrientation: 'landscape',
+    pageMargins: compact ? [20, 52, 20, 30] : [30, 80, 30, 39],
+    defaultStyle: { font: 'Roboto', fontSize: compact ? 7.6 : 9, color: ink, lineHeight: compact ? 1 : 1.12 },
     header: () => ({
-      margin: [30, 16, 30, 0],
+      margin: compact ? [20, 8, 20, 0] : [30, 16, 30, 0],
       stack: [{
-        columnGap: 28,
+        columnGap: compact ? 14 : 28,
         columns: [
-          ...(logo ? [{ image: logo, width: 82 }] : []),
+          ...(logo ? [{ image: logo, width: compact ? 56 : 82 }] : []),
           { width: '*', stack: [
-            { text: 'BLAINROE GOLF CLUB', fontSize: 10, bold: true, color: green },
-            { text: title, fontSize: 20, bold: true, color: green, margin: [0, 2, 0, 2] },
-            { text: 'Proudly sponsored by Spirit Ford Wicklow', fontSize: 10 }
+            { text: 'BLAINROE GOLF CLUB', fontSize: compact ? 9 : 10, bold: true, color: green },
+            { text: title, fontSize: compact ? 14 : 20, bold: true, color: green, margin: compact ? [0, 0, 0, 0] : [0, 2, 0, 2] },
+            { text: 'Proudly sponsored by Spirit Ford Wicklow', fontSize: compact ? 8 : 10 }
           ] }
         ]
       }]
     }),
     footer: (page, pages) => ({
+      ...(compact ? { stack: [
+        { text: `Bold: counting cards. NA: no card/held. 0: submitted zero. Overall: all qualifying rounds. + / -: places gained/lost; = unchanged; New: no prior rank.`,
+          fontSize: 6.5 },
+        { text: `${state.settings.complete ? '* Top 16 after qualification' : '* Provisional top 16; qualification not yet complete'}. ? Tied at cutoff: committee resolution required.${model.result.cutoffUnresolved ? ' No confirmed qualifiers.' : ''} C/X: cancelled/excluded. D: discarded.`,
+          fontSize: 6.5 },
+        { columns: [{ text: 'Blainroe Golf Club | Spirit Ford Wicklow', fontSize: 7, width: '*' },
+          { text: `Page ${page} of ${pages}`, fontSize: 7, width: 'auto' }] }
+      ], margin: [20, 4, 20, 0] } : {
       columns: [
         { text: model.audience === 'members' ? 'Blainroe Golf Club | Spirit Ford Wicklow' : `Blainroe Golf Club | Generated ${generated} (Ireland)`, width: '*', fontSize: 7.5 },
         { text: `${model.audience === 'members' ? '' : `${context.mode === 'draft' ? 'DRAFT' : 'PUBLISHED'} | ${!state.settings.complete ? 'Provisional | ' : ''}`}Page ${page} of ${pages}`, width: 'auto', fontSize: 8, bold: true, color: green }
-      ], margin: [30, 12, 30, 0]
+      ], margin: [30, 12, 30, 0] })
     }),
     content
   };

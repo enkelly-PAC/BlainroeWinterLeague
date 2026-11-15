@@ -120,14 +120,14 @@ test('confirmed Colin roster correction assigns distinct original cards without 
   const points = singles => singles.map(({ player, total, rank }) => ({ player, total, rank }));
   assert.deepEqual(points(singles(state).rows), points(singles(before).rows));
 });
-test('roster page and export displays use all 16 source names, with old draw-sheet spellings only as aliases', () => {
+test('roster and exports use confirmed source identities with the approved PDF-only abbreviation', () => {
   const html = reportHTML(state, 'Local review');
   const pdf = JSON.stringify(leaderboardPDFDocument(state, { format: 'detail', audience: 'members' }));
   const csv = memberUpdate(state).teamCSV;
   for (const [source, alias] of expected) {
     const escaped = source.replaceAll('&', '&amp;').replaceAll("'", '&#39;');
     assert.ok(html.includes(escaped), `Page display: ${source}`);
-    assert.ok(pdf.includes(source), `PDF display: ${source}`);
+    assert.ok(pdf.includes(source === "Michael Anthony O'Neill" ? "M.A. O'Neill" : source), `PDF display: ${source}`);
     assert.ok(csv.includes(source), `CSV display: ${source}`);
     assert.ok(!state.teams.some(team => team.players.includes(alias)));
     assert.ok(state.identityBindings.some(binding => binding.source === alias && binding.player === source));

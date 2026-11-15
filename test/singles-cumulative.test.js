@@ -43,19 +43,20 @@ test('first two weekends contain all 197 Singles players, with 130 both-weekend 
   assert.equal(parseCSV(cumulativeSinglesCSV(state)).length, 198);
 });
 
-test('member integrated PDF repeats named identities and Combined before bounded weekend columns', async () => {
+test('member integrated PDF keeps named identities and Overall before bounded weekend columns', async () => {
   const state = await publicationThrough('2026-11-07');
   const document = leaderboardPDFDocument(state, { format: 'detail', audience: 'members' });
   const table = document.content.find(node => node.table).table;
   assert.deepEqual(table.body[1].slice(0, 6).map(cell => cell.text),
-    ['Pos.', 'Team', 'Player 1', 'Player 2', 'Player 3', 'Combined']);
+    ['Pos.', 'Team', 'Player 1', 'Player 2', 'Player 3', 'Overall']);
   assert.equal(table.widths.length, 14);
   assert.ok(table.body.every(row => row.length === 14));
   assert.equal(table.body[2][5].text, '99');
   assert.equal(table.body[2][1].text, 'Team 7');
   assert.equal(table.headerRows, 2);
   assert.equal(document.pageOrientation, 'landscape');
-  assert.doesNotMatch(JSON.stringify(document.footer(1, 2)), /DRAFT|PUBLISHED|Provisional/);
+  assert.doesNotMatch(JSON.stringify(document.footer(1, 2)), /DRAFT|PUBLISHED/);
+  assert.match(JSON.stringify(document.footer(1, 2)), /Provisional top 16/);
 });
 
 test('long-season Singles PDFs bound portrait weekend groups and repeat identities and overall totals', () => {

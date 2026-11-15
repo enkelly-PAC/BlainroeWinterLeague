@@ -68,13 +68,15 @@ test('combined update preserves both weekends and calculates genuine fixed-roste
     if (format === 'detail') {
       const table = document.content.find(block => block.table).table;
       assert.deepEqual(table.body.slice(table.headerRows).map(row => row.slice(1, 5).map(cell => cell.text)),
-        update.result.rows.map(row => [row.team.name, ...row.team.players]));
+        update.result.rows.map(row => [row.team.name, ...row.team.players.map(name =>
+          name === "Michael Anthony O'Neill" ? "M.A. O'Neill" : name)]));
       continue;
     }
     const labels = document.content.filter(block => block.table).flatMap(block =>
       block.table.body.flat().filter(cell => typeof cell.text === 'string' && /^Team \d+ /.test(cell.text))
         .map(cell => cell.text.replace(/\u200b/g, '')));
-    assert.deepEqual(labels, update.result.rows.map(row => `${row.team.name} (${row.team.players.join(', ')})`));
+    assert.deepEqual(labels, update.result.rows.map(row =>
+      `${row.team.name} (${row.team.players.join(', ').replace("Michael Anthony O'Neill", "M.A. O'Neill")})`));
   }
   assert.equal(update.movement.find(row => row.team.name === 'Team 1').change, 6);
   assert.equal(update.movement.find(row => row.team.name === 'Team 15').change, -9);
@@ -170,7 +172,9 @@ test('member PDFs remove presentation disclaimers without changing ranks, scores
     assert.deepEqual(model.result, league(state));
     const document = leaderboardPDFDocument(state, { mode: 'draft', format, audience: 'members' });
     const visible = JSON.stringify([document.content, document.header(), document.footer(1, 2), document.info]);
-    assert.doesNotMatch(visible, /DRAFT|PUBLISHED|Provisional|Generated|held|15 H|NA H/i);
+    assert.doesNotMatch(visible, format === 'detail' ? /DRAFT|PUBLISHED|Generated|15 H|NA H/i :
+      /DRAFT|PUBLISHED|Provisional|Generated|held|15 H|NA H/i);
+    if (format === 'detail') assert.match(visible, /Provisional top 16/);
     assert.match(JSON.stringify(leaderboardPDFDocument(state, { mode: 'draft', format }).footer(1, 2)), /DRAFT/);
   }
   assert.throws(() => leaderboardPDFModel(state, { audience: 'unknown' }), /Unknown PDF audience/);
@@ -196,8 +200,9 @@ test('PDF headers separate the logo and counting cards are bold dark green', asy
       const model = leaderboardPDFModel(state, context);
       const document = leaderboardPDFDocument(state, context, 'club-logo');
       const header = document.header().stack[0];
-      assert.equal(header.columnGap, 28);
-      assert.equal(header.columns[0].width, 82);
+      const compact = audience === 'members' && format === 'detail';
+      assert.equal(header.columnGap, compact ? 14 : 28);
+      assert.equal(header.columns[0].width, compact ? 56 : 82);
       assert.equal(header.columns[0].image, 'club-logo');
       const grid = document.content.find(block => block.table);
       const rounds = format === 'latest' ? [model.latest] : model.rounds;

@@ -308,6 +308,61 @@ test('replacement PDF roster preserves numbered teams and unresolved entries alo
   assert.doesNotMatch(reportHTML(state, 'Local review'), /Player 3 vacant/);
   assert.doesNotMatch(reportHTML(state, 'Local review'), /Score matching held: Colin Owens/);
 });
+test('Team PDFs abbreviate M.A. O’Neill for display without renaming roster or score identities', async () => {
+  const state = parseJSON(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const before = structuredClone(state);
+  const fullName = "Michael Anthony O'Neill", shortName = "M.A. O'Neill";
+  assert.equal(state.teams.find(team => team.name === 'Team 41').players[1], fullName);
+  for (const audience of ['members', 'review']) for (const format of ['detail', 'standings', 'latest']) {
+    const document = leaderboardPDFDocument(state, { audience, format });
+    const visible = JSON.stringify(document.content);
+    assert.ok(visible.includes(shortName));
+    assert.ok(!visible.includes(fullName));
+    if (format === 'detail') for (const block of document.content.filter(block => block.table)) {
+      const row = block.table.body.slice(block.table.headerRows).find(row => row[1].text === 'Team 41');
+      assert.equal(row[3].text, shortName);
+    }
+  }
+  assert.deepEqual(state, before);
+  assert.ok(state.rounds.some(round => round.cards.some(card => canonical(card.player) === canonical(fullName))));
+});
+test('compact member PDF keeps all 46 teams and three complete rounds together with correct Overall and movement', async () => {
+  const state = parseJSON(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  state.rounds = state.rounds.filter(round => round.date <= '2026-11-14');
+  const before = structuredClone(state), expected = league(state);
+  const document = leaderboardPDFDocument(state, { audience: 'members', format: 'detail' });
+  assert.equal(document.pageSize, 'A4');
+  assert.equal(document.pageOrientation, 'landscape');
+  const tables = document.content.filter(block => block.table);
+  assert.equal(tables.length, 1);
+  const grid = tables[0].table;
+  assert.equal(grid.body.length, 48);
+  assert.equal(grid.widths.length, 18);
+  assert.ok(grid.body.every(row => row.length === 18));
+  assert.deepEqual(grid.body.slice(2).map(row => [row[1].text, Number(row[5].text)]),
+    expected.rows.map(row => [row.team.name, row.retained]));
+  expected.rows.forEach((row, index) => state.rounds.forEach((round, roundIndex) => {
+    const offset = 6 + roundIndex * 4;
+    assert.deepEqual(grid.body[index + 2].slice(offset, offset + 3).map(cell => cell.text),
+      weekendCards(row.team, round, state.identityBindings).map(card => card.held ? 'NA' : card.text));
+    assert.equal(Number(grid.body[index + 2][offset + 3].text), row.scores[roundIndex].total);
+  }));
+  assert.equal(grid.body.slice(2).find(row => row[1].text === 'Team 11')[0].text, '1* +6');
+  assert.equal(grid.body.slice(2).find(row => row[1].text === 'Team 27')[0].text, '5* -3');
+  assert.ok(grid.body[0].filter(cell => cell.colSpan).every(cell => /^Round \d\n\d+ \w+$/.test(cell.text)));
+  assert.match(JSON.stringify(document.footer(1, 1)), /Provisional top 16/);
+  assert.deepEqual(state, before);
+});
+test('long integrated member PDFs use A3 and bounded six-round grids without dropping rounds or season totals', () => {
+  const state = fixture(Array.from({ length: 10 }, () => [54, 40]));
+  const document = leaderboardPDFDocument(state, { audience: 'members', format: 'detail' });
+  assert.equal(document.pageSize, 'A3');
+  const tables = document.content.filter(block => block.table);
+  assert.deepEqual(tables.map(block => block.table.widths.length), [30, 22]);
+  assert.equal(tables[1].pageBreak, 'before');
+  assert.ok(tables.every(block => block.table.body.slice(2)[0][5].text === '540'));
+  assert.equal(tables.reduce((count, block) => count + (block.table.widths.length - 6) / 4, 0), 10);
+});
 test('team movement compares competition ranks with shared ties, rises, falls and unchanged places', () => {
   const state = fixture([[30, 20, 20, 10], [0, 20, 10, 0]]);
   const before = structuredClone(state);
