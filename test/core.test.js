@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { leagueMovement } from '../core.js';
 import { spawnSync } from 'node:child_process';
 import { emptyState, canonical, validateState, parseJSON, parseCSV, parseTeams, parseScores, classifyScoreCSV, importRound, weekendDate, league, singles, validateFinal, parseFinal, finalTable, reportHTML, MAX_BYTES, editTeam, replaceTeams, rosterStatus, csvCell } from '../core.js';
 import { readDraft, saveDraft, STORAGE_KEY } from '../storage.js';
@@ -291,6 +292,7 @@ function finalCard(team, index, total = 40, back9 = 20) {
 
 test('replacement PDF roster preserves numbered teams and unresolved entries alongside Weekend 1 results', async () => {
   const state = parseJSON(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  state.rounds = state.rounds.filter(round => round.date <= '2026-11-07');
   assert.equal(state.teams.length, 46);
   assert.equal(state.teams.flatMap(t => t.players).length, 138);
   assert.equal(new Set(state.teams.flatMap(t => t.players.map(canonical))).size, 138);
@@ -305,6 +307,49 @@ test('replacement PDF roster preserves numbered teams and unresolved entries alo
   assert.equal(state.settings.complete, false);
   assert.doesNotMatch(reportHTML(state, 'Local review'), /Player 3 vacant/);
   assert.doesNotMatch(reportHTML(state, 'Local review'), /Score matching held: Colin Owens/);
+});
+test('team movement compares competition ranks with shared ties, rises, falls and unchanged places', () => {
+  const state = fixture([[30, 20, 20, 10], [0, 20, 10, 0]]);
+  const before = structuredClone(state);
+  assert.deepEqual(leagueMovement(state).rows, [
+    { team: 'Synthetic Team 2', previousRank: 2, places: 1 },
+    { team: 'Synthetic Team 1', previousRank: 1, places: -1 },
+    { team: 'Synthetic Team 3', previousRank: 2, places: 0 },
+    { team: 'Synthetic Team 4', previousRank: 4, places: 0 }
+  ]);
+  assert.deepEqual(state, before);
+});
+test('movement requires actual prior ranked cards, accepts zero and does not count held or unassigned cards', () => {
+  const state = fixture([[null, null], [10, 20]]);
+  assert.ok(leagueMovement(state).rows.every(row => row.places === null && row.previousRank === null));
+  state.rounds[0].cards = [{ player: 'Visitor', score: 99 }];
+  assert.ok(leagueMovement(state).rows.every(row => row.places === null));
+  state.rounds[0].cards.push({ player: state.teams[0].players[0], score: 0 });
+  state.teams[0].heldPlayers = [state.teams[0].players[0]];
+  assert.ok(leagueMovement(state).rows.every(row => row.places === null));
+  delete state.teams[0].heldPlayers;
+  assert.deepEqual(leagueMovement(state).rows.map(row => row.places), [0, -1]);
+  state.rounds.shift();
+  assert.equal(leagueMovement(state).previousRound, null);
+  assert.ok(leagueMovement(state).rows.every(row => row.places === null));
+  assert.deepEqual(leagueMovement(emptyState()), { previousRound: null, rows: [] });
+});
+test('movement uses revised prior points and omits historical discards, cancelled and excluded weekends', () => {
+  const state = fixture([[60, 20], [0, 50], [70, 0]], true);
+  state.settings.discardCount = 1;
+  state.rounds.push({ ...round(3, [0, 300], state.teams), canceled: true },
+    { ...round(4, [0, 300], state.teams), qualifying: false });
+  const movement = leagueMovement(state);
+  assert.equal(movement.previousRound.date, dateAt(1));
+  assert.deepEqual(movement.rows, [
+    { team: 'Synthetic Team 1', previousRank: 2, places: 1 },
+    { team: 'Synthetic Team 2', previousRank: 1, places: -1 }
+  ]);
+  state.rounds[1].cards.find(card => card.player === state.teams[0].players[0]).score = 30;
+  assert.deepEqual(leagueMovement(state).rows, [
+    { team: 'Synthetic Team 1', previousRank: 1, places: 0 },
+    { team: 'Synthetic Team 2', previousRank: 2, places: 0 }
+  ]);
 });
 test('canonical names match surname-first, punctuation, accents and case', () => {
   assert.equal(canonical("O'Br\u00eden, S\u00e9\u00e1n"), canonical('SEAN OBRIEN'));

@@ -2094,6 +2094,674 @@
           "handicap": 22
         }
       ]
+    },
+    {
+      "date": "2026-11-14",
+      "name": "Spirit Ford - Mens Winter League Round 3",
+      "qualifying": true,
+      "canceled": false,
+      "cards": [
+        {
+          "player": "Allen, Greg",
+          "score": 29
+        },
+        {
+          "player": "Purcell, Brian",
+          "score": 27
+        },
+        {
+          "player": "Sammon, Brian",
+          "score": 27
+        },
+        {
+          "player": "Baker, Pat",
+          "score": 26
+        },
+        {
+          "player": "Byrne, Luke",
+          "score": 25
+        },
+        {
+          "player": "Heffernan, Liam",
+          "score": 25
+        },
+        {
+          "player": "O'Grady, Ken",
+          "score": 25
+        },
+        {
+          "player": "Woodroofe, Alan",
+          "score": 25
+        },
+        {
+          "player": "McCall, Joshua",
+          "score": 25
+        },
+        {
+          "player": "Moriarty, Declan",
+          "score": 25
+        },
+        {
+          "player": "Pickerill, David",
+          "score": 25
+        },
+        {
+          "player": "McCoy, David",
+          "score": 25
+        },
+        {
+          "player": "Maughan, Peter",
+          "score": 24
+        },
+        {
+          "player": "O'Reilly, Finn",
+          "score": 23
+        },
+        {
+          "player": "Neiland, Michael",
+          "score": 23
+        },
+        {
+          "player": "Brown, Ian",
+          "score": 23
+        },
+        {
+          "player": "Whelan, Barry",
+          "score": 23
+        },
+        {
+          "player": "Bermingham, John",
+          "score": 23
+        },
+        {
+          "player": "Nolan, David",
+          "score": 23
+        },
+        {
+          "player": "McKenna, Dermot B",
+          "score": 23
+        },
+        {
+          "player": "Sheehy, Chris",
+          "score": 22
+        },
+        {
+          "player": "Neiland Jnr, Joseph",
+          "score": 22
+        },
+        {
+          "player": "Ryan, Terence",
+          "score": 22
+        },
+        {
+          "player": "Pickerill, Robert",
+          "score": 22
+        },
+        {
+          "player": "Baker, Kevin",
+          "score": 21
+        },
+        {
+          "player": "Geraghty Jnr, Michael",
+          "score": 21
+        },
+        {
+          "player": "O'Sullivan, Mark",
+          "score": 20
+        },
+        {
+          "player": "Kiersey, Robert",
+          "score": 20
+        },
+        {
+          "player": "Ryan, Kieran",
+          "score": 20
+        },
+        {
+          "player": "Dunne, James",
+          "score": 19
+        },
+        {
+          "player": "Kavanagh, Darragh",
+          "score": 19
+        },
+        {
+          "player": "Mahon, Chris",
+          "score": 18
+        },
+        {
+          "player": "O'Keefe, Peter",
+          "score": 18
+        },
+        {
+          "player": "Murphy, James",
+          "score": 18
+        },
+        {
+          "player": "Downey, Samuel",
+          "score": 18
+        },
+        {
+          "player": "Whelan, Craig",
+          "score": 17
+        },
+        {
+          "player": "Fahey, Rory",
+          "score": 17
+        },
+        {
+          "player": "Byrne, Kenneth",
+          "score": 16
+        },
+        {
+          "player": "O'Sullivan, Philip",
+          "score": 14
+        },
+        {
+          "player": "Porter, James",
+          "score": 13
+        },
+        {
+          "player": "Kiely, Jamie",
+          "score": 12
+        },
+        {
+          "player": "Kelly, Richard",
+          "score": 9
+        },
+        {
+          "player": "Harrington, Eamonn",
+          "score": 28
+        },
+        {
+          "player": "McElhinney, Mark",
+          "score": 28
+        },
+        {
+          "player": "O'Neill, Michael Anthony",
+          "score": 27
+        },
+        {
+          "player": "Phelan, James",
+          "score": 26
+        },
+        {
+          "player": "Geraghty, Graham",
+          "score": 26
+        },
+        {
+          "player": "Fitzpatrick, Liam",
+          "score": 25
+        },
+        {
+          "player": "Pippet, Damian",
+          "score": 25
+        },
+        {
+          "player": "Burgess, Peter",
+          "score": 24
+        },
+        {
+          "player": "Kennelly, Patrick",
+          "score": 23
+        },
+        {
+          "player": "Campbell, Neil",
+          "score": 23
+        },
+        {
+          "player": "Roche, David",
+          "score": 22
+        },
+        {
+          "player": "Doyle, Don",
+          "score": 22
+        },
+        {
+          "player": "Woods, David",
+          "score": 22
+        },
+        {
+          "player": "Alger, Sean",
+          "score": 22
+        },
+        {
+          "player": "Marren, Padraic",
+          "score": 22
+        },
+        {
+          "player": "Kelly, Enda",
+          "score": 22
+        },
+        {
+          "player": "McCormack, Shane",
+          "score": 21
+        },
+        {
+          "player": "Winters, David",
+          "score": 21
+        },
+        {
+          "player": "Newsome, Shane",
+          "score": 21
+        },
+        {
+          "player": "Duffy, Mick",
+          "score": 21
+        },
+        {
+          "player": "Doyle, Patrick",
+          "score": 20
+        },
+        {
+          "player": "Comerford, JP",
+          "score": 19
+        },
+        {
+          "player": "O'Sullivan, Justin",
+          "score": 19
+        },
+        {
+          "player": "O'Malley, Gerard",
+          "score": 19
+        },
+        {
+          "player": "Seymour, William",
+          "score": 19
+        },
+        {
+          "player": "Rawl, Calum",
+          "score": 19
+        },
+        {
+          "player": "Pembrey, Gavin",
+          "score": 18
+        },
+        {
+          "player": "Garry, Jack",
+          "score": 18
+        },
+        {
+          "player": "Healy, Kevin",
+          "score": 18
+        },
+        {
+          "player": "Beacom, Ross",
+          "score": 18
+        },
+        {
+          "player": "Lawlor, Conor",
+          "score": 18
+        },
+        {
+          "player": "Kelly, Thomas",
+          "score": 18
+        },
+        {
+          "player": "O'Connor, Brian",
+          "score": 17
+        },
+        {
+          "player": "Farrell, Michael",
+          "score": 17
+        },
+        {
+          "player": "Kenna, DJ",
+          "score": 17
+        },
+        {
+          "player": "Gavin, Micheal",
+          "score": 17
+        },
+        {
+          "player": "Gormley, Shane",
+          "score": 16
+        },
+        {
+          "player": "Conroy, Kevin",
+          "score": 16
+        },
+        {
+          "player": "Marah, Paul",
+          "score": 16
+        },
+        {
+          "player": "Jennings, Austin",
+          "score": 15
+        },
+        {
+          "player": "Townsend, Trevor",
+          "score": 14
+        },
+        {
+          "player": "Gormley, James",
+          "score": 14
+        },
+        {
+          "player": "Feeley, Don",
+          "score": 12
+        },
+        {
+          "player": "Lynch, Colm",
+          "score": 27
+        },
+        {
+          "player": "McConnell, Scott",
+          "score": 26
+        },
+        {
+          "player": "Bonus, Philip",
+          "score": 25
+        },
+        {
+          "player": "Daly, John",
+          "score": 24
+        },
+        {
+          "player": "Gibbons, Niall",
+          "score": 24
+        },
+        {
+          "player": "McGuinness, Ger",
+          "score": 24
+        },
+        {
+          "player": "Keogh, Fergal",
+          "score": 23
+        },
+        {
+          "player": "Delahunt, Gareth",
+          "score": 23
+        },
+        {
+          "player": "Noctor, James",
+          "score": 23
+        },
+        {
+          "player": "Neiland, Joe",
+          "score": 23
+        },
+        {
+          "player": "Tymlin, Stephen",
+          "score": 22
+        },
+        {
+          "player": "Power, Colm",
+          "score": 22
+        },
+        {
+          "player": "Pemberton, Mark",
+          "score": 22
+        },
+        {
+          "player": "McConnell, Owen",
+          "score": 21
+        },
+        {
+          "player": "Dunne, Alan",
+          "score": 21
+        },
+        {
+          "player": "Lawlor, Ronan",
+          "score": 21
+        },
+        {
+          "player": "O'Neill, Ruben",
+          "score": 21
+        },
+        {
+          "player": "Owens, Colin",
+          "score": 20
+        },
+        {
+          "player": "Moran, Ray",
+          "score": 20
+        },
+        {
+          "player": "Fahy, Noel",
+          "score": 20
+        },
+        {
+          "player": "Mulqueen, David",
+          "score": 19
+        },
+        {
+          "player": "Higgins, Brian",
+          "score": 19
+        },
+        {
+          "player": "Whelan, Aidan",
+          "score": 19
+        },
+        {
+          "player": "Whelan, David",
+          "score": 19
+        },
+        {
+          "player": "Hume, Andrew",
+          "score": 19
+        },
+        {
+          "player": "McElhinney, Raymond",
+          "score": 19
+        },
+        {
+          "player": "Curran, Frank",
+          "score": 18
+        },
+        {
+          "player": "Gaynor, Ned",
+          "score": 18
+        },
+        {
+          "player": "Kelly, Edward",
+          "score": 18
+        },
+        {
+          "player": "Schwartz, Amory",
+          "score": 17
+        },
+        {
+          "player": "Forsyth, Kevin",
+          "score": 17
+        },
+        {
+          "player": "O'Brien, Ian",
+          "score": 17
+        },
+        {
+          "player": "Mulqueen, John",
+          "score": 17
+        },
+        {
+          "player": "Lang, Graeme",
+          "score": 16
+        },
+        {
+          "player": "Moore, Declan",
+          "score": 16
+        },
+        {
+          "player": "Graham, Jim",
+          "score": 15
+        },
+        {
+          "player": "O'Leary, Theo",
+          "score": 15
+        },
+        {
+          "player": "Vaughan, Conor",
+          "score": 15
+        },
+        {
+          "player": "Heffernan, Pat",
+          "score": 15
+        },
+        {
+          "player": "O'Mahony, Denis",
+          "score": 11
+        },
+        {
+          "player": "Lester, Mark",
+          "score": 28
+        },
+        {
+          "player": "McCrystal, Eugene",
+          "score": 25
+        },
+        {
+          "player": "O'Malley, Dominic",
+          "score": 24
+        },
+        {
+          "player": "Moriarty, Dan",
+          "score": 23
+        },
+        {
+          "player": "Sheehy, Pat",
+          "score": 23
+        },
+        {
+          "player": "Hegarty, Martin",
+          "score": 22
+        },
+        {
+          "player": "Ryan, Bill",
+          "score": 22
+        },
+        {
+          "player": "Connick McKenna, Jake",
+          "score": 22
+        },
+        {
+          "player": "Doyle, J. C.",
+          "score": 22
+        },
+        {
+          "player": "Loughnane, Kevin",
+          "score": 21
+        },
+        {
+          "player": "Harris, Gordon",
+          "score": 21
+        },
+        {
+          "player": "Long, Paul",
+          "score": 21
+        },
+        {
+          "player": "O'Reilly, Brian",
+          "score": 19
+        },
+        {
+          "player": "Halion, Colin",
+          "score": 19
+        },
+        {
+          "player": "Dowdall, Frank",
+          "score": 19
+        },
+        {
+          "player": "Rawl, John",
+          "score": 18
+        },
+        {
+          "player": "Slattery, John",
+          "score": 18
+        },
+        {
+          "player": "Smyth, David",
+          "score": 18
+        },
+        {
+          "player": "Timmins, Barry",
+          "score": 18
+        },
+        {
+          "player": "Deignan, Paul F",
+          "score": 18
+        },
+        {
+          "player": "O'Leary, Tomas",
+          "score": 18
+        },
+        {
+          "player": "Connor, Brian J.",
+          "score": 17
+        },
+        {
+          "player": "O'Brien, Tim",
+          "score": 17
+        },
+        {
+          "player": "Nagle, Colm",
+          "score": 17
+        },
+        {
+          "player": "Keogh, Stephen",
+          "score": 17
+        },
+        {
+          "player": "Morgan, Michael",
+          "score": 17
+        },
+        {
+          "player": "O'Neill Snr., Michael",
+          "score": 16
+        },
+        {
+          "player": "Cummins, Timothy",
+          "score": 16
+        },
+        {
+          "player": "Brett, Greg",
+          "score": 16
+        },
+        {
+          "player": "Diggin, Mark",
+          "score": 16
+        },
+        {
+          "player": "Byrne, Nicholas",
+          "score": 14
+        },
+        {
+          "player": "Brown, David",
+          "score": 13
+        },
+        {
+          "player": "Murphy, Paul",
+          "score": 12
+        },
+        {
+          "player": "O'Brien, Hugh",
+          "score": 11
+        },
+        {
+          "player": "Sherwin, Derek",
+          "score": 11
+        },
+        {
+          "player": "Burke, Pascal",
+          "score": 11
+        },
+        {
+          "player": "O'Dowd, Thomas",
+          "score": 10
+        },
+        {
+          "player": "Johnson, William",
+          "score": 10
+        },
+        {
+          "player": "McDaid, Tom",
+          "score": 9
+        },
+        {
+          "player": "Kearns, Nicholas",
+          "score": 8
+        }
+      ]
     }
   ],
   "final": null

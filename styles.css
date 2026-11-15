@@ -76,6 +76,7 @@ tbody td:first-child { font-weight: 600; color: var(--green); }
 #league-table .weekend-column { white-space: pre-line; line-height: 1.2; border-left: 2px solid var(--border); font-weight: 600; }
 #league-table .round-start { border-left: 2px solid var(--border); }
 #league-table .rank-column { position: sticky; left: 0; min-width: var(--rank-width); max-width: var(--rank-width); width: var(--rank-width); z-index: 2; }
+#league-table .rank-movement { display: block; font-size: .6875rem; font-weight: 600; color: var(--dark); }
 #league-table .team-column { position: sticky; left: var(--rank-width); min-width: var(--team-width); max-width: var(--team-width); width: var(--team-width); z-index: 2; white-space: normal; overflow-wrap: anywhere; box-shadow: 2px 0 0 var(--border); }
 #league-table .player-column { width: 10.5rem; min-width: 10.5rem; max-width: 10.5rem; text-align: left; white-space: normal; overflow-wrap: anywhere; }
 #league-table .player-column .table-sort { justify-content: flex-start; }
@@ -89,6 +90,10 @@ tbody td:first-child { font-weight: 600; color: var(--green); }
 #league-table tbody tr { background: white; }
 #league-table tbody tr:nth-child(even) { background: #fafcfa; }
 #league-table tbody tr:hover { background: #f4f9f4; }
+#league-table tbody tr.top-sixteen { background: #f0f7f0; }
+#league-table tbody tr.cutoff-tie { background: #fff5de; }
+#league-table .zone-badge { display: block; font-size: .625rem; font-weight: 600; color: var(--dark); }
+#league-table .cutoff-boundary > * { border-top: 2px solid var(--green); }
 #league-table tbody .rank-column, #league-table tbody .team-column { background: inherit; }
 #league-table thead .rank-column, #league-table thead .team-column { z-index: 3; background: var(--green); }
 #league-table tbody tr:nth-child(-n+3) .rank-column { font-weight: 800; }

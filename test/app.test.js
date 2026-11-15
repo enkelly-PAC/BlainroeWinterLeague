@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { EventEmitter } from 'node:events';
 import { emptyState, league } from '../core.js';
 import { STORAGE_KEY, BASELINE_KEY } from '../storage.js';
+import { publicationThrough } from './publication-fixture.js';
 
 async function rosterFixture() {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
@@ -248,7 +249,7 @@ test('changed tables reset left and release observers and listeners; unchanged r
   assert.ok(observers.every(observer => observer.disconnected));
 });
 test('Singles defaults to cumulative cards and historical review disables official exports without changing Teams', async t => {
-  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = await publicationThrough('2026-11-07');
   state.rounds.push({ date: '2026-11-14', name: 'Cancelled review', canceled: true, qualifying: true,
     cards: [{ player: 'Synthetic Player', score: 99 }] });
   const { $, contents } = await workspace(t, null, state);
@@ -269,7 +270,7 @@ test('Singles defaults to cumulative cards and historical review disables offici
   assert.equal(renderedTable($, 'singles-table').rows.length, 197);
 });
 test('standings precede collapsed review details, with honest live counts and short accessible round headings', async t => {
-  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = await publicationThrough('2026-11-07');
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const { $, contents } = await workspace(t, null, state);
   assert.ok(html.indexOf('id="league-table"') < html.indexOf('id="matching-review"'));
@@ -292,6 +293,88 @@ test('standings precede collapsed review details, with honest live counts and sh
   }
   assert.equal(view.rows.find(row => row[1] === 'Team 15')[8], '18');
   assert.doesNotMatch(contents($('matching-table')), /Owens, Colin|Halion, Colin/);
+});
+test('team movement is accessible, stays with official rank after sorting and does not add columns', async t => {
+  const state = await publicationThrough('2026-11-14');
+  const { $ } = await workspace(t, null, state);
+  const check = () => {
+    const view = renderedTable($);
+    assert.equal(view.rows[0].length, 18);
+    for (const [team, text, detail] of [
+      ['Team 11', '↑6', 'Up 6 places since Round 2'],
+      ['Team 27', '↓3', 'Down 3 places since Round 2'],
+      ['Team 7', '=', 'Unchanged since Round 2']
+    ]) {
+      const row = view.body.children.find(row => row.children[1].textContent === team);
+      const movement = row.children[0].children[0];
+      assert.equal(movement.textContent, text);
+      assert.equal(movement.title, detail);
+      assert.equal(movement.getAttribute('aria-label'), detail);
+    }
+  };
+  check();
+  await renderedTable($).buttons[1].emit('click');
+  check();
+  await renderedTable($).buttons[0].emit('click');
+  check();
+});
+function cutoffFixture(tied = false) {
+  const state = emptyState();
+  state.teams = Array.from({ length: 18 }, (_, index) => ({
+    name: `Team ${index + 1}`, players: ['Alpha', 'Beta', 'Gamma'].map(name => `${name} ${index + 1}`)
+  }));
+  state.rounds = [{ date: '2026-10-31', name: 'Synthetic qualifying round', qualifying: true, canceled: false,
+    cards: state.teams.map((team, index) => ({
+      player: team.players[0], score: tied && index >= 14 && index <= 16 ? 6 : 20 - index
+    })) }];
+  return state;
+}
+test('top 16 badges and cutoff cue are provisional and follow team identity after alternate sorting', async t => {
+  const state = cutoffFixture();
+  const { $, setPublished } = await workspace(t, null, state);
+  const inspect = () => {
+    const view = renderedTable($);
+    const highlighted = view.body.children.filter(row => row.className === 'top-sixteen');
+    assert.equal(highlighted.length, 16);
+    assert.deepEqual(highlighted.map(row => row.children[1].textContent).sort(),
+      state.teams.slice(0, 16).map(team => team.name).sort());
+    for (const row of highlighted) {
+      const badge = row.children[1].children[0];
+      assert.equal(badge.textContent, 'Top 16');
+      assert.equal(badge.getAttribute('aria-label'), 'Provisional top 16; qualification not yet complete');
+    }
+    return view;
+  };
+  assert.match($('qualification-zone').textContent, /^Provisional top 16; qualification not yet complete/);
+  assert.equal(inspect().body.children[16].className.trim(), 'cutoff-boundary');
+  await renderedTable($).buttons[1].emit('click');
+  assert.ok(inspect().body.children.every(row => !row.className?.includes('cutoff-boundary')));
+  state.settings.complete = true;
+  setPublished(state);
+  await $('refresh').emit('click');
+  assert.match($('qualification-zone').textContent, /^Top 16 after qualification/);
+  assert.doesNotMatch($('qualification-zone').textContent, /not yet complete/);
+});
+test('every team in a boundary tie is marked tied at cutoff, never chosen alphabetically or by display position', async t => {
+  const state = cutoffFixture(true);
+  const { $ } = await workspace(t, null, state);
+  const inspect = () => {
+    const view = renderedTable($);
+    assert.equal(view.body.children.filter(row => row.className === 'top-sixteen').length, 14);
+    const tied = view.body.children.filter(row => row.className === 'cutoff-tie');
+    assert.deepEqual(tied.map(row => row.children[1].textContent).sort(), ['Team 15', 'Team 16', 'Team 17']);
+    for (const row of tied) {
+      assert.equal(row.children[1].children[0].textContent, 'Tied at cutoff');
+      assert.match(row.children[1].children[0].getAttribute('aria-label'), /no confirmed qualifiers/);
+    }
+    return view;
+  };
+  assert.match($('qualification-zone').textContent, /committee resolution.*No confirmed qualifiers/);
+  assert.equal(inspect().body.children[17].className.trim(), 'cutoff-boundary');
+  await renderedTable($).buttons[1].emit('click');
+  assert.ok(inspect().body.children.every(row => !row.className?.includes('cutoff-boundary')));
+  await renderedTable($).buttons[0].emit('click');
+  inspect();
 });
 test('member landing keeps admin workflows in an inactive secondary tab and supports keyboard navigation', async t => {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
@@ -979,7 +1062,7 @@ test('corrupt storage survives results preview and failed apply; JSON replacemen
 });
 
 test('public landing loads real accumulated results, never resumes an older local draft automatically', async t => {
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await publicationThrough('2026-11-07');
   const old = await rosterFixture();
   old.rounds = [{ date: '2026-11-07', name: 'Local only', qualifying: true, canceled: false, cards: [{ player: 'Paddy Daly', score: 30 }] }];
   const { $, contents, values } = await workspace(t, JSON.stringify(old), published);
@@ -992,7 +1075,7 @@ test('public landing loads real accumulated results, never resumes an older loca
   assert.equal(values.get(STORAGE_KEY), JSON.stringify(old));
 });
 test('member draft export snapshots the published view without resuming or saving a local draft', async t => {
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await publicationThrough('2026-11-07');
   const old = await rosterFixture();
   const source = JSON.stringify(old);
   const { $, values, downloads } = await workspace(t, source, published);
@@ -1012,7 +1095,7 @@ test('member draft export snapshots the published view without resuming or savin
   assert.match($('status').textContent, /Nothing was published or sent/);
 });
 test('browser applies weekly results on top of current online history and preserves current-league draft edits', async t => {
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await publicationThrough('2026-11-07');
   const old = await rosterFixture();
   old.settings.maxRounds = 12;
   old.teams.find(team => team.name === 'Team 34').notes = 'Local committee note';
@@ -1035,7 +1118,7 @@ test('browser applies weekly results on top of current online history and preser
 });
 test('publication download fetches the latest seed and includes online weekends missing from a saved draft', async t => {
   const nativeFetch = globalThis.fetch;
-  const published = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const published = await publicationThrough('2026-11-07');
   const local = structuredClone(published); local.teams[0].notes = 'Local review';
   const { $, downloads, setPublished, values } = await workspace(t, JSON.stringify(local), published, published);
   const newer = structuredClone(published);

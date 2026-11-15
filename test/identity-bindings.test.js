@@ -1,14 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { canonical, playerKey, assignments, emptyState, importRound, isHeld, league, singles, validateState, reportHTML } from '../core.js';
 import { leaderboardPDFDocument } from '../leaderboard-pdf.js';
 import { weekendCards } from '../leaderboard-layout.js';
 import { memberUpdate } from '../member-update.js';
 import { protectPublishedHistory, synchroniseDraft } from '../publication.js';
 import { buildUpdate } from '../tools/update-results.mjs';
+import { publicationThrough } from './publication-fixture.js';
 
-const state = validateState(JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8')));
+const state = await publicationThrough('2026-11-07');
 const expected = [
   ['Michael Farrell', 'Mike Farrell', 5, [14, 22], [32, 47]],
   ['Joshua McCall', 'Josh McCall', 28, [18, 26], [43, 54]],

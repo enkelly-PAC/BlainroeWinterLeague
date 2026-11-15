@@ -10,6 +10,7 @@ import { emptyState, escapeHTML, league, singles, parseCSV } from '../core.js';
 import { memberUpdate } from '../member-update.js';
 import { leaderboardPDFDocument, leaderboardPDFModel } from '../leaderboard-pdf.js';
 import { weekendCards } from '../leaderboard-layout.js';
+import { publicationThrough } from './publication-fixture.js';
 
 test('Weekend 1 newsletter is prose only, with complete tables as separate clean exports', async () => {
   const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
@@ -42,7 +43,7 @@ test('member exports with no results fail explicitly, without inventing ranks or
   assert.throws(() => memberUpdate(state), /require qualifying results/);
 });
 test('combined update preserves both weekends and calculates genuine fixed-roster movement', async () => {
-  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = await publicationThrough('2026-11-07');
   const first = structuredClone(state);
   first.rounds = first.rounds.filter(round => round.date === '2026-10-31');
   const baseline = { schemaVersion: 1, through: '2026-10-31', state: first, teams: league(first).rows };
@@ -136,17 +137,20 @@ test('member preparation CLI writes a review bundle, preserves the publication a
   const script = fileURLToPath(new URL('../tools/prepare-member-update.mjs', import.meta.url));
   const source = new URL('../data/published.json', import.meta.url);
   const before = await readFile(source, 'utf8');
-  const args = [script, '--out', output, '--pending-weekend', '2026-11-14'];
+  const through = JSON.parse(before).rounds.map(round => round.date).sort().at(-1);
+  const pending = new Date(`${through}T12:00:00Z`);
+  pending.setUTCDate(pending.getUTCDate() + 7);
+  const args = [script, '--out', output, '--pending-weekend', pending.toISOString().slice(0, 10)];
   const first = spawnSync(process.execPath, args, { encoding: 'utf8' });
   assert.equal(first.status, 0, first.stderr);
   assert.equal((await readdir(output)).length, 4);
-  const htmlPath = join(output, 'blainroe-member-update-draft-2026-11-07.html');
+  const htmlPath = join(output, `blainroe-member-update-draft-${through}.html`);
   const draft = await readFile(htmlPath, 'utf8');
   assert.doesNotMatch(draft, /<table|pending|draft|not published/i);
-  const baselinePath = join(output, 'blainroe-comparison-baseline-2026-11-07.json');
+  const baselinePath = join(output, `blainroe-comparison-baseline-${through}.json`);
   const baselineContent = await readFile(baselinePath, 'utf8');
   const baseline = JSON.parse(baselineContent);
-  assert.equal(baseline.through, '2026-11-07');
+  assert.equal(baseline.through, through);
   assert.equal(baseline.sourceSHA256, createHash('sha256').update(before).digest('hex'));
   assert.deepEqual(baseline.state.rounds, JSON.parse(before).rounds);
   assert.deepEqual(baseline.teams, league(baseline.state).rows);
@@ -184,7 +188,7 @@ test('member preparation CLI validates pending weekend before writing files', as
   assert.deepEqual(await readdir(output), []);
 });
 test('PDF headers separate the logo and counting cards are bold dark green', async () => {
-  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = await publicationThrough('2026-11-07');
   const before = structuredClone(state);
   for (const audience of ['members', 'review']) {
     for (const format of ['latest', 'detail']) {

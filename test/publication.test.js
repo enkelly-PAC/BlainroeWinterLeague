@@ -8,6 +8,7 @@ import { synchroniseDraft, protectPublishedHistory } from '../publication.js';
 import { readBaseline, readDraft, saveDraft, STORAGE_KEY, BASELINE_KEY } from '../storage.js';
 import { buildUpdate, updateResults, argumentsFor } from '../tools/update-results.mjs';
 import { atomicPublication } from '../tools/publication-io.mjs';
+import { publicationThrough } from './publication-fixture.js';
 
 const csv = (date, score = 29) => `Competition Name,Synthetic net weekend\nPlayed on,${date}\nPlayer,Score,Handicap\nSynthetic Alpha,${score},7\nSynthetic Beta,24,-1\nSynthetic Gamma,20,3`;
 const file = (date, score) => ({ path: `synthetic-${date}.csv`, source: csv(date, score) });
@@ -206,7 +207,7 @@ test('replacement roster applies existing late-registration rules without changi
   assert.deepEqual(current.rounds, previous.rounds);
 });
 test('real Weekend 2 keeps reported net cards and cumulative totals with the confirmed roster', async () => {
-  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = await publicationThrough('2026-11-07');
   assert.deepEqual(state.rounds.map(round => [round.date, round.cards.length]), [['2026-10-31', 165], ['2026-11-07', 162]]);
   const round = state.rounds[1], assigned = assignments(state.teams, state.identityBindings);
   assert.equal(round.cards.filter(card => !assigned.has(canonical(card.player))).length, 42);

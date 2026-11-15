@@ -430,6 +430,20 @@ export function league(state) {
   const eligible = cutoffUnresolved ? [] : rows.slice(0, 16).map(r => r.team.name);
   return { rows, rounds, discardCount, cutoffUnresolved, firstUnresolved, eligible };
 }
+export function leagueMovement(state, current = league(state)) {
+  const latest = current.rounds.at(-1), previousRound = current.rounds.at(-2) || null;
+  const previous = previousRound ? league({
+    ...state, settings: { ...state.settings, complete: false },
+    rounds: state.rounds.filter(round => round.date < latest.date)
+  }) : null;
+  const ranked = table => table?.rows.some(row => row.scores.some(score => score.missed < 3));
+  const priorRanks = ranked(previous) && ranked(current)
+    ? new Map(previous.rows.map(row => [row.team.name, row.rank])) : new Map();
+  return { previousRound, rows: current.rows.map(row => {
+    const previousRank = priorRanks.get(row.team.name) ?? null;
+    return { team: row.team.name, previousRank, places: previousRank === null ? null : previousRank - row.rank };
+  }) };
+}
 const countbackFields = ['back9', 'back6', 'back3', 'back1'];
 export function validateFinal(state, final) {
   const table = league(state);

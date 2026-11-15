@@ -1,8 +1,7 @@
-import { MAX_BYTES, emptyState, canonical, playerKey, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML, assignments, isHeld, rosterStatus, replaceTeams, editTeam } from './core.js';
+import { MAX_BYTES, emptyState, canonical, playerKey, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML, assignments, isHeld, rosterStatus, replaceTeams, editTeam, cumulativeSingles, cumulativeSinglesCSV, leagueMovement } from './core.js?v=20261115-1';
 import { readDraft, saveDraft, readBaseline, STORAGE_KEY, BASELINE_KEY } from './storage.js';
 import { synchroniseDraft, protectPublishedHistory } from './publication.js';
 import { createLeaderboardPDF, createSinglesPDF } from './leaderboard-pdf.js';
-import { cumulativeSingles, cumulativeSinglesCSV } from './core.js';
 import { weekendCards } from './leaderboard-layout.js';
 import { memberUpdate } from './member-update.js';
 
@@ -252,15 +251,37 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
       return (sort.direction === 'descending' ? -comparison : comparison) || a.index - b.index;
     });
   }
-  ordered.forEach(({ values }) => { const row = element('tr'); values.forEach((value, i) => {
-    const rowHeader = i === (id === 'teams-table' ? 0 : 1);
-    const cell = element(rowHeader ? 'th' : 'td', String(cellText(value)), definitions[i].className);
-    if (definitions[i].group && definitions[i - 1]?.group !== definitions[i].group) cell.className = `${definitions[i].className || ''} round-start`;
-    if (value?.className) cell.className = `${cell.className || ''} ${value.className}`;
-    if (value?.detail) { cell.title = value.detail; cell.setAttribute('aria-label', value.detail); }
-    if (rowHeader) cell.scope = 'row';
-    row.append(cell);
-  }); body.append(row); });
+  ordered.forEach(({ values }, index) => {
+    const row = element('tr');
+    if (values[0]?.rowClass) row.className = values[0].rowClass;
+    if (id === 'league-table' && sort?.key === 'Rank' && sort.direction === 'ascending' &&
+        values[0]?.zone === 'outside' && index && ordered[index - 1].values[0]?.zone !== 'outside') {
+      row.className = `${row.className || ''} cutoff-boundary`;
+      row.setAttribute('aria-label', 'Below the top 16 cutoff group');
+    }
+    values.forEach((value, i) => {
+      const rowHeader = i === (id === 'teams-table' ? 0 : 1);
+      const cell = element(rowHeader ? 'th' : 'td', String(cellText(value)), definitions[i].className);
+      if (definitions[i].group && definitions[i - 1]?.group !== definitions[i].group) cell.className = `${definitions[i].className || ''} round-start`;
+      if (value?.className) cell.className = `${cell.className || ''} ${value.className}`;
+      if (value?.detail) { cell.title = value.detail; cell.setAttribute('aria-label', value.detail); }
+      if (value?.movement) {
+        const movement = element('span', value.movement.text, 'rank-movement');
+        movement.title = value.movement.detail;
+        movement.setAttribute('aria-label', value.movement.detail);
+        cell.append(movement);
+      }
+      if (value?.badge) {
+        const badge = element('span', value.badge.text, 'zone-badge');
+        badge.title = value.badge.detail;
+        badge.setAttribute('aria-label', value.badge.detail);
+        cell.append(badge);
+      }
+      if (rowHeader) cell.scope = 'row';
+      row.append(cell);
+    });
+    body.append(row);
+  });
   tbl.append(body); wrapper.append(tbl);
   if (navigable) tableScrollControls(id, host, wrapper, tbl, signature);
   else host.append(wrapper);
@@ -413,6 +434,34 @@ function render() {
   $('team-review-summary').textContent = `${rosterWarnings.length} team entries need review`;
   $('roster-warning').textContent = `Standings do not confirm player eligibility. ${rosterWarnings.map(t => `${t.name}: ${rosterStatus(t)}`).join(' | ')}`;
   const roundCards = new Map(result.rounds.map(round => [round.date, round]));
+  const movement = leagueMovement(state, result);
+  const rankChanges = new Map(movement.rows.map(row => [row.team, row.places]));
+  const previousLabel = `Round ${result.rounds.length - 1}`;
+  const boundaryRank = result.cutoffUnresolved ? result.rows[15].rank : null;
+  const zone = row => row.rank === boundaryRank ? 'tied' : row.rank <= 16 ? 'top' : 'outside';
+  const zoneDetail = state.settings.complete ? 'Top 16 after qualification' : 'Provisional top 16; qualification not yet complete';
+  $('qualification-zone').hidden = !hasResults;
+  $('qualification-zone').textContent = `${zoneDetail}.${result.cutoffUnresolved
+    ? ' Tied at cutoff: the entire tied group is marked; committee resolution is required. No confirmed qualifiers.'
+    : ' Top 16 badges mark the current qualifying zone, not player eligibility approval.'}`;
+  const rankCell = row => {
+    const places = rankChanges.get(row.team.name);
+    const comparison = places === null
+      ? { text: 'New', detail: 'No previous ranked qualifying round for comparison' }
+      : places === 0
+        ? { text: '=', detail: `Unchanged since ${previousLabel}` }
+        : { text: `${places > 0 ? '↑' : '↓'}${Math.abs(places)}`,
+          detail: `${places > 0 ? 'Up' : 'Down'} ${Math.abs(places)} place${Math.abs(places) === 1 ? '' : 's'} since ${previousLabel}` };
+    const status = zone(row);
+    return { ...displayCell(row.rank, row.rank), movement: comparison, zone: status,
+      rowClass: status === 'tied' ? 'cutoff-tie' : status === 'top' ? 'top-sixteen' : '' };
+  };
+  const teamCell = row => {
+    const status = zone(row);
+    return { ...displayCell(row.team.name, row.team.name), badge: status === 'outside' ? null :
+      status === 'tied' ? { text: 'Tied at cutoff', detail: 'Tied at cutoff; committee resolution required, no confirmed qualifiers' } :
+        { text: 'Top 16', detail: zoneDetail } };
+  };
   const shortDate = date => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${date}T12:00:00Z`));
   table('league-table', `${mode === 'draft' ? 'Local draft' : 'Published'} team leaderboard`, [
     { key: 'Rank', label: 'Rank', className: 'rank-column' },
@@ -425,7 +474,7 @@ function render() {
       groupDetail: `Round ${index + 1}: ${round.date}, ${round.name}`,
       className: player === 3 ? 'round-total-column' : 'score-column'
     })))], hasResults ? result.rows.map(r => [
-    r.rank, r.team.name, ...[0, 1, 2].map(index => r.team.players[index] || 'Vacant'), r.retained,
+    rankCell(r), teamCell(r), ...[0, 1, 2].map(index => r.team.players[index] || 'Vacant'), r.retained,
     ...r.scores.flatMap(score => [
       ...weekendCards(r.team, roundCards.get(score.date), state.identityBindings).map(card => ({
         ...displayCell(card.text, card.score ?? null),

@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
 import { cumulativeSingles, cumulativeSinglesCSV, emptyState, parseCSV } from '../core.js';
 import { singlesPDFDocument, singlesPDFModel, leaderboardPDFDocument } from '../leaderboard-pdf.js';
+import { publicationThrough } from './publication-fixture.js';
 
 test('cumulative Singles resolves explicit identities without team restrictions, missing zeroes or historical cards', () => {
   const state = emptyState();
@@ -33,8 +33,8 @@ test('cumulative Singles resolves explicit identities without team restrictions,
   assert.deepEqual(state, before);
 });
 
-test('current cumulative Singles contains all 197 players, with 130 both-weekend cards and honest held scores', async () => {
-  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+test('first two weekends contain all 197 Singles players, with 130 both-weekend cards and honest held scores', async () => {
+  const state = await publicationThrough('2026-11-07');
   const { rows } = cumulativeSingles(state);
   assert.equal(rows.length, 197);
   assert.equal(rows.filter(row => Object.keys(row.scores).length === 2).length, 130);
@@ -44,7 +44,7 @@ test('current cumulative Singles contains all 197 players, with 130 both-weekend
 });
 
 test('member integrated PDF repeats named identities and Combined before bounded weekend columns', async () => {
-  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const state = await publicationThrough('2026-11-07');
   const document = leaderboardPDFDocument(state, { format: 'detail', audience: 'members' });
   const table = document.content.find(node => node.table).table;
   assert.deepEqual(table.body[1].slice(0, 6).map(cell => cell.text),
