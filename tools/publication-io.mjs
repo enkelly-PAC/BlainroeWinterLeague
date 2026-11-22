@@ -21,7 +21,11 @@ export async function atomicPublication(target, state, expected) {
     await handle.writeFile(source, 'utf8');
     await handle.sync();
     await handle.close(); handle = null;
-    if (await readFile(target, 'utf8') !== expected) throw new Error('Published file changed during preview. Retry against the latest file.');
+    const current = await readFile(target, 'utf8').catch(error => {
+      if (error.code === 'ENOENT' && expected === null) return null;
+      throw error;
+    });
+    if (current !== expected) throw new Error('Published file changed during preview. Retry against the latest file.');
     await rename(scratch, target);
   } finally {
     await handle?.close();

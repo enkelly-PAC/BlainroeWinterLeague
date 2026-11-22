@@ -7,8 +7,8 @@
   <meta name="description" content="Blainroe Men's Winter League 2026/2027 standings and final. Sponsored by Spirit Ford Wicklow.">
   <title>Blainroe Winter League 2026/2027</title>
   <link rel="icon" type="image/png" href="./blainroe-anni-logo.png">
-  <link rel="stylesheet" href="./styles.css?v=20261115-1">
-  <script type="module" src="./app.js?v=20261122-2"></script>
+  <link rel="stylesheet" href="./styles.css?v=20261122-3">
+  <script type="module" src="./app.js?v=20261122-3"></script>
 </head>
 <body>
   <header class="brand">
@@ -28,6 +28,8 @@
     <nav class="tabs" role="tablist" aria-label="Winter League views">
       <button id="tab-league" role="tab" aria-selected="true" aria-controls="league-panel" tabindex="0">Team leaderboard</button>
       <button id="tab-singles" role="tab" aria-selected="false" aria-controls="singles-panel" tabindex="-1">Singles</button>
+      <button id="tab-gross-eclectic" role="tab" aria-selected="false" aria-controls="gross-eclectic-panel" tabindex="-1">Gross Eclectic</button>
+      <button id="tab-net-eclectic" role="tab" aria-selected="false" aria-controls="net-eclectic-panel" tabindex="-1">Net Eclectic</button>
       <details id="more-views"><summary>More views and admin</summary>
         <button id="tab-teams" role="tab" aria-selected="false" aria-controls="teams-panel" tabindex="-1">Team list and weekends</button>
         <button id="tab-final" role="tab" aria-selected="false" aria-controls="final-panel" tabindex="-1">Final</button>
@@ -49,6 +51,22 @@
       <p id="singles-summary" aria-live="polite"></p>
       <div id="singles-table"></div>
       <p class="note">All accepted qualifying cards count towards cumulative Singles, including zero. NA means no accepted card. Equal totals share rank; team holds, best-two selection and discards do not apply.</p>
+    </section>
+    <section id="gross-eclectic-panel" role="tabpanel" aria-labelledby="tab-gross-eclectic" hidden>
+      <h2>Gross Eclectic</h2>
+      <p class="note">Lowest recorded gross strokes on each of holes 1 through 11 and 15 across accepted active qualifying cards. No handicap adjustment. Pickups and other nonnumeric hole scores are ignored, even when the card's gross total is N/R.</p>
+      <p id="gross-eclectic-summary" role="status" aria-live="polite"></p>
+      <div id="gross-eclectic-table" class="eclectic-table"></div>
+      <p class="note">All 12 holes must be recorded for a total and rank. NA means no recorded hole score. Lowest total ranks first; equal totals share rank, with no countback. Team holds, best-two selection and discards do not apply. This individual view does not determine team qualification.</p>
+      <p id="gross-eclectic-provenance" class="eclectic-provenance"></p>
+    </section>
+    <section id="net-eclectic-panel" role="tabpanel" aria-labelledby="tab-net-eclectic" hidden>
+      <h2>Net Eclectic</h2>
+      <p class="note">Definition used here: lowest recorded net strokes on each of holes 1 through 11 and 15 across accepted active qualifying cards. Each hole uses its actual round's playing handicap, allocated over that round's 12-hole stroke indexes. Net strokes = gross strokes minus allocated handicap strokes. The latest handicap is not applied retrospectively. Numeric zero-point holes remain eligible; pickups and other nonnumeric gross holes are ignored. This is an as-played calculation, not a claim of committee-approved eclectic rules.</p>
+      <p id="net-eclectic-summary" role="status" aria-live="polite"></p>
+      <div id="net-eclectic-table" class="eclectic-table"></div>
+      <p class="note">All 12 holes must be recorded for a total and rank. NA means no recorded hole score. Lowest total ranks first; equal totals share rank, with no countback. Team holds, best-two selection and discards do not apply. This individual view does not determine team qualification.</p>
+      <p id="net-eclectic-provenance" class="eclectic-provenance"></p>
     </section>
     <section id="teams-panel" role="tabpanel" aria-labelledby="tab-teams" hidden>
       <h2>Registered teams</h2><div id="teams-table"></div>

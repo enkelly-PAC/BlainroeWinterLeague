@@ -1,0 +1,247 @@
+import { canonical, cumulativeSingles, parseCSV, parseScores, playerKey, weekendDate } from './core.js?v=20261115-1';
+
+export const ECLECTIC_HOLES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15];
+export const ECLECTIC_PARS = [4, 4, 4, 5, 5, 4, 4, 3, 4, 4, 4, 3];
+export const ECLECTIC_INDEXES = [9, 1, 2, 12, 10, 4, 7, 6, 11, 5, 8, 3];
+const fail = message => { throw new Error(message); };
+const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+const activeRounds = state => cumulativeSingles(state).rounds;
+const normalized = value => String(value).replace(/\s+/g, ' ').trim();
+const filename = path => path.split(/[\\/]/).at(-1);
+
+export async function sha256(source) {
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', new TextEncoder().encode(source));
+  return [...new Uint8Array(digest)].map(value => value.toString(16).padStart(2, '0')).join('');
+}
+
+export async function eclecticFingerprint(state) {
+  // Include original names and supplied handicaps as well as resolved identities, not team scoring rules.
+  return sha256(JSON.stringify({
+    teams: state.teams.map(team => ({ name: team.name, players: team.players })),
+    bindings: state.identityBindings || [],
+    rounds: [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).map(round => ({
+      date: round.date, qualifying: round.qualifying, canceled: round.canceled,
+      cards: round.qualifying && !round.canceled ? round.cards.map(card => ({
+        key: playerKey(card.player, state.identityBindings), player: card.player,
+        score: card.score, handicap: card.handicap ?? null
+      })).sort((a, b) => a.key.localeCompare(b.key)) : []
+    }))
+  }));
+}
+
+function playedDate(value) {
+  const match = value.match(/\b(\d{1,2}) (January|February|March|April|May|June|July|August|September|October|November|December) (\d{4})\b/);
+  if (!match) fail('Missing exact played-on date in scorecard metadata.');
+  const month = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'].indexOf(match[2]) + 1;
+  const date = `${match[3]}-${String(month).padStart(2, '0')}-${match[1].padStart(2, '0')}`;
+  weekendDate(date);
+  return date;
+}
+function stroke(value) {
+  if (/^[1-9]\d*$/.test(value)) return Number(value);
+  if (['', '-', 'PU', 'NP', 'NR', 'N/R'].includes(value.toUpperCase())) return null;
+  fail(`Invalid gross hole value "${value}".`);
+}
+const totalToken = value => value.toUpperCase().replace('/', '');
+
+export function parseGrossScorecards(source) {
+  const rows = parseCSV(source);
+  const metadata = rows.filter(row => /hole by hole scores returned/i.test(row.join(' ')));
+  if (metadata.length !== 1) fail('Expected one Competition Scorecards played-on heading.');
+  const date = playedDate(metadata[0].join(' '));
+  if (date !== weekendDate(date) && new Date(`${date}T12:00:00Z`).getUTCDay() !== 0)
+    fail('Scorecards must be played on Saturday or Sunday.');
+  const summaryHead = rows.findIndex(row => row[0] === 'Player(s)');
+  const firstBlock = rows.findIndex(row => row[0] === 'Competition Scorecard');
+  if (summaryHead < 0 || firstBlock <= summaryHead ||
+      !same(rows[summaryHead].slice(2, 20), Array.from({ length: 18 }, (_, i) => String(i + 1))))
+    fail('Expected the exact 18-hole scorecard summary header.');
+  const summaries = new Map();
+  for (const row of rows.slice(summaryHead + 1, firstBlock)) {
+    if (row.length !== 22 || !row[0]) fail('Malformed scorecard summary row.');
+    const key = canonical(row[0]);
+    if (summaries.has(key)) fail(`Duplicate summary card for ${row[0]}.`);
+    summaries.set(key, { gross: ECLECTIC_HOLES.map(hole => stroke(row[hole + 1])), total: totalToken(row[20]) });
+    for (let hole = 1; hole <= 18; hole++)
+      if (!ECLECTIC_HOLES.includes(hole) && stroke(row[hole + 1]) !== null)
+        fail(`Unexpected played hole ${hole} for ${row[0]}.`);
+  }
+  const cards = [], seen = new Set();
+  for (let start = firstBlock; start < rows.length;) {
+    let end = start + 1;
+    while (end < rows.length && rows[end][0] !== 'Competition Scorecard') end++;
+    const block = rows.slice(start + 1, end);
+    const players = block.filter(row => /^Player [A-Z]:$/.test(row[1] || ''));
+    const dates = block.filter(row => row[1] === 'Date:');
+    const headers = block.filter(row => row[1] === 'Hole');
+    const totals = block.filter(row => row[1] === 'TOTAL');
+    if (players.length !== 1 || players[0][1] !== 'Player A:' || !players[0][2] ||
+        dates.length !== 1 || playedDate(dates[0][2]) !== date ||
+        headers.length !== 1 || !same(headers[0].map(normalized), ['', 'Hole', 'Par', 'S.I.', 'A Strokes', 'Points']) ||
+        totals.length !== 1) fail('Invalid player, date, stroke header or total in scorecard block.');
+    const player = players[0][2], key = canonical(player);
+    if (seen.has(key)) fail(`Duplicate detailed scorecard for ${player}.`);
+    seen.add(key);
+    const holes = block.filter(row => /^\d+$/.test(row[1] || ''));
+    if (holes.length !== 12 || !same(holes.map(row => Number(row[1])), ECLECTIC_HOLES) ||
+        !same(holes.map(row => Number(row[2])), ECLECTIC_PARS) ||
+        !same(holes.map(row => Number(row[3])), ECLECTIC_INDEXES))
+      fail(`Invalid 12-hole structure, pars or stroke indexes for ${player}.`);
+    const gross = holes.map(row => stroke(row[4]));
+    if (holes.some(row => row.length !== 6 || !/^\d+$/.test(row[5]))) fail(`Invalid points row for ${player}.`);
+    const points = holes.map(row => Number(row[5]));
+    const total = totals[0];
+    if (Number(total[2]) !== 48 || !/^\d+$/.test(total[5]) ||
+        points.reduce((sum, value) => sum + value, 0) !== Number(total[5]))
+      fail(`Invalid points or par total for ${player}.`);
+    const summary = summaries.get(key);
+    const emptyTotal = gross.every(value => value === null) && summary?.total === '0' && total[4] === '';
+    if (!summary || !same(summary.gross, gross) || summary.total !== totalToken(total[4]) && !emptyTotal)
+      fail(`Summary and detailed gross scorecard disagree for ${player}.`);
+    if (/^\d+$/.test(total[4]) && (gross.some(value => value === null) ? Number(total[4]) !== 0 :
+      gross.reduce((sum, value) => sum + value, 0) !== Number(total[4])))
+      fail(`Gross total disagrees with recorded holes for ${player}.`);
+    cards.push({ player, gross, points, score: Number(total[5]), date });
+    start = end;
+  }
+  if (!cards.length || cards.length !== summaries.size) fail('Missing summary or detailed scorecards.');
+  return { date, cards };
+}
+
+export function allocatedStrokes(handicap, index) {
+  if (!Number.isInteger(handicap) || Math.abs(handicap) > 100 || !Number.isInteger(index) || index < 1 || index > 12)
+    fail('Net eclectic requires an exact integer playing handicap and 12-hole stroke index.');
+  if (handicap >= 0) return Math.floor(handicap / 12) + Number(index <= handicap % 12);
+  const plus = -handicap;
+  return -(Math.floor(plus / 12) + Number(index > 12 - plus % 12)) || 0;
+}
+
+export async function buildEclectic(state, grossFiles, netFiles) {
+  const rounds = activeRounds(state), pool = cumulativeSingles(state).rows;
+  if (!rounds.length || !pool.length) fail('No accepted active qualifying cards for an eclectic.');
+  const key = player => playerKey(player, state.identityBindings);
+  const days = new Map(), reports = new Map();
+  for (const file of grossFiles) {
+    try {
+      const parsed = parseGrossScorecards(file.source), weekend = weekendDate(parsed.date);
+      if (!rounds.some(round => round.date === weekend)) fail('Scorecards do not match an active published weekend.');
+      if (!days.has(weekend)) days.set(weekend, []);
+      if (days.get(weekend).some(day => day.date === parsed.date)) fail('Duplicate scorecard day; supply one authoritative file per day.');
+      days.get(weekend).push({ ...parsed, file: filename(file.path), sha256: await sha256(file.source) });
+    } catch (error) { fail(`${file.path}: ${error.message}`); }
+  }
+  for (const file of netFiles) {
+    try {
+      const parsed = parseScores(file.source);
+      if (!parsed.playedOn) fail('Net report lacks played-on metadata.');
+      const date = weekendDate(parsed.playedOn);
+      if (!rounds.some(round => round.date === date) || reports.has(date)) fail('Unexpected or duplicate net report weekend.');
+      const cards = new Map();
+      for (const card of parsed.cards) {
+        if (cards.has(key(card.player))) fail(`Duplicate confirmed net identity for ${card.player}.`);
+        cards.set(key(card.player), card);
+      }
+      reports.set(date, { cards, file: filename(file.path), sha256: await sha256(file.source) });
+    } catch (error) { fail(`${file.path}: ${error.message}`); }
+  }
+  const players = new Map(pool.map(row => [row.key, {
+    key: row.key, gross: ECLECTIC_HOLES.map(() => null), net: ECLECTIC_HOLES.map(() => null)
+  }]));
+  const coverage = [];
+  for (const round of rounds) {
+    const sources = days.get(round.date), report = reports.get(round.date);
+    if (sources?.length !== 2 || !sources.some(day => day.date === round.date) || !report)
+      fail(`${round.date}: supply both days' gross scorecards and the authoritative net report.`);
+    const raw = new Map(), acceptedByDay = new Map(sources.map(day => [day.date, 0]));
+    for (const day of sources) for (const card of day.cards) {
+      if (raw.has(key(card.player))) fail(`${round.date}: duplicate confirmed scorecard for ${card.player}.`);
+      raw.set(key(card.player), card);
+    }
+    for (const accepted of round.cards) {
+      const identity = key(accepted.player), card = raw.get(identity), net = report.cards.get(identity);
+      if (!card || !net) fail(`${round.date}: missing source card or playing handicap for ${accepted.player}.`);
+      if (card.score !== accepted.score || net.score !== accepted.score ||
+          accepted.handicap !== undefined && accepted.handicap !== net.handicap)
+        fail(`${round.date}: published card and authoritative sources disagree for ${accepted.player}.`);
+      const values = card.gross.map((gross, i) => {
+        const allocated = allocatedStrokes(net.handicap, ECLECTIC_INDEXES[i]);
+        if (gross === null) {
+          if (card.points[i] !== 0) fail(`${accepted.player}: missing gross hole has positive points.`);
+          return null;
+        }
+        const value = gross - allocated;
+        if (Math.max(0, ECLECTIC_PARS[i] + 2 - value) !== card.points[i])
+          fail(`${round.date}: playing handicap allocation disagrees with hole ${ECLECTIC_HOLES[i]} points for ${accepted.player}.`);
+        return value;
+      });
+      const row = players.get(identity);
+      for (const [field, scores] of [['gross', card.gross], ['net', values]])
+        scores.forEach((value, i) => {
+          if (value !== null && (row[field][i] === null || value < row[field][i])) row[field][i] = value;
+        });
+      acceptedByDay.set(card.date, acceptedByDay.get(card.date) + 1);
+    }
+    coverage.push({
+      date: round.date, acceptedCards: round.cards.length,
+      days: sources.sort((a, b) => a.date.localeCompare(b.date)).map(day => ({
+        date: day.date, file: day.file, sha256: day.sha256, rawCards: day.cards.length, acceptedCards: acceptedByDay.get(day.date)
+      })),
+      netReport: { file: report.file, sha256: report.sha256 }
+    });
+  }
+  return {
+    version: 1, sourceFingerprint: await eclecticFingerprint(state),
+    holes: [...ECLECTIC_HOLES], pars: [...ECLECTIC_PARS],
+    acceptedCards: rounds.reduce((sum, round) => sum + round.cards.length, 0),
+    coverage, players: [...players.values()].sort((a, b) => a.key.localeCompare(b.key))
+  };
+}
+
+export function validateEclectic(data, state, fingerprint) {
+  if (!data || data.version !== 1 || !/^[a-f0-9]{64}$/.test(data.sourceFingerprint || '') ||
+      data.sourceFingerprint !== fingerprint) fail('Eclectic data does not match the current published cards, roster and bindings. Owner refresh required.');
+  const rounds = activeRounds(state), pool = cumulativeSingles(state).rows;
+  if (!same(data.holes, ECLECTIC_HOLES) || !same(data.pars, ECLECTIC_PARS) ||
+      !Array.isArray(data.coverage) || data.coverage.length !== rounds.length ||
+      data.acceptedCards !== rounds.reduce((sum, round) => sum + round.cards.length, 0))
+    fail('Invalid eclectic holes or accepted round coverage.');
+  data.coverage.forEach((entry, i) => {
+    const round = rounds[i];
+    if (entry.date !== round.date || entry.acceptedCards !== round.cards.length ||
+        !Array.isArray(entry.days) || entry.days.length !== 2 ||
+        entry.days[0].date !== round.date ||
+        entry.days[1].date !== new Date(Date.parse(`${round.date}T12:00:00Z`) + 86400000).toISOString().slice(0, 10) ||
+        entry.days.reduce((sum, day) => sum + day.acceptedCards, 0) !== entry.acceptedCards ||
+        [...entry.days, entry.netReport].some(source => !source || !/^[a-f0-9]{64}$/.test(source.sha256) ||
+          typeof source.file !== 'string' || !source.file || /[\\/:]/.test(source.file)) ||
+        entry.days.some(day => !Number.isInteger(day.acceptedCards) || day.acceptedCards < 0 ||
+          !Number.isInteger(day.rawCards) || day.rawCards < day.acceptedCards))
+      fail('Invalid eclectic source coverage.');
+  });
+  if (!Array.isArray(data.players) || data.players.length !== pool.length ||
+      new Set(data.players.map(row => row.key)).size !== pool.length) fail('Invalid eclectic player pool.');
+  const keys = new Set(pool.map(row => row.key));
+  for (const row of data.players) {
+    if (!keys.has(row.key)) fail('Unknown eclectic identity.');
+    for (const field of ['gross', 'net'])
+      if (!Array.isArray(row[field]) || row[field].length !== 12 ||
+          row[field].some(value => value !== null && (!Number.isInteger(value) || value < (field === 'gross' ? 1 : -100) || value > 1000)))
+        fail('Invalid eclectic hole values.');
+    if (row.gross.some((value, i) => (value === null) !== (row.net[i] === null))) fail('Gross and net missing holes disagree.');
+  }
+  return data;
+}
+
+export function eclecticStandings(state, data, field) {
+  if (!['gross', 'net'].includes(field)) fail('Unknown eclectic view.');
+  const names = new Map(cumulativeSingles(state).rows.map(row => [row.key, row.player]));
+  const rows = data.players.map(row => {
+    const values = row[field], complete = values.every(value => value !== null);
+    return { key: row.key, player: names.get(row.key), holes: [...values],
+      total: complete ? values.reduce((sum, value) => sum + value, 0) : null, rank: null };
+  }).sort((a, b) => (a.total ?? Infinity) - (b.total ?? Infinity) || a.player.localeCompare(b.player));
+  rows.forEach((row, index) => {
+    if (row.total !== null) row.rank = index && rows[index - 1].total === row.total ? rows[index - 1].rank : index + 1;
+  });
+  return { rows, complete: rows.filter(row => row.total !== null).length, incomplete: rows.filter(row => row.total === null).length };
+}

@@ -4,6 +4,7 @@ import { synchroniseDraft, protectPublishedHistory } from './publication.js';
 import { createLeaderboardPDF, createSinglesPDF } from './leaderboard-pdf.js?v=20261122-2';
 import { weekendCards } from './leaderboard-layout.js';
 import { memberUpdate } from './member-update.js';
+import { ECLECTIC_HOLES, eclecticFingerprint, validateEclectic, eclecticStandings } from './eclectic.js?v=20261122-3';
 
 const $ = id => document.getElementById(id);
 // Keep all import types together in the secondary committee view.
@@ -12,6 +13,7 @@ let published = emptyState(), publishedReady = false, draft = null, mode = 'publ
 let draftSaved = false;
 let pdfBusy = false;
 let publishedUpdatedAt = null;
+let eclecticData = null, eclecticError = 'Eclectic data is not available yet.';
 const singlesSelection = { published: null, draft: null };
 let storage;
 try { storage = window.localStorage; } catch { storage = null; }
@@ -181,7 +183,7 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
   }
   if (!sort && id === 'league-table') sort = { key: 'Rank', direction: 'ascending' };
   const host = $(id);
-  const navigable = id === 'league-table' || id === 'singles-table';
+  const navigable = ['league-table', 'singles-table', 'gross-eclectic-table', 'net-eclectic-table'].includes(id);
   const signature = navigable ? JSON.stringify([caption, columns, rows, emptyMessage, sort]) : null;
   const previous = scrollableTables.get(id);
   if (previous?.signature === signature) { previous.refresh(); return previous.wrapper; }
@@ -339,6 +341,31 @@ $('export-singles-pdf').addEventListener('click', safely(async () => {
     download(filename, buffer, 'application/pdf');
   } finally { pdfBusy = false; render(); }
 }));
+function renderEclectics(state) {
+  for (const field of ['gross', 'net']) {
+    const id = `${field}-eclectic`, title = field === 'gross' ? 'Gross Eclectic' : 'Net Eclectic';
+    const unavailable = mode === 'draft' ? 'Eclectic unavailable for local drafts. Return to published view for source-verified hole scores.'
+      : !publishedReady ? 'Eclectic unavailable: published results have not loaded.' : !eclecticData ? eclecticError : null;
+    if (unavailable) {
+      $(`${id}-summary`).textContent = unavailable;
+      $(`${id}-provenance`).textContent = '';
+      table(`${id}-table`, title, [], [], unavailable);
+      continue;
+    }
+    const result = eclecticStandings(state, eclecticData, field);
+    $(`${id}-summary`).textContent = `${result.rows.length} players: ${result.complete} complete, ${result.incomplete} incomplete. ${eclecticData.acceptedCards} accepted cards across ${eclecticData.coverage.length} weekends.`;
+    $(`${id}-provenance`).textContent = `Source-verified coverage: ${eclecticData.coverage.map(round => `${round.date} (${round.acceptedCards} accepted cards, Saturday and Sunday)`).join('; ')}. Source fingerprint: ${eclecticData.sourceFingerprint}.`;
+    table(`${id}-table`, `Published ${title}: best individual hole scores`, [
+      { key: 'Rank', label: 'Rank', className: 'rank-column' },
+      { key: 'Player', label: 'Player', className: 'player-column' },
+      { key: 'Total', label: `${field === 'gross' ? 'Gross' : 'Net'} total`, className: 'total-column' },
+      ...ECLECTIC_HOLES.map(hole => ({ key: `Hole ${hole}`, label: `Hole ${hole}`, className: 'score-column' }))
+    ], result.rows.map(row => [
+      displayCell(row.rank ?? 'Unranked', row.rank), row.player,
+      displayCell(row.total ?? 'NA', row.total), ...row.holes.map(value => displayCell(value ?? 'NA', value))
+    ]));
+  }
+}
 function renderSingles(state) {
   const cumulative = !singlesSelection[mode];
   $('singles-table').classList.toggle('cumulative', cumulative);
@@ -494,6 +521,7 @@ function render() {
   $('review-count').textContent = `${unmatched.length} cards not counted for teams; ${rosterWarnings.length} team entries need review.`;
   table('matching-table', 'Cards not counted for teams', ['Weekend', 'Player', 'Net points', 'Team', 'Review'], unmatched.map(({ round, card, match }) => [round.date, card.player, card.score, match.team, match.status]));
   renderSingles(state);
+  renderEclectics(state);
   table('teams-table', 'Team list (team numbers preserved)', ['Team', 'Player 1', 'Player 2', 'Player 3', 'Team notes'], state.teams.map(t => [t.name, t.players[0], t.players[1], t.players[2] || 'Vacant', rosterStatus(t)]));
   table('rounds-table', 'All imported weekends', ['Weekend', 'Round', 'Status', 'Cards'], [...state.rounds].sort((a, b) => a.date.localeCompare(b.date)).map(r => [r.date, r.name, r.canceled ? 'Canceled for everyone' : r.qualifying ? 'Qualifying' : 'Excluded / nonqualifying', r.cards.length]));
   const assigned = assignments(state.teams, state.identityBindings);
@@ -606,11 +634,32 @@ async function loadPublished() {
   const modified = response.headers?.get('Last-Modified');
   const updatedAt = modified ? new Date(modified) : null;
   publishedUpdatedAt = updatedAt && Number.isFinite(updatedAt.getTime()) ? updatedAt : null;
+  if (JSON.stringify(published) !== JSON.stringify(state)) {
+    eclecticData = null;
+    eclecticError = 'Eclectic unavailable: published results changed. Refresh source-verified eclectic data.';
+  }
   published = state; publishedReady = true;
+}
+async function loadEclectic(state) {
+  eclecticData = null;
+  eclecticError = 'Eclectic unavailable: loading matching source-verified data.';
+  try {
+    const fingerprint = await eclecticFingerprint(state);
+    const response = await fetch('./data/eclectic.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Source-verified eclectic file is unavailable (HTTP ${response.status}).`);
+    const source = await response.text();
+    if (new TextEncoder().encode(source).length > MAX_BYTES) throw new Error('Eclectic file exceeds the 2 MB limit.');
+    const data = validateEclectic(JSON.parse(source), state, fingerprint);
+    if (published === state) { eclecticData = data; eclecticError = ''; }
+  } catch (error) {
+    if (published === state) eclecticError = `Eclectic unavailable: ${error.message}`;
+  }
 }
 async function refresh() {
   try {
     await loadPublished();
+    if (mode === 'published') render();
+    await loadEclectic(published);
     if (mode === 'draft' && draft) {
       persist(synchroniseDraft(draft, published, draftBaseline), 'Draft synchronised with latest published history.');
       return;
@@ -623,7 +672,7 @@ async function refresh() {
 }
 const tabs = [...document.querySelectorAll('[role="tab"]')];
 function selectTab(index, focus = false) {
-  if (index >= 2) $('more-views').open = true;
+  if (['tab-teams', 'tab-final', 'tab-admin'].includes(tabs[index].getAttribute('id'))) $('more-views').open = true;
   tabs.forEach((tab, i) => {
     tab.setAttribute('aria-selected', String(index === i));
     tab.tabIndex = index === i ? 0 : -1;
@@ -650,7 +699,7 @@ async function resumeResults() { await loadPublished(); persist(resultsState(wor
 $('start-draft').addEventListener('click', safely(resumeResults));
 $('resume-results').addEventListener('click', safely(resumeResults));
 function openResultsUpload() {
-  selectTab(4);
+  selectTab(tabs.findIndex(tab => tab.getAttribute('id') === 'tab-admin'));
   if ($('import-type').value !== 'scores') chooseImportType('scores');
   $('upload-panel').open = true;
   $('import-files').focus();
@@ -742,7 +791,7 @@ function updateImportType() {
   $('import-status').classList.toggle('error', false);
 }
 function chooseImportType(kind) {
-  selectTab(4);
+  selectTab(tabs.findIndex(tab => tab.getAttribute('id') === 'tab-admin'));
   $('upload-panel').open = true;
   $('import-type').value = kind;
   updateImportType();

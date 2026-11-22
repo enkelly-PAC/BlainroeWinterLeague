@@ -17,7 +17,7 @@ async function rosterFixture() {
 }
 
 let instance = 0;
-async function workspace(t, source = null, published = emptyState(), baseline = null, lastModified = null) {
+async function workspace(t, source = null, published = emptyState(), baseline = null, lastModified = null, eclectic = null) {
   const html = await readFile(new URL('../index.html', import.meta.url), 'utf8');
   const nodes = new Map();
   const downloads = [];
@@ -79,14 +79,23 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
     localStorage: {
     getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key)
   } };
-  globalThis.fetch = async () => ({ ok: true, text: async () => JSON.stringify(published),
-    headers: { get: name => name.toLowerCase() === 'last-modified' ? lastModified : null },
-    arrayBuffer: async () => new Uint8Array([137, 80, 78, 71]).buffer });
+  let derivedLoaded;
+  let derivedReady = new Promise(resolve => { derivedLoaded = resolve; });
+  globalThis.fetch = async url => {
+    if (String(url).includes('eclectic.json')) {
+      derivedLoaded();
+      return { ok: eclectic !== null, status: eclectic === null ? 404 : 200, text: async () => JSON.stringify(eclectic) };
+    }
+    return { ok: true, text: async () => JSON.stringify(published),
+      headers: { get: name => name.toLowerCase() === 'last-modified' ? lastModified : null },
+      arrayBuffer: async () => new Uint8Array([137, 80, 78, 71]).buffer };
+  };
   globalThis.confirm = () => true;
   t.after(() => { for (const [key, value] of Object.entries(original)) {
     if (value === undefined) delete globalThis[key]; else globalThis[key] = value;
   } });
   await import(`../app.js?test=${++instance}`);
+  await derivedReady;
   await new Promise(resolve => setImmediate(resolve));
   const $ = id => nodes.get(id);
   async function preview(content = 'Played on,08/11/2026\nPlayer,Score\nSynthetic Player,29') {
@@ -94,13 +103,15 @@ async function workspace(t, source = null, published = emptyState(), baseline = 
     await $('import-files').emit('change');
   }
   async function reload() {
+    derivedReady = new Promise(resolve => { derivedLoaded = resolve; });
     await import(`../app.js?test=${++instance}`);
+    await derivedReady;
     await new Promise(resolve => setImmediate(resolve));
   }
   const contents = node => [node.textContent, ...node.children.map(contents)].join('\n');
   return { $, values, preview, reload, contents, downloads, observers, motion, windowListeners,
     resize: () => windowListeners.emit('resize'), setPublished: state => { published = state; },
-    setLastModified: value => { lastModified = value; } };
+    setLastModified: value => { lastModified = value; }, setEclectic: data => { eclectic = data; } };
 }
 function renderedTable($, id = 'league-table') {
   const wrapper = $(id).children.find(node => node.className === 'table-wrap'), table = wrapper.children[0];
@@ -399,6 +410,16 @@ test('member landing keeps admin workflows in an inactive secondary tab and supp
   await $('tab-league').emit('keydown', { key: 'ArrowRight' });
   assert.equal($('singles-panel').hidden, false);
   assert.equal(document.activeElement, $('tab-singles'));
+  await $('tab-singles').emit('keydown', { key: 'ArrowRight' });
+  assert.equal($('gross-eclectic-panel').hidden, false);
+  assert.equal($('more-views').open, false);
+  assert.equal(document.activeElement, $('tab-gross-eclectic'));
+  await $('tab-gross-eclectic').emit('keydown', { key: 'ArrowRight' });
+  assert.equal($('net-eclectic-panel').hidden, false);
+  assert.equal($('more-views').open, false);
+  assert.equal(document.activeElement, $('tab-net-eclectic'));
+  await $('tab-net-eclectic').emit('keydown', { key: 'ArrowLeft' });
+  assert.equal($('gross-eclectic-panel').hidden, false);
   await $('tab-singles').emit('keydown', { key: 'End' });
   assert.equal($('more-views').open, true);
   assert.equal($('admin-panel').hidden, false);
@@ -412,6 +433,48 @@ test('member landing keeps admin workflows in an inactive secondary tab and supp
   assert.equal($('league-panel').hidden, false);
   assert.equal($('tab-league').getAttribute('aria-selected'), 'true');
   assert.equal(values.get(STORAGE_KEY), stored);
+});
+test('eclectic views show all verified rows, sort numeric holes, share scrolling controls and reject stale/missing/draft data', async t => {
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const data = JSON.parse(await readFile(new URL('../data/eclectic.json', import.meta.url), 'utf8'));
+  const { $, contents, setPublished, setEclectic } = await workspace(t, null, state, null, null, data);
+  assert.equal($('league-panel').hidden, false);
+  assert.match($('gross-eclectic-summary').textContent, /219 players: 179 complete, 40 incomplete/);
+  assert.match($('net-eclectic-provenance').textContent, new RegExp(data.sourceFingerprint));
+  for (const field of ['gross', 'net']) {
+    const id = `${field}-eclectic-table`;
+    let view = renderedTable($, id);
+    assert.equal(view.rows.length, 219);
+    assert.equal(view.rows.find(row => row[1] === 'Enda Kelly')[2], field === 'gross' ? '49' : '42');
+    assert.equal(view.rows.at(-1)[0], 'Unranked');
+    assert.equal(view.rows.at(-1)[2], 'NA');
+    await view.buttons[3].emit('click');
+    view = renderedTable($, id);
+    const numbers = view.rows.map(row => row[3]).filter(value => value !== 'NA').map(Number);
+    assert.deepEqual(numbers, [...numbers].sort((a, b) => a - b));
+    assert.equal(view.rows.at(-1)[3], 'NA');
+    const controls = scrollControls($, id);
+    controls.wrapper.clientWidth = 300; controls.wrapper.scrollWidth = 1200;
+    await $('tab-' + field + '-eclectic').emit('click');
+    assert.equal(controls.controls.hidden, false);
+    await controls.right.emit('click');
+    assert.equal(controls.wrapper.scrollLeft, 225);
+  }
+  const changed = structuredClone(state); changed.rounds[0].cards[0].score++;
+  setPublished(changed);
+  await $('refresh').emit('click');
+  assert.match($('gross-eclectic-summary').textContent, /does not match/);
+  assert.doesNotMatch(contents($('gross-eclectic-table')), /Enda Kelly/);
+  assert.equal(renderedTable($).rows.length, 46);
+  setPublished(state); setEclectic(null);
+  await $('refresh').emit('click');
+  assert.match($('net-eclectic-summary').textContent, /unavailable.*404/i);
+  setEclectic(data);
+  await $('refresh').emit('click');
+  await $('start-draft').emit('click');
+  assert.match($('gross-eclectic-summary').textContent, /unavailable for local drafts/);
+  await $('published-view').emit('click');
+  assert.match($('gross-eclectic-summary').textContent, /219 players/);
 });
 test('table headers sort numeric points and natural team names both ways without changing ranks or stored state', async t => {
   const state = sortingFixture(), original = JSON.stringify(state);

@@ -8,6 +8,7 @@
     "serve": "node tools/serve.mjs",
     "publish:data": "node tools/publish.mjs",
     "update:results": "node tools/update-results.mjs",
+    "update:eclectic": "node tools/update-eclectic.mjs",
     "prepare:members": "node tools/prepare-member-update.mjs"
   }
 }
