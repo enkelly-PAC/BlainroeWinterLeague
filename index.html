@@ -7,8 +7,8 @@
   <meta name="description" content="Blainroe Men's Winter League 2026/2027 standings and final. Sponsored by Spirit Ford Wicklow.">
   <title>Blainroe Winter League 2026/2027</title>
   <link rel="icon" type="image/png" href="./blainroe-anni-logo.png">
-  <link rel="stylesheet" href="./styles.css?v=20261122-3">
-  <script type="module" src="./app.js?v=20261122-3"></script>
+  <link rel="stylesheet" href="./styles.css?v=20261122-4">
+  <script type="module" src="./app.js?v=20261122-4"></script>
 </head>
 <body>
   <header class="brand">
@@ -29,7 +29,9 @@
       <button id="tab-league" role="tab" aria-selected="true" aria-controls="league-panel" tabindex="0">Team leaderboard</button>
       <button id="tab-singles" role="tab" aria-selected="false" aria-controls="singles-panel" tabindex="-1">Singles</button>
       <button id="tab-gross-eclectic" role="tab" aria-selected="false" aria-controls="gross-eclectic-panel" tabindex="-1">Gross Eclectic</button>
-      <button id="tab-net-eclectic" role="tab" aria-selected="false" aria-controls="net-eclectic-panel" tabindex="-1">Net Eclectic</button>
+      <button id="tab-net-eclectic" role="tab" aria-selected="false" aria-controls="net-eclectic-panel" tabindex="-1">Nett Eclectic</button>
+      <button id="tab-gross-insights" role="tab" aria-selected="false" aria-controls="gross-insights-panel" tabindex="-1">Gross Insights</button>
+      <button id="tab-net-insights" role="tab" aria-selected="false" aria-controls="net-insights-panel" tabindex="-1">Nett Insights</button>
       <details id="more-views"><summary>More views and admin</summary>
         <button id="tab-teams" role="tab" aria-selected="false" aria-controls="teams-panel" tabindex="-1">Team list and weekends</button>
         <button id="tab-final" role="tab" aria-selected="false" aria-controls="final-panel" tabindex="-1">Final</button>
@@ -52,21 +54,41 @@
       <div id="singles-table"></div>
       <p class="note">All accepted qualifying cards count towards cumulative Singles, including zero. NA means no accepted card. Equal totals share rank; team holds, best-two selection and discards do not apply.</p>
     </section>
-    <section id="gross-eclectic-panel" role="tabpanel" aria-labelledby="tab-gross-eclectic" hidden>
-      <h2>Gross Eclectic</h2>
-      <p class="note">Lowest recorded gross strokes on each of holes 1 through 11 and 15 across accepted active qualifying cards. No handicap adjustment. Pickups and other nonnumeric hole scores are ignored, even when the card's gross total is N/R.</p>
+    <section id="gross-eclectic-panel" class="eclectic-view" role="tabpanel" aria-labelledby="tab-gross-eclectic" hidden>
+      <h2 class="eclectic-title-bar">Winter Gross Eclectic 2026/2027: Current Standings</h2>
       <p id="gross-eclectic-summary" role="status" aria-live="polite"></p>
       <div id="gross-eclectic-table" class="eclectic-table"></div>
-      <p class="note">All 12 holes must be recorded for a total and rank. NA means no recorded hole score. Lowest total ranks first; equal totals share rank, with no countback. Team holds, best-two selection and discards do not apply. This individual view does not determine team qualification.</p>
-      <p id="gross-eclectic-provenance" class="eclectic-provenance"></p>
+      <div id="gross-eclectic-legend" class="eclectic-legend" role="group" aria-label="Gross scores relative to par color legend"></div>
+      <p class="note">NA: no recorded score. Out: holes 1 to 9 (par 37). In: holes 10, 11, 15 (par 11). Equal complete totals share rank; no countback.</p>
+      <details class="eclectic-notes"><summary>Sources and scoring notes</summary>
+        <p class="note">Lowest recorded gross strokes on each of holes 1 through 11 and 15 across accepted active qualifying cards. No handicap adjustment. Pickups and other nonnumeric hole scores are ignored, even when the card's gross total is N/R. Rounds counts accepted active qualifying cards, not completed cards.</p>
+        <p class="note">All 12 holes must be recorded for a total and rank. Missing group subtotals stay NA. Team holds, best-two selection and discards do not apply. This individual view does not determine team qualification.</p>
+        <p id="gross-eclectic-provenance" class="eclectic-provenance"></p>
+      </details>
     </section>
-    <section id="net-eclectic-panel" role="tabpanel" aria-labelledby="tab-net-eclectic" hidden>
-      <h2>Net Eclectic</h2>
-      <p class="note">Definition used here: lowest recorded net strokes on each of holes 1 through 11 and 15 across accepted active qualifying cards. Each hole uses its actual round's playing handicap, allocated over that round's 12-hole stroke indexes. Net strokes = gross strokes minus allocated handicap strokes. The latest handicap is not applied retrospectively. Numeric zero-point holes remain eligible; pickups and other nonnumeric gross holes are ignored. This is an as-played calculation, not a claim of committee-approved eclectic rules.</p>
+    <section id="net-eclectic-panel" class="eclectic-view" role="tabpanel" aria-labelledby="tab-net-eclectic" hidden>
+      <h2 class="eclectic-title-bar">Winter Nett Eclectic 2026/2027: Current Standings</h2>
+      <p class="note">As-played nett hole minima use each actual round's playing handicap, never the latest handicap retrospectively. Colors show net scores relative to hole par, not gross scoring events.</p>
       <p id="net-eclectic-summary" role="status" aria-live="polite"></p>
       <div id="net-eclectic-table" class="eclectic-table"></div>
-      <p class="note">All 12 holes must be recorded for a total and rank. NA means no recorded hole score. Lowest total ranks first; equal totals share rank, with no countback. Team holds, best-two selection and discards do not apply. This individual view does not determine team qualification.</p>
-      <p id="net-eclectic-provenance" class="eclectic-provenance"></p>
+      <div id="net-eclectic-legend" class="eclectic-legend" role="group" aria-label="Net scores relative to par color legend"></div>
+      <p class="note">NA: no recorded score. Out: holes 1 to 9 (par 37). In: holes 10, 11, 15 (par 11). Equal complete totals share rank; no countback.</p>
+      <details class="eclectic-notes"><summary>Sources and scoring notes</summary>
+        <p class="note">Lowest recorded net strokes on each of holes 1 through 11 and 15 across accepted active qualifying cards. Net strokes = gross strokes minus allocated handicap strokes, using that actual round's 12-hole stroke indexes. A player's best net and gross holes can come from different rounds and handicaps. Numeric zero-point holes remain eligible; pickups and other nonnumeric gross holes are ignored. Rounds counts accepted active qualifying cards. This is an as-played calculation, not a claim of committee-approved eclectic rules.</p>
+        <p class="note">All 12 holes must be recorded for a total and rank. Missing group subtotals stay NA. Team holds, best-two selection and discards do not apply. This individual view does not determine team qualification.</p>
+        <p id="net-eclectic-provenance" class="eclectic-provenance"></p>
+      </details>
+    </section>
+    <section id="gross-insights-panel" class="eclectic-view" role="tabpanel" aria-labelledby="tab-gross-insights" hidden>
+      <h2 class="eclectic-title-bar">Winter Gross Eclectic Insights</h2>
+      <p id="gross-insights-summary" class="note" role="status" aria-live="polite"></p>
+      <div id="gross-insights-content"></div>
+    </section>
+    <section id="net-insights-panel" class="eclectic-view" role="tabpanel" aria-labelledby="tab-net-insights" hidden>
+      <h2 class="eclectic-title-bar">Winter Nett Eclectic Insights</h2>
+      <p class="note">Net relative to par uses the selected as-played nett minima. Net birdies and eagles are not actual gross scoring events. No single latest-handicap bands or source-round claims are inferred.</p>
+      <p id="net-insights-summary" class="note" role="status" aria-live="polite"></p>
+      <div id="net-insights-content"></div>
     </section>
     <section id="teams-panel" role="tabpanel" aria-labelledby="tab-teams" hidden>
       <h2>Registered teams</h2><div id="teams-table"></div>

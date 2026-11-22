@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { emptyState } from '../core.js';
-import { allocatedStrokes, buildEclectic, eclecticFingerprint, eclecticStandings, parseGrossScorecards, validateEclectic } from '../eclectic.js';
+import { allocatedStrokes, buildEclectic, eclecticFingerprint, eclecticStandings, parseGrossScorecards, validateEclectic, eclecticCategory, eclecticSubtotal, eclecticDisplayRows, eclecticInsights } from '../eclectic.js';
 import { eclecticArguments, updateEclectic } from '../tools/update-eclectic.mjs';
 import { atomicPublication } from '../tools/publication-io.mjs';
 import { sourceCard, weekendFixture } from './eclectic-fixture.js';
@@ -44,6 +44,94 @@ test('accepted gross NR cards contribute numeric holes, PU is never a minimum, D
     assert.equal(table.complete, 2);
   }
   assert.deepEqual(state, before);
+});
+
+test('Summer-style categories preserve numeric nett zero and distinguish every relative-to-par band from missing scores', () => {
+  assert.deepEqual([-3, -2, -1, 0, 1, 2, 3, 7].map(diff => eclecticCategory(4 + diff, 4)),
+    ['eagle', 'eagle', 'birdie', 'par', 'bogey', 'double', 'worse', 'worse']);
+  assert.equal(eclecticCategory(0, 3), 'eagle');
+  assert.equal(eclecticCategory(null, 3), null);
+  assert.equal(eclecticCategory(undefined, 3), null);
+  assert.equal(eclecticSubtotal([0, 3, 4]), 7);
+  assert.equal(eclecticSubtotal([null, 3, 4]), null);
+  assert.equal(eclecticSubtotal([0, undefined, 4]), null);
+});
+
+test('insights use recorded holes as category/rate denominators and complete records alone for total averages and group records', () => {
+  const pars = [4, 4, 4, 5, 5, 4, 4, 3, 4, 4, 4, 3];
+  const state = { ...emptyState(), rounds: [{ date: '2026-10-31', name: 'Synthetic', qualifying: true, canceled: false,
+    cards: ['Alpha', 'Bravo', 'Charlie'].map(player => ({ player, score: 0 })) }] };
+  const data = { players: [
+    { key: 'alpha', net: [0, 3, 4, 6, 7, 7, 8, 9, null, null, null, null] },
+    { key: 'bravo', net: pars },
+    { key: 'charlie', net: pars.map(value => value - 1) }
+  ] };
+  const before = JSON.stringify(data), stats = eclecticInsights(state, data, 'net');
+  assert.equal(stats.players, 3);
+  assert.equal(stats.complete, 2);
+  assert.equal(stats.incomplete, 1);
+  assert.equal(stats.recorded, 32);
+  assert.equal(stats.averageTotal, 42);
+  assert.deepEqual(stats.leaders, ['Charlie']);
+  assert.deepEqual(stats.categories, { eagle: 1, birdie: 13, par: 13, bogey: 1, double: 1, worse: 3 });
+  assert.equal(stats.holes[0].count, 3);
+  assert.equal(stats.holes[0].average, 7 / 3);
+  assert.equal(stats.holes[0].parOrBetter, 100);
+  assert.equal(stats.holes[5].parOrBetter, 2 / 3 * 100);
+  assert.equal(stats.holes[8].count, 2);
+  assert.equal(stats.holes[8].average, 3.5);
+  assert.deepEqual(stats.outRecord, { score: 28, players: ['Charlie'] });
+  assert.deepEqual(stats.inRecord, { score: 8, players: ['Charlie'] });
+  assert.equal(stats.composite[0], 0);
+  assert.equal(stats.compositeTotal, 33);
+  assert.deepEqual(stats.threeUnder, [{ player: 'Alpha', hole: 1, par: 4, score: 0, relativeToPar: -4 }]);
+  assert.equal(eclecticDisplayRows(state, data, 'net').find(row => row.key === 'alpha').out, null);
+  assert.equal(JSON.stringify(data), before);
+  const oneMissing = { players: [{ key: 'alpha', net: [...pars.slice(0, 11), null] }, ...data.players.slice(1)] };
+  assert.deepEqual(eclecticInsights(state, oneMissing, 'net').oneToGo[0].missing, [15]);
+  const empty = { players: data.players.map(row => ({ ...row, net: Array(12).fill(null) })) };
+  const unavailable = eclecticInsights(state, empty, 'net');
+  assert.equal(unavailable.averageTotal, null);
+  assert.equal(unavailable.compositeTotal, null);
+  assert.equal(unavailable.holes[0].average, null);
+  assert.equal(unavailable.holes[0].parOrBetter, null);
+  assert.deepEqual(unavailable.hardest, []);
+  assert.deepEqual(unavailable.leaders, []);
+});
+
+test('accepted round counts and 9-plus-3 subtotals do not change Winter ranks or shared ties', async () => {
+  const { state, gross, net } = fixture();
+  const data = await buildEclectic(state, gross, net);
+  const rows = eclecticDisplayRows(state, data, 'gross');
+  assert.deepEqual(rows.map(row => [row.player, row.rounds, row.out, row.in, row.total, row.rank]),
+    [['Alpha', 2, 37, 11, 48, 1], ['Visitor', 2, 37, 11, 48, 1], ['Incomplete', 1, null, 11, null, null]]);
+});
+
+test('real Winter insights exactly reconcile independent category totals and complete-only averages from unchanged best-hole arrays', async () => {
+  const state = JSON.parse(await readFile(new URL('../data/published.json', import.meta.url), 'utf8'));
+  const data = JSON.parse(await readFile(new URL('../data/eclectic.json', import.meta.url), 'utf8'));
+  for (const [field, expected, average, composite] of [
+    ['gross', [2, 167, 1065, 943, 312, 61], 9695 / 179, 36],
+    ['net', [91, 882, 1188, 351, 37, 1], 7920 / 179, 25]
+  ]) {
+    const stats = eclecticInsights(state, data, field);
+    assert.equal(stats.complete, 179);
+    assert.equal(stats.incomplete, 40);
+    assert.equal(stats.recorded, 2550);
+    assert.deepEqual(Object.values(stats.categories), expected);
+    assert.equal(stats.averageTotal, average);
+    assert.equal(stats.compositeTotal, composite);
+    assert.equal(stats.oneToGo.length, 19);
+    for (let i = 0; i < 12; i++) {
+      const values = data.players.map(row => row[field][i]).filter(value => value !== null);
+      assert.equal(stats.holes[i].count, values.length);
+      assert.equal(stats.holes[i].average, values.reduce((sum, value) => sum + value, 0) / values.length);
+      assert.equal(Object.values(stats.holes[i].categories).reduce((sum, value) => sum + value, 0), values.length);
+    }
+  }
+  assert.deepEqual(eclecticInsights(state, data, 'gross').hardest.map(hole => hole.hole), [2, 6, 10]);
+  assert.deepEqual(eclecticInsights(state, data, 'net').easiest.map(hole => hole.hole), [15, 3, 8]);
+  assert.equal(eclecticInsights(state, data, 'net').threeUnder.length, 1);
 });
 
 test('as-played net minima can use a different round than gross minima and preserve numeric zero-point holes', async () => {

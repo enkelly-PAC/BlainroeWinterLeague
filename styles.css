@@ -62,13 +62,46 @@ tbody td:first-child { font-weight: 600; color: var(--green); }
 #final-table thead th:nth-child(4) { background: #267426; }
 #singles-table:not(.cumulative) tbody td:nth-child(3), #singles-table.cumulative tbody td:last-child { font-weight: 700; color: var(--green); background: rgb(26 94 26 / 6%); }
 #singles-table:not(.cumulative) thead th:nth-child(3), #singles-table.cumulative thead th:last-child { background: #267426; }
-.eclectic-table { min-width: 0; }
-.eclectic-table table { min-width: 65rem; font-variant-numeric: tabular-nums; }
-.eclectic-table .player-column { min-width: 11rem; text-align: left; }
-.eclectic-table .player-column .table-sort { justify-content: flex-start; }
-.eclectic-table .total-column { font-weight: 700; background: var(--pale); color: var(--dark); }
-.eclectic-table thead .total-column { background: #267426; color: white; }
-.eclectic-provenance { font-size: .8rem; color: #40594b; overflow-wrap: anywhere; }
+.eclectic-view .eclectic-title-bar { text-align: center; font-size: 1.2rem; font-weight: 700; color: #1a5e1a; margin-bottom: 1rem; padding: .5rem; }
+.eclectic-view .eclectic-table { min-width: 0; }
+.eclectic-view .eclectic-table table { min-width: 65rem; font-size: .82rem; font-variant-numeric: tabular-nums; }
+.eclectic-view .eclectic-table th { padding: .4rem .3rem; font-size: .85rem; font-weight: 700; }
+.eclectic-view .eclectic-table td { padding: .35rem .3rem; min-width: 28px; }
+.eclectic-view .eclectic-table thead { background: #1a5e1a; }
+.eclectic-view .eclectic-table thead th { position: static; }
+.eclectic-view .eclectic-table .player-column { min-width: 11rem; text-align: left; font-weight: 600; }
+.eclectic-view .eclectic-table .player-column .table-sort { justify-content: flex-start; }
+.eclectic-view .eclectic-table .rounds-column { min-width: 36px; }
+.eclectic-view .eclectic-table .total-column { font-weight: 700; background: rgb(26 94 26 / 6%); color: #1a2e1a; }
+.eclectic-view .eclectic-table thead .total-column { background: rgb(255 255 255 / 15%); color: white; }
+.eclectic-view .par-row th { background: #e8f0e8; color: #555; font-weight: 600; font-size: .78rem; }
+.eclectic-view .eclectic-table .rank-1 .rank-column { color: #c8a415; font-size: 1.05em; }
+.eclectic-view .eclectic-table .rank-2 .rank-column { color: #8a8a8a; font-size: 1.02em; }
+.eclectic-view .eclectic-table .rank-3 .rank-column { color: #a0622a; font-size: 1.02em; }
+.eclectic-view .score-eagle { background: #FFD700; color: #1a2e1a; font-weight: 700; }
+.eclectic-view .score-birdie { background: #FF0000; color: white; font-weight: 700; }
+.eclectic-view .score-par { background: #92D050; color: #1a2e1a; }
+.eclectic-view .score-bogey { background: #BDD7EE; color: #1a2e1a; }
+.eclectic-view .score-double { background: #A6A6A6; color: white; }
+.eclectic-view .score-worse { background: #808080; color: white; }
+.eclectic-view .eclectic-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: .4rem; margin: .75rem 0; font-size: .75rem; }
+.eclectic-view .eclectic-legend span { padding: .25rem .5rem; border-radius: 3px; }
+.eclectic-view .eclectic-notes { border-top: 1px solid var(--border); padding: .75rem 0; }
+.eclectic-view .eclectic-provenance { font-size: .8rem; color: #40594b; overflow-wrap: anywhere; }
+.eclectic-view .insights-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)); gap: 1rem; margin-top: .5rem; max-width: 100%; }
+.eclectic-view .insight-card { background: white; border: 1px solid #e0e0e0; border-radius: 8px; padding: 1rem; box-shadow: 0 1px 3px rgb(0 0 0 / 6%); min-width: 0; }
+.eclectic-view .insight-card h3 { margin: 0 0 .6rem; color: #1a5e1a; font-size: 1rem; }
+.eclectic-view .insight-wide { grid-column: 1 / -1; }
+.eclectic-view .insight-stats { display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; }
+.eclectic-view .stat-item { display: flex; flex-direction: column; align-items: center; min-width: 70px; max-width: 100%; text-align: center; overflow-wrap: anywhere; }
+.eclectic-view .stat-num { font-size: 1.6rem; font-weight: 700; color: #1a5e1a; }
+.eclectic-view .stat-label { font-size: .75rem; color: #666; }
+.eclectic-view .insight-subtitle { font-size: .8rem; color: #666; margin-bottom: .5rem; }
+.eclectic-view .insight-card table { font-size: .82rem; }
+.eclectic-view .insight-card thead th { position: static; background: #e8f0e8; color: #333; padding: .4rem .5rem; font-size: .75rem; border-bottom: 2px solid #c0d0c0; }
+.eclectic-view .insight-card td { padding: .35rem .5rem; border-bottom: 1px solid #eee; }
+.eclectic-view .insight-card .table-wrap { margin-bottom: 0; }
+.eclectic-view .eclectic-table caption, .eclectic-view .insight-card caption { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 #teams-table td:last-child { white-space: normal; min-width: 16rem; text-align: left; }
 .table-sort { display: inline-flex; align-items: center; justify-content: center; gap: .25rem; width: 100%; padding: .2rem; border: 0; border-radius: 2px; background: transparent; color: inherit; font: inherit; font-weight: 600; white-space: inherit; }
 .table-sort:hover { background: rgb(255 255 255 / 15%); }

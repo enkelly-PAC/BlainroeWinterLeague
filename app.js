@@ -4,7 +4,7 @@ import { synchroniseDraft, protectPublishedHistory } from './publication.js';
 import { createLeaderboardPDF, createSinglesPDF } from './leaderboard-pdf.js?v=20261122-2';
 import { weekendCards } from './leaderboard-layout.js';
 import { memberUpdate } from './member-update.js';
-import { ECLECTIC_HOLES, eclecticFingerprint, validateEclectic, eclecticStandings } from './eclectic.js?v=20261122-3';
+import { ECLECTIC_HOLES, ECLECTIC_PARS, ECLECTIC_CATEGORIES, eclecticFingerprint, validateEclectic, eclecticStandings, eclecticDisplayRows, eclecticCategory, eclecticSubtotal, eclecticInsights } from './eclectic.js?v=20261122-4';
 
 const $ = id => document.getElementById(id);
 // Keep all import types together in the secondary committee view.
@@ -98,6 +98,7 @@ function element(tag, value, className) {
 }
 const tableSorts = new Map();
 const scrollableTables = new Map();
+const insightSignatures = new Map();
 const tableCollator = new Intl.Collator('en-GB', { sensitivity: 'base', numeric: true });
 const displayCell = (text, sortValue) => ({ text, sortValue });
 const cellText = value => value && typeof value === 'object' ? value.text : value;
@@ -174,7 +175,7 @@ function tableScrollControls(id, host, wrapper, tbl, signature) {
   } });
   refresh();
 }
-function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owner will publish reviewed registration and results.') {
+function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owner will publish reviewed registration and results.', options = {}) {
   const definitions = columns.map(column => typeof column === 'string' ? { key: column, label: column } : column);
   let sort = tableSorts.get(id);
   if (sort && !definitions.some(column => column.key === sort.key)) {
@@ -182,9 +183,9 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
     sort = null;
   }
   if (!sort && id === 'league-table') sort = { key: 'Rank', direction: 'ascending' };
-  const host = $(id);
+  const host = options.host || $(id);
   const navigable = ['league-table', 'singles-table', 'gross-eclectic-table', 'net-eclectic-table'].includes(id);
-  const signature = navigable ? JSON.stringify([caption, columns, rows, emptyMessage, sort]) : null;
+  const signature = navigable ? JSON.stringify([caption, columns, rows, emptyMessage, sort, options.parRow]) : null;
   const previous = scrollableTables.get(id);
   if (previous?.signature === signature) { previous.refresh(); return previous.wrapper; }
   previous?.destroy();
@@ -208,11 +209,11 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
     button.append(element('span', column.label));
     const arrow = element('span', indicator, 'sort-indicator'); arrow.setAttribute('aria-hidden', 'true');
     button.append(arrow);
-    button.setAttribute('aria-label', `${column.group ? `${column.groupDetail || column.group}: ` : ''}${column.label}, sort ${sort?.key === column.key && sort.direction === 'ascending' ? 'descending' : 'ascending'}`);
+    button.setAttribute('aria-label', `${column.group ? `${column.groupDetail || column.group}: ` : ''}${column.accessibleLabel || column.label}, sort ${sort?.key === column.key && sort.direction === 'ascending' ? 'descending' : 'ascending'}`);
     button.addEventListener('click', () => {
       tableSorts.set(id, { key: column.key, direction: sort?.key === column.key && sort.direction === 'ascending' ? 'descending' : 'ascending' });
       const scrollLeft = wrapper.scrollLeft, scrollTop = wrapper.scrollTop;
-      const next = table(id, caption, columns, rows, emptyMessage);
+      const next = table(id, caption, columns, rows, emptyMessage, options);
       next.scrollLeft = scrollLeft; next.scrollTop = scrollTop;
       scrollableTables.get(id)?.refresh();
       next.querySelectorAll('button')[index].focus({ preventScroll: true });
@@ -238,6 +239,11 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
   });
   head.append(header);
   if (grouped) head.append(leaves);
+  if (options.parRow) {
+    const par = element('tr', undefined, 'par-row');
+    options.parRow.forEach(value => par.append(element('th', String(value))));
+    head.append(par);
+  }
   tbl.append(head);
   const body = element('tbody');
   const ordered = rows.map((values, index) => ({ values, index }));
@@ -262,7 +268,7 @@ function table(id, caption, columns, rows, emptyMessage = 'No data yet. The owne
       row.setAttribute('aria-label', 'Below the top 16 cutoff group');
     }
     values.forEach((value, i) => {
-      const rowHeader = i === (id === 'teams-table' ? 0 : 1);
+      const rowHeader = i === (options.rowHeader ?? (id === 'teams-table' ? 0 : 1));
       const cell = element(rowHeader ? 'th' : 'td', String(cellText(value)), definitions[i].className);
       if (definitions[i].group && definitions[i - 1]?.group !== definitions[i].group) cell.className = `${definitions[i].className || ''} round-start`;
       if (value?.className) cell.className = `${cell.className || ''} ${value.className}`;
@@ -341,29 +347,175 @@ $('export-singles-pdf').addEventListener('click', safely(async () => {
     download(filename, buffer, 'application/pdf');
   } finally { pdfBusy = false; render(); }
 }));
+function eclecticScoreCell(value, index, field) {
+  const category = eclecticCategory(value, ECLECTIC_PARS[index]);
+  const label = field === 'gross' ? 'Gross' : 'Nett';
+  return {
+    ...displayCell(value ?? 'NA', value),
+    className: category ? `eclectic-score score-${category}` : '',
+    detail: value === null ? `${label} hole ${ECLECTIC_HOLES[index]}: no recorded score.`
+      : `${label} hole ${ECLECTIC_HOLES[index]}: ${value} strokes, par ${ECLECTIC_PARS[index]}. ${field === 'net' ? 'Net relative to par: ' : ''}${ECLECTIC_CATEGORIES.find(entry => entry.key === category).label}.`
+  };
+}
+function renderEclecticLegend(field) {
+  const host = $(`${field}-eclectic-legend`);
+  host.replaceChildren();
+  for (const category of ECLECTIC_CATEGORIES) {
+    const item = element('span', `${field === 'net' ? 'Net ' : ''}${category.label}`, `score-${category.key}`);
+    host.append(item);
+  }
+}
+function renderEclecticInsights(state, field, unavailable) {
+  const id = `${field}-insights`, host = $(`${id}-content`), label = field === 'gross' ? 'Gross' : 'Nett';
+  const signature = unavailable || JSON.stringify(eclecticData);
+  if (insightSignatures.get(field) === signature) return;
+  insightSignatures.set(field, signature);
+  host.replaceChildren();
+  $(`${id}-summary`).textContent = unavailable || 'Selected eclectic best-hole scores, not all raw season shots. Missing holes are excluded; total statistics use complete 12-hole records only.';
+  if (unavailable) return;
+  const stats = eclecticInsights(state, eclecticData, field);
+  const grid = element('div', undefined, 'insights-grid');
+  host.append(grid);
+  const number = (value, places = 1) => value === null ? 'NA' : value.toFixed(places);
+  const relative = value => value === null ? 'NA' : `${value > 0 ? '+' : ''}${value.toFixed(2)}`;
+  const card = (title, wide = false) => {
+    const node = element('section', undefined, `insight-card${wide ? ' insight-wide' : ''}`);
+    node.append(element('h3', title));
+    grid.append(node);
+    return node;
+  };
+  const items = (node, values) => {
+    const group = element('div', undefined, 'insight-stats');
+    for (const [name, value] of values) {
+      const item = element('div', undefined, 'stat-item');
+      item.append(element('span', value, 'stat-num'), element('span', name, 'stat-label'));
+      group.append(item);
+    }
+    node.append(group);
+  };
+  const insightTable = (node, suffix, title, columns, rows, options = {}) => {
+    const target = element('div'); target.setAttribute('id', `${id}-${suffix}`);
+    node.append(target);
+    table(`${id}-${suffix}`, title, columns, rows, 'No recorded scores for this analysis.', { host: target, rowHeader: 0, ...options });
+  };
+  const overview = card(`${label} Eclectic Overview`, true);
+  items(overview, [['Players', stats.players], ['Complete records', stats.complete], ['Partial records', stats.incomplete],
+    ['Selected hole scores', stats.recorded], [`${field === 'net' ? 'Net ' : ''}Eagle+`, stats.categories.eagle],
+    [`${field === 'net' ? 'Net ' : ''}Birdies`, stats.categories.birdie], [`${field === 'net' ? 'Net ' : ''}Pars`, stats.categories.par]]);
+  const snapshot = card(`${label} Field Snapshot`, true);
+  items(snapshot, [[`Best ${label.toLowerCase()}`, stats.best ?? 'NA'], ['Shared leader(s)', stats.leaders.join(', ') || 'NA'],
+    [`Average ${label.toLowerCase()} (complete only)`, number(stats.averageTotal)],
+    ['Average relative to par 48', relative(stats.averageTotal === null ? null : stats.averageTotal - 48)]]);
+  if (field === 'net') {
+    insightTable(card('Best Nett Scores'), 'best', 'Lowest complete as-played nett eclectic totals, shared ranks preserved',
+      ['Player', 'Rank', 'Nett', 'Relative to par'],
+      eclecticStandings(state, eclecticData, field).rows.filter(row => row.total !== null).slice(0, 5)
+        .map(row => [row.player, row.rank, row.total, row.total - 48]));
+    if (stats.threeUnder.length) {
+      const rare = card('Net 3 Under or Better (Selected Holes)', true);
+      rare.append(element('p', 'Selected as-played net minima relative to hole par, not gross albatrosses or counts of actual season shots. Source-round attribution is not available in this packet.', 'insight-subtitle'));
+      insightTable(rare, 'three-under', 'Selected net hole scores three under par or better',
+        ['Player', 'Hole', 'Par', 'Nett', 'Relative to par'],
+        stats.threeUnder.map(row => [row.player, row.hole, row.par, row.score, row.relativeToPar]));
+    }
+  }
+  const distribution = card(`${label} Scoring Categories`, true);
+  insightTable(distribution, 'categories', `${label} selected-hole scoring categories`, ['Category', 'Selected holes', 'Share'],
+    ECLECTIC_CATEGORIES.map(category => [`${field === 'net' ? 'Net ' : ''}${category.label}`, stats.categories[category.key],
+      displayCell(stats.recorded ? `${number(stats.categories[category.key] / stats.recorded * 100)}%` : 'NA',
+        stats.recorded ? stats.categories[category.key] / stats.recorded * 100 : null)]));
+  for (const [title, values] of [['Hardest Holes', stats.hardest], ['Easiest Holes', stats.easiest]]) {
+    insightTable(card(title), title.replaceAll(' ', '-'), `${label} ${title.toLowerCase()} by selected-score average`,
+      ['Hole', 'Par', 'SI', 'Recorded', 'Average', 'Relative to par'],
+      values.map(hole => [hole.hole, hole.par, hole.index, hole.count,
+        displayCell(number(hole.average, 2), hole.average), displayCell(relative(hole.averageToPar), hole.averageToPar)]));
+  }
+  insightTable(card(`Most ${field === 'net' ? 'Net ' : ''}Birdies`), 'birdies', `${label} selected-card birdies (top five, display order only)`,
+    ['Player', 'Birdies', 'Eagle+'], stats.mostBirdies.map(row => [row.player, row.categories.birdie, row.categories.eagle]));
+  insightTable(card(`Consistency (${label} Pars)`), 'pars', `${label} selected-card pars (top five, display order only)`,
+    ['Player', 'Pars', 'Recorded holes', 'Par %'], stats.mostPars.map(row => [row.player, row.categories.par, row.recorded,
+      displayCell(row.parRate === null ? 'NA' : `${number(row.parRate, 0)}%`, row.parRate)]));
+  insightTable(card(`${field === 'net' ? 'Net ' : ''}Eagle+ Club`), 'eagles', `${label} selected-hole scores 2 under par or better`,
+    ['Player', 'Eagle+ holes'], stats.eaglePlayers.map(row => [row.player, row.categories.eagle]));
+  insightTable(card('One Hole to Go'), 'one-to-go', 'Players missing exactly one of the 12 Winter holes',
+    ['Player', 'Missing hole'], stats.oneToGo.map(row => [row.player, row.missing[0]]));
+  const records = card(`${label} Out / In Records (Complete Players)`);
+  insightTable(records, 'groups', `${label} group minima among complete eclectic records`, ['Group', 'Player(s)', 'Score', 'Relative to par'], [
+    ['Out: holes 1 to 9', stats.outRecord.players.join(', ') || 'NA', displayCell(stats.outRecord.score ?? 'NA', stats.outRecord.score),
+      displayCell(relative(stats.outRecord.score === null ? null : stats.outRecord.score - 37), stats.outRecord.score === null ? null : stats.outRecord.score - 37)],
+    ['In: holes 10, 11, 15', stats.inRecord.players.join(', ') || 'NA', displayCell(stats.inRecord.score ?? 'NA', stats.inRecord.score),
+      displayCell(relative(stats.inRecord.score === null ? null : stats.inRecord.score - 11), stats.inRecord.score === null ? null : stats.inRecord.score - 11)]
+  ]);
+  const composite = card(`${label} Field Best-Hole Card`, true);
+  composite.append(element('p', 'Combined minima across players, not one player or an official course record. Holder names are available on each score.', 'insight-subtitle'));
+  const holeColumns = ECLECTIC_HOLES.flatMap((hole, i) => [
+    { key: `Hole ${hole}`, label: String(hole), accessibleLabel: `Hole ${hole}` },
+    ...(i === 8 ? [{ key: 'Out', label: 'Out' }] : [])
+  ]);
+  const pars = ['', ...ECLECTIC_PARS.slice(0, 9), 37, ...ECLECTIC_PARS.slice(9), 11, 48];
+  insightTable(composite, 'record', `${label} combined field best scores and pars`, ['Card', ...holeColumns, 'In', label], [
+    ['Best', ...stats.composite.flatMap((value, i) => [
+      { ...eclecticScoreCell(value, i, field), detail: `${eclecticScoreCell(value, i, field).detail} Held by: ${stats.holes[i].bestPlayers.join(', ') || 'none'}.` },
+      ...(i === 8 ? [displayCell(eclecticSubtotal(stats.composite.slice(0, 9)) ?? 'NA', eclecticSubtotal(stats.composite.slice(0, 9)))] : [])
+    ]), displayCell(eclecticSubtotal(stats.composite.slice(9)) ?? 'NA', eclecticSubtotal(stats.composite.slice(9))),
+    displayCell(stats.compositeTotal ?? 'NA', stats.compositeTotal)]
+  ], { parRow: pars });
+  const analysis = card(`${label} Scoring Distribution by Hole`, true);
+  insightTable(analysis, 'holes', `${label} selected best-hole analysis, missing holes excluded`,
+    ['Hole', 'Par', 'SI', 'Recorded', 'Average', 'Relative to par', `${field === 'net' ? 'Net ' : ''}Eagle+`,
+      'Birdie', 'Par scores', 'Bogey', 'Double+', 'Par-or-better %'],
+    stats.holes.map(hole => [hole.hole, hole.par, hole.index, hole.count,
+      displayCell(number(hole.average, 2), hole.average), displayCell(relative(hole.averageToPar), hole.averageToPar),
+      hole.categories.eagle, hole.categories.birdie, hole.categories.par, hole.categories.bogey,
+      hole.categories.double + hole.categories.worse,
+      displayCell(hole.parOrBetter === null ? 'NA' : `${number(hole.parOrBetter, 0)}%`, hole.parOrBetter)]));
+  if (field === 'net') {
+    const grossRanks = new Map(eclecticStandings(state, eclecticData, 'gross').rows.map(row => [row.key, row.rank]));
+    const comparisons = eclecticStandings(state, eclecticData, 'net').rows.filter(row => row.rank !== null)
+      .map(row => ({ ...row, grossRank: grossRanks.get(row.key), change: grossRanks.get(row.key) - row.rank }))
+      .sort((a, b) => b.change - a.change || a.player.localeCompare(b.player)).slice(0, 5);
+    const comparison = card('Gross to Nett Rank Comparison');
+    comparison.append(element('p', 'Competition ranks of the same complete eclectic players. Different hole minima can come from different round handicaps; this is not a single-handicap advantage calculation.', 'insight-subtitle'));
+    insightTable(comparison, 'ranks', 'Largest gross-to-net rank differences, shared ranks preserved',
+      ['Player', 'Gross rank', 'Nett rank', 'Difference'],
+      comparisons.map(row => [row.player, row.grossRank, row.rank, row.change]));
+  }
+}
 function renderEclectics(state) {
   for (const field of ['gross', 'net']) {
-    const id = `${field}-eclectic`, title = field === 'gross' ? 'Gross Eclectic' : 'Net Eclectic';
+    const id = `${field}-eclectic`, title = field === 'gross' ? 'Gross Eclectic' : 'Nett Eclectic';
     const unavailable = mode === 'draft' ? 'Eclectic unavailable for local drafts. Return to published view for source-verified hole scores.'
       : !publishedReady ? 'Eclectic unavailable: published results have not loaded.' : !eclecticData ? eclecticError : null;
     if (unavailable) {
       $(`${id}-summary`).textContent = unavailable;
       $(`${id}-provenance`).textContent = '';
       table(`${id}-table`, title, [], [], unavailable);
+      $(`${id}-legend`).replaceChildren();
+      renderEclecticInsights(state, field, unavailable);
       continue;
     }
     const result = eclecticStandings(state, eclecticData, field);
+    const rows = eclecticDisplayRows(state, eclecticData, field);
     $(`${id}-summary`).textContent = `${result.rows.length} players: ${result.complete} complete, ${result.incomplete} incomplete. ${eclecticData.acceptedCards} accepted cards across ${eclecticData.coverage.length} weekends.`;
     $(`${id}-provenance`).textContent = `Source-verified coverage: ${eclecticData.coverage.map(round => `${round.date} (${round.acceptedCards} accepted cards, Saturday and Sunday)`).join('; ')}. Source fingerprint: ${eclecticData.sourceFingerprint}.`;
     table(`${id}-table`, `Published ${title}: best individual hole scores`, [
-      { key: 'Rank', label: 'Rank', className: 'rank-column' },
-      { key: 'Player', label: 'Player', className: 'player-column' },
-      { key: 'Total', label: `${field === 'gross' ? 'Gross' : 'Net'} total`, className: 'total-column' },
-      ...ECLECTIC_HOLES.map(hole => ({ key: `Hole ${hole}`, label: `Hole ${hole}`, className: 'score-column' }))
-    ], result.rows.map(row => [
-      displayCell(row.rank ?? 'Unranked', row.rank), row.player,
-      displayCell(row.total ?? 'NA', row.total), ...row.holes.map(value => displayCell(value ?? 'NA', value))
-    ]));
+      { key: 'Rank', label: 'Overall', className: 'rank-column' },
+      { key: 'Player', label: 'Name', className: 'player-column' },
+      { key: 'Rounds', label: 'Rounds', className: 'rounds-column' },
+      ...ECLECTIC_HOLES.flatMap((hole, i) => [
+        { key: `Hole ${hole}`, label: String(hole), accessibleLabel: `Hole ${hole}`, className: 'score-column' },
+        ...(i === 8 ? [{ key: 'Out', label: 'Out', className: 'total-column' }] : [])
+      ]),
+      { key: 'In', label: 'In', className: 'total-column' },
+      { key: 'Total', label: field === 'gross' ? 'Gross' : 'Nett', className: 'total-column' }
+    ], rows.map(row => [
+      { ...displayCell(row.rank ?? 'Unranked', row.rank), rowClass: row.rank <= 3 && row.rank !== null ? `rank-${row.rank}` : '' }, row.player,
+      row.rounds, ...row.holes.flatMap((value, i) => [
+        eclecticScoreCell(value, i, field), ...(i === 8 ? [displayCell(row.out ?? 'NA', row.out)] : [])
+      ]), displayCell(row.in ?? 'NA', row.in), displayCell(row.total ?? 'NA', row.total)
+    ]), undefined, { parRow: ['', 'Par', '', ...ECLECTIC_PARS.slice(0, 9), 37, ...ECLECTIC_PARS.slice(9), 11, 48] });
+    renderEclecticLegend(field);
+    renderEclecticInsights(state, field, null);
   }
 }
 function renderSingles(state) {

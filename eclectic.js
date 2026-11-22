@@ -245,3 +245,95 @@ export function eclecticStandings(state, data, field) {
   });
   return { rows, complete: rows.filter(row => row.total !== null).length, incomplete: rows.filter(row => row.total === null).length };
 }
+
+export const ECLECTIC_CATEGORIES = [
+  { key: 'eagle', label: 'Eagle+ (2 under or better)' },
+  { key: 'birdie', label: 'Birdie (1 under)' },
+  { key: 'par', label: 'Par' },
+  { key: 'bogey', label: 'Bogey (1 over)' },
+  { key: 'double', label: 'Double bogey (2 over)' },
+  { key: 'worse', label: '3 over or worse' }
+];
+
+export function eclecticCategory(score, par) {
+  if (score === null || score === undefined) return null;
+  const diff = score - par;
+  return diff <= -2 ? 'eagle' : diff === -1 ? 'birdie' : diff === 0 ? 'par'
+    : diff === 1 ? 'bogey' : diff === 2 ? 'double' : 'worse';
+}
+
+export function eclecticSubtotal(scores) {
+  return scores.some(score => score === null || score === undefined)
+    ? null : scores.reduce((sum, score) => sum + score, 0);
+}
+
+export function eclecticDisplayRows(state, data, field) {
+  const rounds = new Map(cumulativeSingles(state).rows.map(row => [row.key, Object.keys(row.scores).length]));
+  return eclecticStandings(state, data, field).rows.map(row => ({
+    ...row, rounds: rounds.get(row.key), out: eclecticSubtotal(row.holes.slice(0, 9)),
+    in: eclecticSubtotal(row.holes.slice(9))
+  }));
+}
+
+export function eclecticInsights(state, data, field) {
+  const rows = eclecticDisplayRows(state, data, field), complete = rows.filter(row => row.total !== null);
+  const counts = () => Object.fromEntries(ECLECTIC_CATEGORIES.map(category => [category.key, 0]));
+  const categories = counts();
+  const holes = ECLECTIC_HOLES.map((hole, index) => {
+    const scores = rows.filter(row => row.holes[index] !== null && row.holes[index] !== undefined);
+    const distribution = counts();
+    let sum = 0;
+    for (const row of scores) {
+      const score = row.holes[index];
+      sum += score;
+      const category = eclecticCategory(score, ECLECTIC_PARS[index]);
+      distribution[category]++;
+      categories[category]++;
+    }
+    const best = scores.length ? Math.min(...scores.map(row => row.holes[index])) : null;
+    const average = scores.length ? sum / scores.length : null;
+    return {
+      hole, par: ECLECTIC_PARS[index], index: ECLECTIC_INDEXES[index], count: scores.length,
+      average, averageToPar: average === null ? null : average - ECLECTIC_PARS[index],
+      categories: distribution, best,
+      bestPlayers: scores.filter(row => row.holes[index] === best).map(row => row.player),
+      parOrBetter: scores.length ? (distribution.eagle + distribution.birdie + distribution.par) / scores.length * 100 : null
+    };
+  });
+  const awards = rows.map(row => {
+    const distribution = counts(), missing = [];
+    row.holes.forEach((score, i) => {
+      const category = eclecticCategory(score, ECLECTIC_PARS[i]);
+      if (category === null) missing.push(ECLECTIC_HOLES[i]);
+      else distribution[category]++;
+    });
+    const recorded = 12 - missing.length;
+    return { ...row, categories: distribution, missing, recorded,
+      parRate: recorded ? distribution.par / recorded * 100 : null };
+  });
+  const byCategory = category => [...awards].sort((a, b) =>
+    b.categories[category] - a.categories[category] || a.player.localeCompare(b.player));
+  const byDifficulty = holes.filter(hole => hole.count).sort((a, b) =>
+    b.averageToPar - a.averageToPar || a.hole - b.hole);
+  const groupRecord = group => {
+    if (!complete.length) return { score: null, players: [] };
+    const score = Math.min(...complete.map(row => row[group]));
+    return { score, players: complete.filter(row => row[group] === score).map(row => row.player) };
+  };
+  return {
+    players: rows.length, complete: complete.length, incomplete: rows.length - complete.length,
+    recorded: holes.reduce((sum, hole) => sum + hole.count, 0), categories, holes, awards,
+    best: complete[0]?.total ?? null, leaders: complete.filter(row => row.rank === 1).map(row => row.player),
+    averageTotal: complete.length ? complete.reduce((sum, row) => sum + row.total, 0) / complete.length : null,
+    hardest: byDifficulty.slice(0, 3),
+    easiest: [...byDifficulty].sort((a, b) => a.averageToPar - b.averageToPar || a.hole - b.hole).slice(0, 3),
+    mostBirdies: byCategory('birdie').slice(0, 5), mostPars: byCategory('par').slice(0, 5),
+    eaglePlayers: byCategory('eagle').filter(row => row.categories.eagle > 0),
+    oneToGo: awards.filter(row => row.missing.length === 1),
+    threeUnder: rows.flatMap(row => row.holes.flatMap((score, i) =>
+      score !== null && score !== undefined && score - ECLECTIC_PARS[i] <= -3
+        ? [{ player: row.player, hole: ECLECTIC_HOLES[i], par: ECLECTIC_PARS[i], score, relativeToPar: score - ECLECTIC_PARS[i] }] : [])),
+    outRecord: groupRecord('out'), inRecord: groupRecord('in'),
+    composite: holes.map(hole => hole.best), compositeTotal: eclecticSubtotal(holes.map(hole => hole.best))
+  };
+}
