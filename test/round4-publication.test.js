@@ -14,6 +14,17 @@ const publication = () => readFile(new URL('../data/published.json', import.meta
 const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 const aggregateName = 'Competition Report (Aggregated Net Result) - Spirit Ford - Mens Winter League - Round 4 - Sunday 22 November 2026.csv';
 
+function syntheticSeason(state, count) {
+  const season = structuredClone(state);
+  while (season.rounds.length < count) {
+    const date = new Date(Date.UTC(2026, 9, 31 + season.rounds.length * 7)).toISOString().slice(0, 10);
+    season.rounds.push({ ...structuredClone(state.rounds.at(-1)), date, name: `Synthetic weekend ${date}`,
+      qualifying: season.rounds.length < season.settings.maxRounds });
+  }
+  season.rounds = season.rounds.slice(0, count);
+  return season;
+}
+
 test('final R4 extends immutable R1 to R3 cards, roster, approved identities and settings', async () => {
   const state = await publication();
   assert.deepEqual(state.rounds.map(round => [round.date, round.cards.length]),
@@ -72,6 +83,8 @@ test('actual four-round member PDFs retain the A3 Team grid and show every Singl
   assert.equal(team.pageOrientation, 'landscape');
   assert.equal(grid.body.length, 48);
   assert.equal(grid.widths.length, 22);
+  assert.ok(grid.widths.slice(2, 5).every(width => width >= 90 && width <= 110 && width < 212.85 / 2));
+  assert.deepEqual(grid.widths.slice(6, 10), [20, 20, 20, 27]);
   assert.ok(grid.body.every(row => row.length === 22));
   assert.deepEqual(grid.body[0].filter(cell => cell.colSpan).map(cell => cell.text),
     ['Round 1\n31 Oct', 'Round 2\n7 Nov', 'Round 3\n14 Nov', 'Round 4\n21 Nov']);
@@ -85,6 +98,7 @@ test('actual four-round member PDFs retain the A3 Team grid and show every Singl
     state.rounds.forEach((round, index) => {
       assert.deepEqual(printed.slice(6 + index * 4, 9 + index * 4).map(cell => cell.text),
         weekendCards(row.team, round, state.identityBindings).map(card => card.held ? 'NA' : card.text));
+      assert.equal(printed[9 + index * 4].text, String(row.scores[index].total));
     });
   }
   const singles = singlesPDFDocument(state);
@@ -102,6 +116,52 @@ test('actual four-round member PDFs retain the A3 Team grid and show every Singl
   const result = cumulativeSingles(state);
   assert.deepEqual(tables[0].body.slice(1).map(row => row.map(cell => cell.text.replace(/\u200b/gu, ''))),
     result.rows.map(row => [row.rank, row.player, ...result.rounds.map(round => row.scores[round.date] ?? 'NA'), row.total].map(String)));
+});
+
+test('integrated Team PDF preserves three-round A4 widths and all ten-round or overflow weekend columns', async () => {
+  const state = await publication(), before = structuredClone(state);
+  const a4 = leaderboardPDFDocument(syntheticSeason(state, 3), { audience: 'members' });
+  assert.equal(a4.pageSize, 'A4');
+  assert.equal(a4.pageOrientation, 'landscape');
+  const a4Grid = a4.content[0].table;
+  const originalNameWidth = (841.89 - 40 - 40 - 34 - 44 - 3 * 87 - 18 * 2 - 4 * 0.8) / 3;
+  assert.ok(a4Grid.widths.slice(2, 5).every(width => Math.abs(width - originalNameWidth) < 1e-10));
+  assert.deepEqual(a4Grid.widths.slice(6), Array(3).fill([20, 20, 20, 27]).flat());
+  for (const count of [10, 11]) {
+    const season = syntheticSeason(state, count);
+    const document = leaderboardPDFDocument(season, { audience: 'members' });
+    const grids = document.content.filter(block => block.table);
+    assert.equal(document.pageSize, 'A3');
+    assert.equal(grids.length, Math.ceil(count / 10));
+    assert.deepEqual(grids.map(block => block.table.widths.length), count === 10 ? [46] : [46, 10]);
+    assert.equal(grids.filter(block => block.pageBreak === 'before').length, grids.length - 1);
+    assert.deepEqual(grids.flatMap(block => block.table.body[0].filter(cell => cell.colSpan).map(cell => cell.text)),
+      season.rounds.map((round, index) => `Round ${index + 1}\n${new Date(`${round.date}T12:00:00Z`).toLocaleDateString('en-GB', {
+        day: 'numeric', month: 'short', timeZone: 'UTC'
+      })}${round.qualifying ? '' : ' (X)'}`));
+    const results = league(season).rows;
+    for (const block of grids) {
+      const { table, layout } = block;
+      const width = table.widths.reduce((sum, width) => sum + width, 0) +
+        table.widths.length * 2 + ((table.widths.length - 6) / 4 + 1) * 0.8;
+      assert.ok(width <= 1190.55 - 40 + 1e-8);
+      assert.ok(table.body.every(row => row.length === table.widths.length));
+      assert.deepEqual(table.body[1].slice(6).map(cell => cell.text),
+        Array((table.widths.length - 6) / 4).fill(['P1', 'P2', 'P3', 'Team']).flat());
+      assert.deepEqual(table.body.slice(2).map(row => [row[1].text, row[5].text]),
+        results.map(row => [row.team.name, String(row.retained)]));
+      assert.equal(layout.paddingTop(), 0.2);
+    }
+    for (const row of results) {
+      const printedScores = grids.flatMap(block =>
+        block.table.body.find(cells => cells[1]?.text === row.team.name).slice(6).map(cell => cell.text));
+      assert.deepEqual(printedScores, season.rounds.flatMap((round, index) => [
+        ...weekendCards(row.team, round, season.identityBindings).map(card => card.held ? 'NA' : card.text),
+        round.qualifying ? String(row.scores[index].total) : 'X'
+      ]));
+    }
+  }
+  assert.deepEqual(state, before);
 });
 
 test('final R4 produces real branded member Team and cumulative Singles PDF buffers', async t => {
@@ -122,9 +182,33 @@ test('final R4 produces real branded member Team and cumulative Singles PDF buff
       else globalThis[key] = value;
     }
   });
-  for (const [result, pages] of [
-    [await createLeaderboardPDF(state, { audience: 'members', format: 'detail' }), 1],
-    [await createSinglesPDF(state, {}), 5]
+  for (const [count, expectedPages] of [[3, 1], [4, 1], [10, 1], [11, 2]]) {
+    const definition = leaderboardPDFDocument(syntheticSeason(state, count), { audience: 'members' });
+    const pages = await new Promise(resolve => sandbox.pdfMake.createPdf(definition)._getPages({}, resolve));
+    assert.equal(pages.length, expectedPages, `${count} Team weekends`);
+    for (const block of definition.content.filter(block => block.table)) {
+      const grid = block.table;
+      for (const row of grid.body.slice(1)) {
+        row.forEach((cell, index) => {
+          assert.ok(cell._maxWidth <= grid.widths[index].width + 1e-8,
+            `${count} weekends: ${cell.text} must fit its column without wrapping`);
+        });
+      }
+      grid.body[0].forEach((cell, index) => {
+        if (cell.colSpan) assert.ok(cell._maxWidth <=
+          grid.widths.slice(index, index + 4).reduce((sum, width) => sum + width.width + 2, 0));
+      });
+    }
+    for (const page of pages) {
+      const lines = page.items.filter(item => item.type === 'line').map(item => item.item);
+      assert.ok(lines.every(line => line.x >= 20 - 1e-8 && line.x + line.getWidth() <= page.pageSize.width - 20 + 1e-8),
+        `${count} weekends: rendered text must stay inside page margins`);
+    }
+  }
+  for (const [result, pages, through] of [
+    [await createLeaderboardPDF(state, { audience: 'members', format: 'detail' }), 1, '2026-11-21'],
+    [await createLeaderboardPDF(syntheticSeason(state, 10), { audience: 'members', format: 'detail' }), 1, '2027-01-02'],
+    [await createSinglesPDF(state, {}), 5, '2026-11-21']
   ]) {
     const buffer = Buffer.from(result.buffer), raw = buffer.toString('latin1');
     assert.equal(buffer.subarray(0, 8).toString(), '%PDF-1.3');
@@ -132,8 +216,8 @@ test('final R4 produces real branded member Team and cumulative Singles PDF buff
     assert.match(raw, /\/Subtype \/Image/);
     assert.match(raw, /\/FontFile2/);
     assert.equal((raw.match(/\/Type \/Page\b/g) || []).length, pages);
-    assert.match(result.filename, /2026-11-21\.pdf$/);
-    if (process.env.R4_VERIFY_PDFS) {
+    assert.ok(result.filename.endsWith(`${through}.pdf`));
+    if (process.env.R4_VERIFY_PDFS && through === '2026-11-21') {
       await mkdir(process.env.R4_VERIFY_PDFS, { recursive: true });
       await writeFile(join(process.env.R4_VERIFY_PDFS, result.filename), buffer, { flag: 'wx' });
     }

@@ -112,7 +112,7 @@ function latestTable(rows, model) {
 }
 
 function integratedTables(state, rows, model) {
-  const a3 = model.rounds.length > 3, capacity = a3 ? 6 : 3;
+  const a3 = model.rounds.length > 3, capacity = a3 ? 10 : 3;
   const pageWidth = a3 ? 1190.55 : 841.89;
   const movement = new Map(leagueMovement(state, model.result).rows.map(row => [row.team, row.places]));
   const boundaryRank = model.result.cutoffUnresolved ? rows[15].rank : null;
@@ -121,7 +121,11 @@ function integratedTables(state, rows, model) {
   for (let start = 0; start < model.rounds.length; start += capacity) {
     const group = model.rounds.slice(start, start + capacity);
     const columns = 6 + group.length * 4;
-    const nameWidth = (pageWidth - 40 - 40 - 34 - 44 - group.length * 87 - columns * 2 - (group.length + 1) * 0.8) / 3;
+    const availableWidth = pageWidth - 40 - 40 - 34 - 44 - columns * 2 - (group.length + 1) * 0.8;
+    // A3 names stay compact; only dense weekend grids need narrower score columns.
+    const nameWidth = a3 ? 100 : (availableWidth - group.length * 87) / 3;
+    const scoreScale = a3 ? Math.min(1, (availableWidth - nameWidth * 3) / (group.length * 87)) : 1;
+    const scoreWidths = [20, 20, 20, 27].map(width => width * scoreScale);
     const headers = [
       [...Array.from({ length: 6 }, () => heading('')),
         ...group.flatMap((round, index) => [{
@@ -147,7 +151,7 @@ function integratedTables(state, rows, model) {
           weekendTotal(row, round, true)
         ])
       ];
-    }), [40, 34, nameWidth, nameWidth, nameWidth, 44, ...group.flatMap(() => [20, 20, 20, 27])], 2);
+    }), [40, 34, nameWidth, nameWidth, nameWidth, 44, ...group.flatMap(() => scoreWidths)], 2);
     const cutoff = rows.findIndex(row => zone(row) === 'outside');
     grid.layout = {
       ...layout, paddingLeft: () => 1, paddingRight: () => 1, paddingTop: () => 0.2, paddingBottom: () => 0.2,

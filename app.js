@@ -1,7 +1,7 @@
 import { MAX_BYTES, emptyState, canonical, playerKey, validateState, parseJSON, parseTeams, parseScores, classifyScoreCSV, parseFinal, importRound, weekendDate, league, singles, finalTable, csvCell, reportHTML, assignments, isHeld, rosterStatus, replaceTeams, editTeam, cumulativeSingles, cumulativeSinglesCSV, leagueMovement } from './core.js?v=20261115-1';
 import { readDraft, saveDraft, readBaseline, STORAGE_KEY, BASELINE_KEY } from './storage.js';
 import { synchroniseDraft, protectPublishedHistory } from './publication.js';
-import { createLeaderboardPDF, createSinglesPDF } from './leaderboard-pdf.js?v=20261122-1';
+import { createLeaderboardPDF, createSinglesPDF } from './leaderboard-pdf.js?v=20261122-2';
 import { weekendCards } from './leaderboard-layout.js';
 import { memberUpdate } from './member-update.js';
 

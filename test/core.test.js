@@ -353,13 +353,13 @@ test('compact member PDF keeps all 46 teams and three complete rounds together w
   assert.match(JSON.stringify(document.footer(1, 1)), /Provisional top 16/);
   assert.deepEqual(state, before);
 });
-test('long integrated member PDFs use A3 and bounded six-round grids without dropping rounds or season totals', () => {
+test('long integrated member PDFs fit ten rounds on A3 without dropping rounds or season totals', () => {
   const state = fixture(Array.from({ length: 10 }, () => [54, 40]));
   const document = leaderboardPDFDocument(state, { audience: 'members', format: 'detail' });
   assert.equal(document.pageSize, 'A3');
   const tables = document.content.filter(block => block.table);
-  assert.deepEqual(tables.map(block => block.table.widths.length), [30, 22]);
-  assert.equal(tables[1].pageBreak, 'before');
+  assert.deepEqual(tables.map(block => block.table.widths.length), [46]);
+  assert.equal(tables[0].pageBreak, undefined);
   assert.ok(tables.every(block => block.table.body.slice(2)[0][5].text === '540'));
   assert.equal(tables.reduce((count, block) => count + (block.table.widths.length - 6) / 4, 0), 10);
 });
