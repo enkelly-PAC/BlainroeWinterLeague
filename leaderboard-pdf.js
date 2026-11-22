@@ -6,7 +6,7 @@ const title = "Men's Winter League 2026/2027";
 const groupSize = 3;
 // Six compact weekend totals leave room for the team and player names.
 const standingsGroupSize = 6;
-const singlesGroupSize = 3;
+const singlesGroupSize = 4;
 const formats = { standings: 'Member standings', latest: 'Latest weekend results', detail: 'Full detail' };
 const text = value => String(value).replace(/[\u2013\u2014]/gu, ':');
 const dateLabel = date => new Date(`${date}T12:00:00Z`).toLocaleDateString('en-GB', {
@@ -289,7 +289,7 @@ export function singlesPDFDocument(state, context = {}, logo) {
     content.push(table([['Pos.', 'Player', ...group.map(round => dateLabel(round.date)), 'Overall total'].map(heading)],
       rows.map(row => [cell(row.rank), cell(row.player), ...group.map(round => cell(row.scores[round.date] ?? 'NA', { alignment: 'center' })),
         cell(row.total, { alignment: 'center', bold: true, color: green })]),
-      [30, '*', ...group.map(() => 75), 70]));
+      [30, '*', ...group.map(() => group.length === 4 ? 65 : 75), 70]));
   }
   const definition = pdfDocumentFrame(state, context, logo, model, content);
   definition.info.title = `Blainroe ${title}: Cumulative Singles`;

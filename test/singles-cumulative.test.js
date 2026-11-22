@@ -59,6 +59,30 @@ test('member integrated PDF keeps named identities and Overall before bounded we
   assert.match(JSON.stringify(document.footer(1, 2)), /Provisional top 16/);
 });
 
+test('Singles PDFs retain existing widths for up to three weekends and preserve the fifth weekend in a new panel', () => {
+  const state = emptyState();
+  state.rounds = Array.from({ length: 5 }, (_, index) => {
+    const date = new Date(Date.UTC(2026, 9, 31 + index * 7)).toISOString().slice(0, 10);
+    return { date, name: date, qualifying: true, canceled: false, cards: [{ player: 'Visitor', score: index }] };
+  });
+  for (let count = 1; count <= 3; count++) {
+    const document = singlesPDFDocument({ ...state, rounds: state.rounds.slice(0, count) });
+    const tables = document.content.filter(node => node.table).map(node => node.table);
+    assert.equal(tables.length, 1);
+    assert.deepEqual(tables[0].widths, [30, '*', ...Array(count).fill(75), 70]);
+  }
+  const document = singlesPDFDocument(state);
+  const tables = document.content.filter(node => node.table).map(node => node.table);
+  assert.equal(tables.length, 2);
+  assert.deepEqual(tables.map(table => table.widths), [[30, '*', 65, 65, 65, 65, 70], [30, '*', 75, 70]]);
+  assert.deepEqual(tables.map(table => table.body[0].map(cell => cell.text)),
+    [['Pos.', 'Player', '31 Oct 2026', '7 Nov 2026', '14 Nov 2026', '21 Nov 2026', 'Overall total'],
+      ['Pos.', 'Player', '28 Nov 2026', 'Overall total']]);
+  assert.deepEqual(tables.map(table => table.body[1].map(cell => cell.text)),
+    [['1', 'Visitor', '0', '1', '2', '3', '10'], ['1', 'Visitor', '4', '10']]);
+  assert.equal(document.content.filter(node => node.pageBreak === 'before').length, 1);
+});
+
 test('long-season Singles PDFs bound portrait weekend groups and repeat identities and overall totals', () => {
   const state = emptyState();
   state.rounds = Array.from({ length: 8 }, (_, index) => {
@@ -68,8 +92,10 @@ test('long-season Singles PDFs bound portrait weekend groups and repeat identiti
   const document = singlesPDFDocument(state);
   const tables = document.content.filter(node => node.table).map(node => node.table);
   assert.equal(document.pageOrientation, 'portrait');
-  assert.equal(tables.length, 3);
-  assert.ok(tables.every(table => table.widths.length <= 6 && table.headerRows === 1 && table.dontBreakRows));
+  assert.equal(tables.length, 2);
+  assert.ok(tables.every(table => table.widths.length === 7 && table.headerRows === 1 && table.dontBreakRows));
   assert.deepEqual(tables.map(table => [table.body[1][1].text, table.body[1].at(-1).text]),
-    [['Visitor', '28'], ['Visitor', '28'], ['Visitor', '28']]);
+    [['Visitor', '28'], ['Visitor', '28']]);
+  assert.deepEqual(tables.flatMap(table => table.body[1].slice(2, -1).map(cell => cell.text)),
+    ['0', '1', '2', '3', '4', '5', '6', '7']);
 });

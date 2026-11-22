@@ -64,7 +64,7 @@ test('final R4 Team 19 and Singles totals use all four weekends and genuine R3 c
   assert.deepEqual(baseline.state, before);
 });
 
-test('actual four-round member PDF models retain the existing A3 Team grid and grouped cumulative Singles layout', async () => {
+test('actual four-round member PDFs retain the A3 Team grid and show every Singles weekend together', async () => {
   const state = await publication();
   const team = leaderboardPDFDocument(state, { audience: 'members', format: 'detail' });
   const grid = team.content.find(block => block.table).table;
@@ -89,13 +89,19 @@ test('actual four-round member PDF models retain the existing A3 Team grid and g
   }
   const singles = singlesPDFDocument(state);
   const tables = singles.content.filter(block => block.table).map(block => block.table);
+  assert.equal(singles.pageSize, 'A4');
   assert.equal(singles.pageOrientation, 'portrait');
+  assert.equal(tables.length, 1);
+  assert.equal(singles.content.some(block => block.pageBreak), false);
+  assert.deepEqual(tables[0].widths, [30, '*', 65, 65, 65, 65, 70]);
   assert.deepEqual(tables.map(table => table.body[0].map(cell => cell.text)),
-    [['Pos.', 'Player', '31 Oct 2026', '7 Nov 2026', '14 Nov 2026', 'Overall total'],
-      ['Pos.', 'Player', '21 Nov 2026', 'Overall total']]);
+    [['Pos.', 'Player', '31 Oct 2026', '7 Nov 2026', '14 Nov 2026', '21 Nov 2026', 'Overall total']]);
   assert.ok(tables.every(table => table.body.length === 220));
   assert.deepEqual(tables.map(table => table.body.find(row => row[1].text === 'Enda Kelly').map(cell => cell.text)),
-    [['22', 'Enda Kelly', '22', '22', '22', '86'], ['22', 'Enda Kelly', '20', '86']]);
+    [['22', 'Enda Kelly', '22', '22', '22', '20', '86']]);
+  const result = cumulativeSingles(state);
+  assert.deepEqual(tables[0].body.slice(1).map(row => row.map(cell => cell.text.replace(/\u200b/gu, ''))),
+    result.rows.map(row => [row.rank, row.player, ...result.rounds.map(round => row.scores[round.date] ?? 'NA'), row.total].map(String)));
 });
 
 test('final R4 produces real branded member Team and cumulative Singles PDF buffers', async t => {
@@ -118,7 +124,7 @@ test('final R4 produces real branded member Team and cumulative Singles PDF buff
   });
   for (const [result, pages] of [
     [await createLeaderboardPDF(state, { audience: 'members', format: 'detail' }), 1],
-    [await createSinglesPDF(state, {}), 10]
+    [await createSinglesPDF(state, {}), 5]
   ]) {
     const buffer = Buffer.from(result.buffer), raw = buffer.toString('latin1');
     assert.equal(buffer.subarray(0, 8).toString(), '%PDF-1.3');
