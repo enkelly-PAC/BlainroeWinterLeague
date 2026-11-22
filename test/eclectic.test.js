@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { emptyState } from '../core.js';
-import { allocatedStrokes, buildEclectic, eclecticFingerprint, eclecticStandings, parseGrossScorecards, validateEclectic, eclecticCategory, eclecticSubtotal, eclecticDisplayRows, eclecticInsights } from '../eclectic.js';
+import { allocatedStrokes, buildEclectic, eclecticFingerprint, eclecticStandings, parseGrossScorecards, validateEclectic, eclecticCategory, eclecticSubtotal, eclecticDisplayRows, eclecticInsights, playingHandicapLabel } from '../eclectic.js';
 import { eclecticArguments, updateEclectic } from '../tools/update-eclectic.mjs';
 import { atomicPublication } from '../tools/publication-io.mjs';
 import { sourceCard, weekendFixture } from './eclectic-fixture.js';
@@ -44,6 +44,41 @@ test('accepted gross NR cards contribute numeric holes, PU is never a minimum, D
     assert.equal(table.complete, 2);
   }
   assert.deepEqual(state, before);
+});
+
+test('latest display handicap uses actual accepted source chronology and identities, including omitted published metadata, never a later DQ', async () => {
+  const pars = [4, 4, 4, 5, 5, 4, 4, 3, 4, 4, 4, 3];
+  const weeks = [
+    weekendFixture('2026-10-31', [sourceCard('Old Alpha')], [sourceCard('Visitor')]),
+    weekendFixture('2026-11-07', [sourceCard('Visitor')], [sourceCard('Alpha', pars.map(value => value + 1), pars, 12)]),
+    weekendFixture('2026-11-14', [sourceCard('Alpha', pars.map(value => value + 2), pars, 24)], [sourceCard('Visitor')], ['Alpha'])
+  ];
+  delete weeks[1].round.cards.find(card => card.player === 'Alpha').handicap;
+  const state = { ...emptyState(), teams: [{ name: 'Team 1', players: ['Alpha', 'Two', 'Three'] }],
+    identityBindings: [{ source: 'Old Alpha', player: 'Alpha' }], rounds: weeks.map(week => week.round).reverse() };
+  const data = await buildEclectic(state, weeks.flatMap(week => week.gross).reverse(), weeks.map(week => week.net).reverse());
+  const alpha = data.players.find(row => row.key === 'alpha');
+  assert.deepEqual(alpha.latestPlayingHandicap, { value: 12, date: '2026-11-08' });
+  assert.deepEqual(data.players.find(row => row.key === 'visitor').latestPlayingHandicap, { value: 0, date: '2026-11-15' });
+  assert.deepEqual(alpha.net, pars);
+  assert.equal(eclecticStandings(state, data, 'net').rows.find(row => row.key === 'alpha').total, 48);
+  validateEclectic(data, state, await eclecticFingerprint(state));
+  const legacy = structuredClone(data);
+  for (const row of legacy.players) delete row.latestPlayingHandicap;
+  validateEclectic(legacy, state, data.sourceFingerprint);
+  for (const metadata of [{ value: 0, date: '2026-10-31' }, { value: 12.5, date: '2026-11-08' },
+    { value: 12, date: '2026-11-08', history: [0, 12] }, null]) {
+    const invalid = structuredClone(data);
+    invalid.players.find(row => row.key === 'alpha').latestPlayingHandicap = metadata;
+    assert.throws(() => validateEclectic(invalid, state, data.sourceFingerprint), /playing handicap metadata/);
+  }
+  const conflict = structuredClone(data);
+  conflict.players.find(row => row.key === 'visitor').latestPlayingHandicap.value = 1;
+  assert.throws(() => validateEclectic(conflict, state, data.sourceFingerprint), /playing handicap metadata/);
+  assert.equal(playingHandicapLabel(-1), '+1');
+  assert.equal(playingHandicapLabel(0), '0');
+  assert.equal(playingHandicapLabel(12), '12');
+  assert.equal(playingHandicapLabel(undefined), 'Hcap unavailable');
 });
 
 test('Summer-style categories preserve numeric nett zero and distinguish every relative-to-par band from missing scores', () => {
@@ -148,6 +183,7 @@ test('as-played net minima can use a different round than gross minima and prese
   const row = data.players.find(player => player.key === 'alpha');
   assert.deepEqual(row.gross, Array(12).fill(5));
   assert.deepEqual(row.net, Array(12).fill(4));
+  assert.deepEqual(row.latestPlayingHandicap, { value: 24, date: '2026-11-07' });
   assert.equal(first.points[7], 0);
   assert.equal(row.net[7], 4);
 });
@@ -227,7 +263,12 @@ test('published R1 to R4 eclectic matches verified individual oracles without ch
     [['Barry Whelan', 43], ['Brian Sammon', 43], ['Joshua McCall', 43]]);
   assert.equal(eclecticStandings(state, data, 'net').rows[0].player, 'Mark Lester');
   assert.equal(eclecticStandings(state, data, 'net').rows[0].total, 36);
-  assert.doesNotMatch(JSON.stringify(data), /handicap|OneDrive|Player A:|Strokes|Points/);
+  assert.equal(data.players.filter(row => Number.isInteger(row.latestPlayingHandicap?.value)).length, 219);
+  assert.equal(data.players.filter(row => row.latestPlayingHandicap.date >= '2026-11-14' && row.latestPlayingHandicap.date <= '2026-11-15').length, 39);
+  assert.deepEqual(['endakelly', 'rossbeacom', 'alandunne'].map(key => data.players.find(row => row.key === key).latestPlayingHandicap.value), [7, 9, 10]);
+  for (const row of data.players)
+    assert.deepEqual(Object.keys(row).sort(), ['gross', 'key', 'latestPlayingHandicap', 'net']);
+  assert.doesNotMatch(JSON.stringify(data), /history|OneDrive|Player A:|Strokes|Points/);
 });
 
 test('CLI preview never writes, initial apply is atomic, identical updates do not write and locks/stale targets are preserved', async () => {

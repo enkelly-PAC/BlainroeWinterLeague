@@ -158,7 +158,11 @@
         4,
         3,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "alandoolan",
@@ -189,7 +193,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "alandunne",
@@ -220,7 +228,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "alanmcgreal",
@@ -251,7 +263,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "alanobrien",
@@ -282,7 +298,11 @@
         4,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "alanreid",
@@ -313,7 +333,11 @@
         3,
         2,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "alanwoodroofe",
@@ -344,7 +368,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 5,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "amoryschwartz",
@@ -375,7 +403,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "andrewdoyle",
@@ -406,7 +438,11 @@
         3,
         6,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "andrewhume",
@@ -437,7 +473,11 @@
         4,
         4,
         null
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "arthurdelahunt",
@@ -468,7 +508,11 @@
         5,
         6,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 18,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "austinjennings",
@@ -499,7 +543,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "barrycostello",
@@ -530,7 +578,11 @@
         3,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "barrytimmins",
@@ -561,7 +613,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 20,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "barrywhelan",
@@ -592,7 +648,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 2,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "billryan",
@@ -623,7 +683,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "billynelson",
@@ -654,7 +718,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "brianhiggins",
@@ -685,7 +753,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "brianjconnor",
@@ -716,7 +788,11 @@
         5,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 20,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "brianmcdonnell",
@@ -747,7 +823,11 @@
         3,
         5,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "brianoconnor",
@@ -778,7 +858,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "brianoreilly",
@@ -809,7 +893,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 16,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "brianpurcell",
@@ -840,7 +928,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "briansammon",
@@ -871,7 +963,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 2,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "calumrawl",
@@ -902,7 +998,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "chrismahon",
@@ -933,7 +1033,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "chrissheehy",
@@ -964,7 +1068,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 2,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "ciarandoyle",
@@ -995,7 +1103,11 @@
         2,
         6,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "ciaranoneill",
@@ -1026,7 +1138,11 @@
         4,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "colinhalion",
@@ -1057,7 +1173,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "colinowens",
@@ -1088,7 +1208,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "colmlynch",
@@ -1119,7 +1243,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "colmnagle",
@@ -1150,7 +1278,11 @@
         4,
         5,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 14,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "colmpower",
@@ -1181,7 +1313,11 @@
         3,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "conorlawlor",
@@ -1212,7 +1348,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "conorvaughan",
@@ -1243,7 +1383,11 @@
         4,
         6,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "contimon",
@@ -1274,7 +1418,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "cormacbyrne",
@@ -1305,7 +1453,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-07"
+      }
     },
     {
       "key": "craigwhelan",
@@ -1336,7 +1488,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "damianconway",
@@ -1367,7 +1523,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-07"
+      }
     },
     {
       "key": "damianpippet",
@@ -1398,7 +1558,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "danmoriarty",
@@ -1429,7 +1593,11 @@
         3,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 17,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "darraghkavanagh",
@@ -1460,7 +1628,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 3,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "davidbrown",
@@ -1491,7 +1663,11 @@
         4,
         2,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 21,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "davidbrowne",
@@ -1522,7 +1698,11 @@
         5,
         3,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "davidgeraghty",
@@ -1553,7 +1733,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 1,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "davidhanway",
@@ -1584,7 +1768,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "davidmccoy",
@@ -1615,7 +1803,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 2,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "davidmulqueen",
@@ -1646,7 +1838,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "davidnolan",
@@ -1677,7 +1873,11 @@
         5,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 4,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "davidpickerill",
@@ -1708,7 +1908,11 @@
         4,
         5,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "davidroche",
@@ -1739,7 +1943,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "davidsmyth",
@@ -1770,7 +1978,11 @@
         4,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "davidsparling",
@@ -1801,7 +2013,11 @@
         4,
         5,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 17,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "davidwhelan",
@@ -1832,7 +2048,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "davidwinters",
@@ -1863,7 +2083,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "davidwoods",
@@ -1894,7 +2118,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "deanleonard",
@@ -1925,7 +2153,11 @@
         5,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 14,
+        "date": "2026-11-07"
+      }
     },
     {
       "key": "declancollins",
@@ -1956,7 +2188,11 @@
         null,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 22,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "declanmoore",
@@ -1987,7 +2223,11 @@
         5,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "declanmoriarty",
@@ -2018,7 +2258,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": -1,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "denisomahony",
@@ -2049,7 +2293,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "derekhughes",
@@ -2080,7 +2328,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "dereksherwin",
@@ -2111,7 +2363,11 @@
         4,
         null,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 18,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "dermotbmckenna",
@@ -2142,7 +2398,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 3,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "djkenna",
@@ -2173,7 +2433,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "dominicomalley",
@@ -2204,7 +2468,11 @@
         3,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 17,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "dondoyle",
@@ -2235,7 +2503,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "donfeeley",
@@ -2266,7 +2538,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "dylanfitzpatrick",
@@ -2297,7 +2573,11 @@
         3,
         3,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "eamonnharrington",
@@ -2328,7 +2608,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "edwardkelly",
@@ -2359,7 +2643,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "edwardmurphy",
@@ -2390,7 +2678,11 @@
         3,
         5,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "endakelly",
@@ -2421,7 +2713,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "eugenemccrystal",
@@ -2452,7 +2748,11 @@
         3,
         3,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "fergalkeogh",
@@ -2483,7 +2783,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "finnoreilly",
@@ -2514,7 +2818,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "frankcurran",
@@ -2545,7 +2853,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "frankdowdall",
@@ -2576,7 +2888,11 @@
         5,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "garethdelahunt",
@@ -2607,7 +2923,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "gavinpembrey",
@@ -2638,7 +2958,11 @@
         2,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "gerardomalley",
@@ -2669,7 +2993,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "germcguinness",
@@ -2700,7 +3028,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "gerryhawes",
@@ -2731,7 +3063,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 14,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "gerrymulligan",
@@ -2762,7 +3098,11 @@
         3,
         null,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "gordonharris",
@@ -2793,7 +3133,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 17,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "graemelang",
@@ -2824,7 +3168,11 @@
         4,
         4,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "grahamgeraghty",
@@ -2855,7 +3203,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "gregallen",
@@ -2886,7 +3238,11 @@
         2,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "gregbrett",
@@ -2917,7 +3273,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "hughobrien",
@@ -2948,7 +3308,11 @@
         5,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 26,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "ianbrown",
@@ -2979,7 +3343,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 5,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "ianobrien",
@@ -3010,7 +3378,11 @@
         5,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "jackgarry",
@@ -3041,7 +3413,11 @@
         3,
         2,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "jakeconnickmckenna",
@@ -3072,7 +3448,11 @@
         3,
         5,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 17,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "jamesdunne",
@@ -3103,7 +3483,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "jamesgormley",
@@ -3134,7 +3518,11 @@
         4,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "jamesmurphy",
@@ -3165,7 +3553,11 @@
         4,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "jamesnoctor",
@@ -3196,7 +3588,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "jamesphelan",
@@ -3227,7 +3623,11 @@
         2,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "jamesporter",
@@ -3258,7 +3658,11 @@
         3,
         5,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "jamiekiely",
@@ -3289,7 +3693,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 4,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "jcdoyle",
@@ -3320,7 +3728,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "jimgraham",
@@ -3351,7 +3763,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "joeneiland",
@@ -3382,7 +3798,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "johnbermingham",
@@ -3413,7 +3833,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 5,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "johndaly",
@@ -3444,7 +3868,11 @@
         3,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "johnkelly",
@@ -3475,7 +3903,11 @@
         5,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 14,
+        "date": "2026-11-07"
+      }
     },
     {
       "key": "johnmulqueen",
@@ -3506,7 +3938,11 @@
         5,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "johnnoonan",
@@ -3537,7 +3973,11 @@
         null,
         null,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "johnrawl",
@@ -3568,7 +4008,11 @@
         4,
         4,
         0
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 19,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "johnslattery",
@@ -3599,7 +4043,11 @@
         5,
         3,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "johnwaters",
@@ -3630,7 +4078,11 @@
         5,
         5,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "jonathontymlin",
@@ -3661,7 +4113,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "josephneilandjnr",
@@ -3692,7 +4148,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 3,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "joshuamccall",
@@ -3723,7 +4183,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 0,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "jpcomerford",
@@ -3754,7 +4218,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "justinosullivan",
@@ -3785,7 +4253,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "kennethbyrne",
@@ -3816,7 +4288,11 @@
         5,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "kennethgleeson",
@@ -3847,7 +4323,11 @@
         null,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 21,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "kenogrady",
@@ -3878,7 +4358,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 5,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "kevinbaker",
@@ -3909,7 +4393,11 @@
         3,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 5,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "kevinconroy",
@@ -3940,7 +4428,11 @@
         null,
         null,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "kevinfitzpatrick",
@@ -3971,7 +4463,11 @@
         null,
         4,
         null
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "kevinforsyth",
@@ -4002,7 +4498,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "kevinhealy",
@@ -4033,7 +4533,11 @@
         4,
         4,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "kevinloughnane",
@@ -4064,7 +4568,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 22,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "kieranryan",
@@ -4095,7 +4603,11 @@
         4,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 4,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "leslietbradshaw",
@@ -4126,7 +4638,11 @@
         null,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "liamfitzpatrick",
@@ -4157,7 +4673,11 @@
         3,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "liamheffernan",
@@ -4188,7 +4708,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 3,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "liamstones",
@@ -4219,7 +4743,11 @@
         null,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "lukebyrne",
@@ -4250,7 +4778,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 1,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "lukesheridan",
@@ -4281,7 +4813,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "markdiggin",
@@ -4312,7 +4848,11 @@
         5,
         5,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 14,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "markhayward",
@@ -4343,7 +4883,11 @@
         5,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "marklester",
@@ -4374,7 +4918,11 @@
         3,
         3,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 21,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "markmcelhinney",
@@ -4405,7 +4953,11 @@
         2,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "markosullivan",
@@ -4436,7 +4988,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 5,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "markpemberton",
@@ -4467,7 +5023,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "martinhegarty",
@@ -4498,7 +5058,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 14,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "martinlawlor",
@@ -4529,7 +5093,11 @@
         4,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "michaelanthonyoneill",
@@ -4560,7 +5128,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "michaelconnolly",
@@ -4591,7 +5163,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "michaelfarrell",
@@ -4622,7 +5198,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "michaelgeraghtyjnr",
@@ -4653,7 +5233,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 3,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "michaelmorgan",
@@ -4684,7 +5268,11 @@
         6,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "michaelneiland",
@@ -4715,7 +5303,11 @@
         2,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "michaeloneillsnr",
@@ -4746,7 +5338,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 16,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "michealgavin",
@@ -4777,7 +5373,11 @@
         2,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "mickduffy",
@@ -4808,7 +5408,11 @@
         3,
         3,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "morganfox",
@@ -4839,7 +5443,11 @@
         3,
         4,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 20,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "nedgaynor",
@@ -4870,7 +5478,11 @@
         5,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "neilcampbell",
@@ -4901,7 +5513,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "niallgibbons",
@@ -4932,7 +5548,11 @@
         5,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "niallhiggins",
@@ -4963,7 +5583,11 @@
         5,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "nicholasbyrne",
@@ -4994,7 +5618,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 19,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "nicholaskearns",
@@ -5025,7 +5653,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 21,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "noelfahy",
@@ -5056,7 +5688,11 @@
         4,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "owenmcconnell",
@@ -5087,7 +5723,11 @@
         3,
         null,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "padraicmarren",
@@ -5118,7 +5758,11 @@
         4,
         3,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "pascalburke",
@@ -5149,7 +5793,11 @@
         4,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 17,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "patbaker",
@@ -5180,7 +5828,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "patheffernan",
@@ -5211,7 +5863,11 @@
         4,
         4,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "patrickdaly",
@@ -5242,7 +5898,11 @@
         null,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "patrickdoyle",
@@ -5273,7 +5933,11 @@
         3,
         2,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "patrickkennelly",
@@ -5304,7 +5968,11 @@
         3,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "patsheehy",
@@ -5335,7 +6003,11 @@
         4,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 16,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "paulbeausang",
@@ -5366,7 +6038,11 @@
         5,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 21,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "paulbutler",
@@ -5397,7 +6073,11 @@
         null,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "paulfdeignan",
@@ -5428,7 +6108,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "paullong",
@@ -5459,7 +6143,11 @@
         4,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 17,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "paulmarah",
@@ -5490,7 +6178,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "paulmurphy",
@@ -5521,7 +6213,11 @@
         4,
         5,
         5
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 13,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "pauloneill",
@@ -5552,7 +6248,11 @@
         3,
         6,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 19,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "peterburgess",
@@ -5583,7 +6283,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "petermaughan",
@@ -5614,7 +6318,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 5,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "peterokeefe",
@@ -5645,7 +6353,11 @@
         4,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "philipbonus",
@@ -5676,7 +6388,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "philiposullivan",
@@ -5707,7 +6423,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "raykilty",
@@ -5738,7 +6458,11 @@
         null,
         null,
         null
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 22,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "raymondmcelhinney",
@@ -5769,7 +6493,11 @@
         3,
         4,
         null
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "raymoran",
@@ -5800,7 +6528,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "richardkelly",
@@ -5831,7 +6563,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 3,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "robertkiersey",
@@ -5862,7 +6598,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "robertpickerill",
@@ -5893,7 +6633,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 2,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "ronanlawlor",
@@ -5924,7 +6668,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "roryfahey",
@@ -5955,7 +6703,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 4,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "rossbeacom",
@@ -5986,7 +6738,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "rubenoneill",
@@ -6017,7 +6773,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-15"
+      }
     },
     {
       "key": "samueldowney",
@@ -6048,7 +6808,11 @@
         4,
         5,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 2,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "scottmcconnell",
@@ -6079,7 +6843,11 @@
         3,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "seamusoneill",
@@ -6110,7 +6878,11 @@
         4,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 16,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "seanalger",
@@ -6141,7 +6913,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "seancoyle",
@@ -6172,7 +6948,11 @@
         5,
         null,
         null
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "seankenny",
@@ -6203,7 +6983,11 @@
         null,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 6,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "seanmooney",
@@ -6234,7 +7018,11 @@
         null,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 15,
+        "date": "2026-10-31"
+      }
     },
     {
       "key": "shanegormley",
@@ -6265,7 +7053,11 @@
         3,
         5,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "shanemccormack",
@@ -6296,7 +7088,11 @@
         4,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 7,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "shanenewsome",
@@ -6327,7 +7123,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "stephenkenny",
@@ -6358,7 +7158,11 @@
         4,
         4,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 3,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "stephenkeogh",
@@ -6389,7 +7193,11 @@
         3,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 14,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "stephentymlin",
@@ -6420,7 +7228,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 12,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "terenceryan",
@@ -6451,7 +7263,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 5,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "theooleary",
@@ -6482,7 +7298,11 @@
         3,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "thomaskelly",
@@ -6513,7 +7333,11 @@
         4,
         3,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "thomasmcdougall",
@@ -6544,7 +7368,11 @@
         5,
         5,
         null
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "thomasodowd",
@@ -6575,7 +7403,11 @@
         5,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 16,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "timobrien",
@@ -6606,7 +7438,11 @@
         3,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 17,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "timothycummins",
@@ -6637,7 +7473,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 18,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "tomascurran",
@@ -6668,7 +7508,11 @@
         4,
         4,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "tomasoleary",
@@ -6699,7 +7543,11 @@
         4,
         4,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 14,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "tomkavanagh",
@@ -6730,7 +7578,11 @@
         5,
         5,
         null
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 21,
+        "date": "2026-11-01"
+      }
     },
     {
       "key": "tommcdaid",
@@ -6761,7 +7613,11 @@
         5,
         4,
         1
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 22,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "tonymccann",
@@ -6792,7 +7648,11 @@
         4,
         4,
         4
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 11,
+        "date": "2026-11-22"
+      }
     },
     {
       "key": "trevortownsend",
@@ -6823,7 +7683,11 @@
         4,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 8,
+        "date": "2026-11-21"
+      }
     },
     {
       "key": "walkerrainey",
@@ -6854,7 +7718,11 @@
         4,
         3,
         3
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 10,
+        "date": "2026-11-08"
+      }
     },
     {
       "key": "williamjohnson",
@@ -6885,7 +7753,11 @@
         5,
         5,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 16,
+        "date": "2026-11-14"
+      }
     },
     {
       "key": "williamseymour",
@@ -6916,7 +7788,11 @@
         3,
         3,
         2
-      ]
+      ],
+      "latestPlayingHandicap": {
+        "value": 9,
+        "date": "2026-11-15"
+      }
     }
   ]
 }

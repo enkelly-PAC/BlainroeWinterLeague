@@ -175,6 +175,8 @@ export async function buildEclectic(state, grossFiles, netFiles) {
         return value;
       });
       const row = players.get(identity);
+      if (!row.latestPlayingHandicap || card.date > row.latestPlayingHandicap.date)
+        row.latestPlayingHandicap = { value: net.handicap, date: card.date };
       for (const [field, scores] of [['gross', card.gross], ['net', values]])
         scores.forEach((value, i) => {
           if (value !== null && (row[field][i] === null || value < row[field][i])) row[field][i] = value;
@@ -221,6 +223,9 @@ export function validateEclectic(data, state, fingerprint) {
   if (!Array.isArray(data.players) || data.players.length !== pool.length ||
       new Set(data.players.map(row => row.key)).size !== pool.length) fail('Invalid eclectic player pool.');
   const keys = new Set(pool.map(row => row.key));
+  const latestCards = new Map();
+  for (const round of rounds) for (const card of round.cards)
+    latestCards.set(playerKey(card.player, state.identityBindings), { card, date: round.date });
   for (const row of data.players) {
     if (!keys.has(row.key)) fail('Unknown eclectic identity.');
     for (const field of ['gross', 'net'])
@@ -228,8 +233,23 @@ export function validateEclectic(data, state, fingerprint) {
           row[field].some(value => value !== null && (!Number.isInteger(value) || value < (field === 'gross' ? 1 : -100) || value > 1000)))
         fail('Invalid eclectic hole values.');
     if (row.gross.some((value, i) => (value === null) !== (row.net[i] === null))) fail('Gross and net missing holes disagree.');
+    if (row.latestPlayingHandicap !== undefined) {
+      const latest = row.latestPlayingHandicap, accepted = latestCards.get(row.key);
+      const sunday = new Date(Date.parse(`${accepted.date}T12:00:00Z`) + 86400000).toISOString().slice(0, 10);
+      if (!latest || typeof latest !== 'object' || Array.isArray(latest) ||
+          Object.keys(latest).some(key => !['value', 'date'].includes(key)) ||
+          !Number.isInteger(latest.value) || Math.abs(latest.value) > 100 ||
+          ![accepted.date, sunday].includes(latest.date) ||
+          accepted.card.handicap !== undefined && latest.value !== accepted.card.handicap)
+        fail('Invalid latest accepted playing handicap metadata.');
+    }
   }
   return data;
+}
+
+export function playingHandicapLabel(value) {
+  if (value === undefined) return 'Hcap unavailable';
+  return value < 0 ? `+${Math.abs(value)}` : String(value);
 }
 
 export function eclecticStandings(state, data, field) {

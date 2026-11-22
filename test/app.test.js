@@ -453,20 +453,26 @@ test('eclectic views show all verified rows, sort numeric holes, share scrolling
   assert.match($('net-eclectic-provenance').textContent, new RegExp(data.sourceFingerprint));
   for (const field of ['gross', 'net']) {
     const id = `${field}-eclectic-table`;
+    const endaName = field === 'gross' ? 'Enda Kelly' : 'Enda Kelly (7)';
     let view = renderedTable($, id);
     assert.equal(view.rows.length, 219);
-    assert.equal(view.rows.find(row => row[1] === 'Enda Kelly')[17], field === 'gross' ? '49' : '42');
-    assert.equal(view.rows.find(row => row[1] === 'Enda Kelly')[2], '4');
+    assert.equal(view.rows.find(row => row[1] === endaName)[17], field === 'gross' ? '49' : '42');
+    assert.equal(view.rows.find(row => row[1] === endaName)[2], '4');
     assert.deepEqual(view.head.children[0].children.map(cell => cell.children[0].children[0].textContent),
       ['Overall', 'Name', 'Rounds', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Out', '10', '11', '15', 'In', field === 'gross' ? 'Gross' : 'Nett']);
     assert.deepEqual(view.head.children[1].children.map(cell => cell.textContent),
       ['', 'Par', '', '4', '4', '4', '5', '5', '4', '4', '3', '4', '37', '4', '4', '3', '11', '48']);
-    const enda = view.body.children.find(row => row.children[1].textContent === 'Enda Kelly');
+    const enda = view.body.children.find(row => row.children[1].textContent === endaName);
+    if (field === 'net') {
+      assert.match(enda.children[1].getAttribute('aria-label'), /source card 2026-11-21.*Display only/);
+      assert.ok(view.rows.some(row => row[1] === 'Joshua McCall (0)'));
+      assert.ok(view.rows.some(row => row[1] === 'Declan Moriarty (+1)'));
+    }
     assert.equal(enda.children[12].textContent, field === 'gross' ? '37' : '32');
     assert.equal(enda.children[16].textContent, field === 'gross' ? '12' : '10');
     assert.match(enda.children[field === 'gross' ? 3 : 5].className, field === 'gross' ? /score-par/ : /score-eagle/);
     assert.match(enda.children[3].getAttribute('aria-label'), field === 'gross' ? /Gross hole 1.*par 4/ : /Nett hole 1.*Net relative to par/);
-    assert.equal(view.rows.find(row => row[1] === 'Barry Timmins')[12], 'NA');
+    assert.equal(view.rows.find(row => field === 'gross' ? row[1] === 'Barry Timmins' : row[1].startsWith('Barry Timmins ('))[12], 'NA');
     assert.equal(view.rows.at(-1)[0], 'Unranked');
     assert.equal(view.rows.at(-1)[17], 'NA');
     await view.buttons[3].emit('click');
@@ -474,6 +480,12 @@ test('eclectic views show all verified rows, sort numeric holes, share scrolling
     const numbers = view.rows.map(row => row[3]).filter(value => value !== 'NA').map(Number);
     assert.deepEqual(numbers, [...numbers].sort((a, b) => a - b));
     assert.equal(view.rows.at(-1)[3], 'NA');
+    if (field === 'net') {
+      await view.buttons[1].emit('click');
+      const plain = renderedTable($, id).rows.map(row => row[1].slice(0, row[1].lastIndexOf(' (')));
+      const collator = new Intl.Collator('en-GB', { sensitivity: 'base', numeric: true });
+      assert.deepEqual(plain, [...plain].sort(collator.compare));
+    }
     const controls = scrollControls($, id);
     controls.wrapper.clientWidth = 300; controls.wrapper.scrollWidth = 1200;
     await $('tab-' + field + '-eclectic').emit('click');
@@ -481,6 +493,16 @@ test('eclectic views show all verified rows, sort numeric holes, share scrolling
     await controls.right.emit('click');
     assert.equal(controls.wrapper.scrollLeft, 225);
   }
+  const legacy = structuredClone(data);
+  for (const row of legacy.players) delete row.latestPlayingHandicap;
+  setEclectic(legacy);
+  await $('refresh').emit('click');
+  const legacyName = renderedTable($, 'net-eclectic-table').rows.find(row => row[1] === 'Enda Kelly (Hcap unavailable)');
+  assert.equal(legacyName[17], '42');
+  assert.ok(renderedTable($, 'gross-eclectic-table').rows.some(row => row[1] === 'Enda Kelly'));
+  assert.doesNotMatch(contents($('net-insights-content')), /Enda Kelly \(/);
+  setEclectic(data);
+  await $('refresh').emit('click');
   const changed = structuredClone(state); changed.rounds[0].cards[0].score++;
   setPublished(changed);
   await $('refresh').emit('click');
@@ -515,7 +537,7 @@ test('eclectic views show all verified rows, sort numeric holes, share scrolling
   const sorted = insightView.rows;
   await $('published-view').emit('click');
   assert.deepEqual(renderedTable(insightNode, 'net-insights-holes').rows, sorted);
-  assert.equal(renderedTable($, 'net-eclectic-table').rows.find(row => row[1] === 'Enda Kelly')[17], '42');
+  assert.equal(renderedTable($, 'net-eclectic-table').rows.find(row => row[1] === 'Enda Kelly (7)')[17], '42');
 });
 test('table headers sort numeric points and natural team names both ways without changing ranks or stored state', async t => {
   const state = sortingFixture(), original = JSON.stringify(state);

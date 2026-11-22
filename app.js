@@ -4,7 +4,7 @@ import { synchroniseDraft, protectPublishedHistory } from './publication.js';
 import { createLeaderboardPDF, createSinglesPDF } from './leaderboard-pdf.js?v=20261122-2';
 import { weekendCards } from './leaderboard-layout.js';
 import { memberUpdate } from './member-update.js';
-import { ECLECTIC_HOLES, ECLECTIC_PARS, ECLECTIC_CATEGORIES, eclecticFingerprint, validateEclectic, eclecticStandings, eclecticDisplayRows, eclecticCategory, eclecticSubtotal, eclecticInsights } from './eclectic.js?v=20261122-4';
+import { ECLECTIC_HOLES, ECLECTIC_PARS, ECLECTIC_CATEGORIES, eclecticFingerprint, validateEclectic, eclecticStandings, eclecticDisplayRows, eclecticCategory, eclecticSubtotal, eclecticInsights, playingHandicapLabel } from './eclectic.js?v=20261122-5';
 
 const $ = id => document.getElementById(id);
 // Keep all import types together in the secondary committee view.
@@ -496,6 +496,7 @@ function renderEclectics(state) {
     }
     const result = eclecticStandings(state, eclecticData, field);
     const rows = eclecticDisplayRows(state, eclecticData, field);
+    const handicaps = new Map(eclecticData.players.map(row => [row.key, row.latestPlayingHandicap]));
     $(`${id}-summary`).textContent = `${result.rows.length} players: ${result.complete} complete, ${result.incomplete} incomplete. ${eclecticData.acceptedCards} accepted cards across ${eclecticData.coverage.length} weekends.`;
     $(`${id}-provenance`).textContent = `Source-verified coverage: ${eclecticData.coverage.map(round => `${round.date} (${round.acceptedCards} accepted cards, Saturday and Sunday)`).join('; ')}. Source fingerprint: ${eclecticData.sourceFingerprint}.`;
     table(`${id}-table`, `Published ${title}: best individual hole scores`, [
@@ -509,7 +510,13 @@ function renderEclectics(state) {
       { key: 'In', label: 'In', className: 'total-column' },
       { key: 'Total', label: field === 'gross' ? 'Gross' : 'Nett', className: 'total-column' }
     ], rows.map(row => [
-      { ...displayCell(row.rank ?? 'Unranked', row.rank), rowClass: row.rank <= 3 && row.rank !== null ? `rank-${row.rank}` : '' }, row.player,
+      { ...displayCell(row.rank ?? 'Unranked', row.rank), rowClass: row.rank <= 3 && row.rank !== null ? `rank-${row.rank}` : '' },
+      field === 'gross' ? row.player : {
+        ...displayCell(`${row.player} (${playingHandicapLabel(handicaps.get(row.key)?.value)})`, row.player),
+        detail: handicaps.has(row.key) && handicaps.get(row.key)
+          ? `${row.player}: latest accepted Winter playing handicap ${playingHandicapLabel(handicaps.get(row.key).value)}, source card ${handicaps.get(row.key).date}. Display only, not a Handicap Index; nett minima remain as-played.`
+          : `${row.player}: latest accepted playing handicap unavailable in this legacy packet. No older value has been substituted.`
+      },
       row.rounds, ...row.holes.flatMap((value, i) => [
         eclecticScoreCell(value, i, field), ...(i === 8 ? [displayCell(row.out ?? 'NA', row.out)] : [])
       ]), displayCell(row.in ?? 'NA', row.in), displayCell(row.total ?? 'NA', row.total)
